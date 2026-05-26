@@ -385,7 +385,7 @@ fn data_dir() -> PathBuf {
         .unwrap_or_else(|| {
             PathBuf::from(env::var("HOME").unwrap_or_default()).join(".local/share")
         });
-    xdg.join("agent-workspace-tui")
+    xdg.join("amux")
 }
 
 fn config_path() -> PathBuf {

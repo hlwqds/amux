@@ -21,21 +21,21 @@ jobs:
         run: cargo build --release --locked
 
       - name: Strip binary
-        run: strip target/release/agent-workspace-tui
+        run: strip target/release/amux
 
       - name: Package
         run: |
           mkdir -p dist
-          cp target/release/agent-workspace-tui dist/
-          tar -czf dist/agent-workspace-tui-x86_64-linux.tar.gz -C dist agent-workspace-tui
+          cp target/release/amux dist/
+          tar -czf dist/amux-x86_64-linux.tar.gz -C dist amux
 
       - name: Generate SHA256
-        run: sha256sum dist/agent-workspace-tui-x86_64-linux.tar.gz > dist/sha256sums.txt
+        run: sha256sum dist/amux-x86_64-linux.tar.gz > dist/sha256sums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/agent-workspace-tui-x86_64-linux.tar.gz
+            dist/amux-x86_64-linux.tar.gz
             dist/sha256sums.txt
           generate_release_notes: true
