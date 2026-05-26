@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Strip binary
+        run: strip target/release/agent-workspace-tui
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/release/agent-workspace-tui dist/
+          tar -czf dist/agent-workspace-tui-x86_64-linux.tar.gz -C dist agent-workspace-tui
+
+      - name: Generate SHA256
+        run: sha256sum dist/agent-workspace-tui-x86_64-linux.tar.gz > dist/sha256sums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/agent-workspace-tui-x86_64-linux.tar.gz
+            dist/sha256sums.txt
+          generate_release_notes: true
