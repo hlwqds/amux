@@ -450,7 +450,7 @@ fn discover_workspaces_from_fs() -> Vec<Workspace> {
             }
         })
         .collect();
-    ws.sort_by(|a, b| a.name.cmp(&b.name));
+    ws.sort_by_key(|a| a.name.clone());
     ws
 }
 
@@ -524,7 +524,7 @@ fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
     let mut sessions = Vec::new();
     discover_claude_sessions(workspaces, &mut sessions);
     discover_codex_sessions(workspaces, &mut sessions);
-    sessions.sort_by(|a, b| b.last_active.cmp(&a.last_active));
+    sessions.sort_by_key(|b| std::cmp::Reverse(b.last_active));
     sessions
 }
 
@@ -1257,27 +1257,27 @@ impl App {
             KeyCode::Enter => {
                 self.confirm_input()?;
             }
-            KeyCode::Char('c') | KeyCode::Char('C') => {
-                if self.available_agents.contains(&Agent::Claude) {
-                    self.agent_state.select(Some(
-                        self.available_agents
-                            .iter()
-                            .position(|a| *a == Agent::Claude)
-                            .unwrap(),
-                    ));
-                    self.confirm_input()?;
-                }
+            KeyCode::Char('c') | KeyCode::Char('C')
+                if self.available_agents.contains(&Agent::Claude) =>
+            {
+                self.agent_state.select(Some(
+                    self.available_agents
+                        .iter()
+                        .position(|a| *a == Agent::Claude)
+                        .unwrap(),
+                ));
+                self.confirm_input()?;
             }
-            KeyCode::Char('x') | KeyCode::Char('X') => {
-                if self.available_agents.contains(&Agent::Codex) {
-                    self.agent_state.select(Some(
-                        self.available_agents
-                            .iter()
-                            .position(|a| *a == Agent::Codex)
-                            .unwrap(),
-                    ));
-                    self.confirm_input()?;
-                }
+            KeyCode::Char('x') | KeyCode::Char('X')
+                if self.available_agents.contains(&Agent::Codex) =>
+            {
+                self.agent_state.select(Some(
+                    self.available_agents
+                        .iter()
+                        .position(|a| *a == Agent::Codex)
+                        .unwrap(),
+                ));
+                self.confirm_input()?;
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 let len = self.available_agents.len();
@@ -1469,21 +1469,17 @@ impl App {
 
     fn start_rename(&mut self) {
         match self.selected_node().cloned() {
-            Some(TreeNode::Workspace(wi)) => {
-                if wi < self.workspaces.len() {
-                    self.input_mode = InputMode::RenameWorkspace;
-                    self.rename_workspace_target = Some(wi);
-                    self.input_buffer = self.workspaces[wi].name.clone();
-                    self.status = "Edit workspace name (Enter=confirm, Esc=cancel):".into();
-                }
+            Some(TreeNode::Workspace(wi)) if wi < self.workspaces.len() => {
+                self.input_mode = InputMode::RenameWorkspace;
+                self.rename_workspace_target = Some(wi);
+                self.input_buffer = self.workspaces[wi].name.clone();
+                self.status = "Edit workspace name (Enter=confirm, Esc=cancel):".into();
             }
-            Some(TreeNode::Session(_, si)) => {
-                if si < self.sessions.len() {
-                    self.input_mode = InputMode::RenameSession;
-                    self.rename_target = Some(si);
-                    self.input_buffer = self.sessions[si].title.clone();
-                    self.status = "Edit session name (Enter=confirm, Esc=cancel):".into();
-                }
+            Some(TreeNode::Session(_, si)) if si < self.sessions.len() => {
+                self.input_mode = InputMode::RenameSession;
+                self.rename_target = Some(si);
+                self.input_buffer = self.sessions[si].title.clone();
+                self.status = "Edit session name (Enter=confirm, Esc=cancel):".into();
             }
             _ => {}
         }
@@ -1546,7 +1542,7 @@ impl App {
                     })
                 })
                 .collect();
-            subdirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            subdirs.sort_by_key(|a| a.name.to_lowercase());
             entries.extend(subdirs);
         }
 
@@ -2424,14 +2420,10 @@ fn main() -> Result<()> {
 
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
-                Event::Key(key) => {
-                    if key.kind == KeyEventKind::Press {
-                        match app.handle_key(key)? {
-                            Action::Continue => {}
-                            Action::Quit => break Ok(()),
-                        }
-                    }
-                }
+                Event::Key(key) if key.kind == KeyEventKind::Press => match app.handle_key(key)? {
+                    Action::Continue => {}
+                    Action::Quit => break Ok(()),
+                },
                 Event::Paste(text) => {
                     app.handle_paste(&text)?;
                 }
