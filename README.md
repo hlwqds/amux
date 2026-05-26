@@ -1,38 +1,74 @@
-# Agent Workspace TUI
+# amux
 
-A keyboard-first terminal workspace switcher for local agent/code projects.
+**Agent Multiplexer** — a keyboard-first terminal UI for managing AI coding agent workspaces and sessions.
 
-## Run
+A single binary that aggregates your projects, discovers Claude Code and Codex sessions, and lets you create, resume, and switch between agent sessions — all without leaving the terminal.
+
+## Features
+
+- **Multi-workspace management** — sidebar with project workspaces, expandable session lists
+- **Multi-agent support** — Claude Code and Codex, with an agent picker when creating sessions
+- **PTY-embedded sessions** — agents run inside the TUI via PTY, no external windows needed
+- **Session persistence** — discovers existing sessions from `~/.claude/projects` and `~/.codex/sessions`
+- **Virtual workspaces** — create workspaces not bound to any local directory
+- **Renaming** — rename workspaces and sessions inline
+- **Config persistence** — XDG-compliant data directory (`~/.local/share/amux/`)
+
+## Install
+
+Download from [GitHub Releases](https://github.com/hlwqds/amux/releases):
 
 ```bash
-cargo run
+tar xzf amux-x86_64-linux.tar.gz
+chmod +x amux
+sudo mv amux /usr/local/bin/
 ```
 
-By default it scans sibling directories of the current repository and treats any
-directory containing `.git` as a workspace.
-
-To control the workspace list explicitly:
+Or build from source:
 
 ```bash
-AGENT_WORKSPACES="/home/huanglin/code/foo:/home/huanglin/code/bar" cargo run
+cargo build --release
+cp target/release/amux /usr/local/bin/
 ```
 
-## Keys
+## Usage
 
-- `j` / `k` or arrows: move selection
-- `h` / `l` or `Tab`: switch pane
-- `/`: search workspaces and sessions
-- `Enter`: open a shell in the selected workspace
-- `q` or `Esc`: quit
+```bash
+amux
+```
 
-## Session Sources
+On first run, amux auto-discovers git repositories in the parent directory of your current working directory. You can also create workspaces manually.
 
-The first version discovers sessions from local project files:
+## Keybindings
 
-- `.codex/sessions`
-- `.gsd/activity`
-- `.claude/projects`
-- `.git/refs/heads`
+| Key | Action |
+|-----|--------|
+| `j` / `k` / arrows | Move selection |
+| `h` / `l` / `Tab` | Switch between sidebar and terminal |
+| `Enter` | Open or resume session |
+| `N` | Create new workspace |
+| `D` | Delete workspace or session |
+| `R` | Rename workspace or session |
+| `n` | New session (opens agent picker) |
+| `c` / `x` | Quick create Claude / Codex session |
+| `Ctrl+J` / `Ctrl+K` | Switch between active PTY tabs |
+| `/` | Search workspaces and sessions |
+| `q` | Quit |
 
-The TUI is intentionally local-first. It does not need a daemon or GUI process
-to give you a consolidated workspace/session view.
+## Data Directory
+
+```
+~/.local/share/amux/
+├── config.json          # workspace list and settings
+├── sessions/            # session title overrides
+└── workspaces/          # isolated cwd for virtual workspaces
+```
+
+## Requirements
+
+- Linux x86_64
+- Claude Code CLI and/or Codex CLI installed (for agent sessions)
+
+## License
+
+MIT
