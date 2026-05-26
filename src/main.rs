@@ -132,18 +132,17 @@ impl Agent {
     fn sessions_dir(&self) -> Option<PathBuf> {
         match self {
             Agent::Claude => {
-                let dir = PathBuf::from(env::var("HOME").unwrap_or_default())
-                    .join(".claude/projects");
+                let dir =
+                    PathBuf::from(env::var("HOME").unwrap_or_default()).join(".claude/projects");
                 if dir.exists() { Some(dir) } else { None }
             }
             Agent::Codex => {
-                let dir = PathBuf::from(env::var("HOME").unwrap_or_default())
-                    .join(".codex/sessions");
+                let dir =
+                    PathBuf::from(env::var("HOME").unwrap_or_default()).join(".codex/sessions");
                 if dir.exists() { Some(dir) } else { None }
             }
         }
     }
-
 }
 
 fn detect_agents() -> Vec<Agent> {
@@ -383,7 +382,9 @@ impl PtyHandle {
 fn data_dir() -> PathBuf {
     let xdg = env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env::var("HOME").unwrap_or_default()).join(".local/share"));
+        .unwrap_or_else(|| {
+            PathBuf::from(env::var("HOME").unwrap_or_default()).join(".local/share")
+        });
     xdg.join("agent-workspace-tui")
 }
 
@@ -411,8 +412,7 @@ fn load_config() -> Result<Config> {
         });
     }
     let content = fs::read_to_string(&path).context("failed to read config.json")?;
-    let config: Config =
-        serde_json::from_str(&content).context("failed to parse config.json")?;
+    let config: Config = serde_json::from_str(&content).context("failed to parse config.json")?;
     Ok(config)
 }
 
@@ -479,7 +479,9 @@ fn claude_projects_dir() -> PathBuf {
 
 /// Custom title override stored in our data directory.
 fn title_override_path(session_id: &str) -> PathBuf {
-    data_dir().join("sessions").join(format!("{}.title", session_id))
+    data_dir()
+        .join("sessions")
+        .join(format!("{}.title", session_id))
 }
 
 /// Legacy title override from Claude's project dir (fallback).
@@ -531,7 +533,9 @@ fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
         Agent::Claude => {
             let projects_dir = Agent::Claude.sessions_dir()?;
             let encoded = encode_project_path(&session.workspace_path);
-            let path = projects_dir.join(encoded).join(format!("{}.jsonl", session.id));
+            let path = projects_dir
+                .join(encoded)
+                .join(format!("{}.jsonl", session.id));
             if path.exists() { Some(path) } else { None }
         }
         Agent::Codex => {
@@ -546,13 +550,19 @@ fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
 fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
     if let Ok(years) = fs::read_dir(root) {
         for year in years.flatten() {
-            if !year.path().is_dir() { continue; }
+            if !year.path().is_dir() {
+                continue;
+            }
             if let Ok(months) = fs::read_dir(year.path()) {
                 for month in months.flatten() {
-                    if !month.path().is_dir() { continue; }
+                    if !month.path().is_dir() {
+                        continue;
+                    }
                     if let Ok(days) = fs::read_dir(month.path()) {
                         for day in days.flatten() {
-                            if !day.path().is_dir() { continue; }
+                            if !day.path().is_dir() {
+                                continue;
+                            }
                             if let Ok(files) = fs::read_dir(day.path()) {
                                 for file in files.flatten() {
                                     let path = file.path();
@@ -560,10 +570,10 @@ fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
                                         continue;
                                     }
                                     // Quick check: see if the file contains this session ID
-                                    if let Ok(content) = fs::read_to_string(&path) {
-                                        if content.contains(session_id) {
-                                            return Some(path);
-                                        }
+                                    if let Ok(content) = fs::read_to_string(&path)
+                                        && content.contains(session_id)
+                                    {
+                                        return Some(path);
                                     }
                                 }
                             }
@@ -600,7 +610,11 @@ fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
             if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
                 continue;
             }
-            let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("?").to_string();
+            let id = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("?")
+                .to_string();
             let last_active = fs::metadata(&path)
                 .ok()
                 .and_then(|m| m.modified().ok())
@@ -627,9 +641,13 @@ fn extract_claude_title(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     for line in content.lines() {
         let record: ClaudeRecord = serde_json::from_str(line).ok()?;
-        if record.record_type.as_deref() != Some("user") { continue; }
+        if record.record_type.as_deref() != Some("user") {
+            continue;
+        }
         let msg = record.message?;
-        if msg.role.as_deref() != Some("user") { continue; }
+        if msg.role.as_deref() != Some("user") {
+            continue;
+        }
         let text = extract_text_from_content(msg.content?)?;
         let cleaned = clean_user_message(&text);
         if !cleaned.is_empty() {
@@ -646,24 +664,33 @@ fn discover_codex_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
     };
 
     // Collect valid workspace paths (with HOME as fallback for virtual)
-    let ws_paths: Vec<PathBuf> = workspaces.iter().map(|ws| {
-        ws.path.clone().unwrap_or_else(|| {
-            let dir = data_dir().join("workspaces").join(&ws.id);
-            let _ = fs::create_dir_all(&dir);
-            dir
+    let ws_paths: Vec<PathBuf> = workspaces
+        .iter()
+        .map(|ws| {
+            ws.path.clone().unwrap_or_else(|| {
+                let dir = data_dir().join("workspaces").join(&ws.id);
+                let _ = fs::create_dir_all(&dir);
+                dir
+            })
         })
-    }).collect();
+        .collect();
 
     // Walk sessions/YYYY/MM/DD/*.jsonl
     if let Ok(years) = fs::read_dir(&sessions_root) {
         for year in years.flatten() {
-            if !year.path().is_dir() { continue; }
+            if !year.path().is_dir() {
+                continue;
+            }
             if let Ok(months) = fs::read_dir(year.path()) {
                 for month in months.flatten() {
-                    if !month.path().is_dir() { continue; }
+                    if !month.path().is_dir() {
+                        continue;
+                    }
                     if let Ok(days) = fs::read_dir(month.path()) {
                         for day in days.flatten() {
-                            if !day.path().is_dir() { continue; }
+                            if !day.path().is_dir() {
+                                continue;
+                            }
                             if let Ok(files) = fs::read_dir(day.path()) {
                                 for file in files.flatten() {
                                     let path = file.path();
@@ -678,10 +705,13 @@ fn discover_codex_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                                     };
 
                                     // Find which workspace this belongs to
-                                    let ws_path = ws_paths.iter()
+                                    let ws_path = ws_paths
+                                        .iter()
                                         .find(|p| cwd == p.to_string_lossy().as_ref())
                                         .cloned()
-                                        .unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
+                                        .unwrap_or_else(|| {
+                                            ws_paths.first().cloned().unwrap_or_default()
+                                        });
 
                                     let last_active = fs::metadata(&path)
                                         .ok()
@@ -721,7 +751,11 @@ fn parse_codex_session(path: &Path) -> Option<(String, Option<String>, String)> 
             "session_meta" => {
                 let p = record.get("payload")?;
                 id = p.get("id")?.as_str()?.to_string();
-                cwd = p.get("cwd").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                cwd = p
+                    .get("cwd")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
             }
             "user_message" if first_user_msg.is_none() => {
                 let text = record.get("payload")?.get("text")?.as_str()?;
@@ -736,17 +770,19 @@ fn parse_codex_session(path: &Path) -> Option<(String, Option<String>, String)> 
         }
     }
 
-    if id.is_empty() { return None; }
+    if id.is_empty() {
+        return None;
+    }
     Some((id, first_user_msg, cwd))
 }
 
 fn clean_user_message(text: &str) -> String {
     let mut cleaned = text.to_string();
 
-    if let Some(start) = cleaned.find("P>|") {
-        if let Some(end) = cleaned[start..].find('\\') {
-            cleaned = format!("{}{}", &cleaned[..start], &cleaned[start + end + 1..]);
-        }
+    if let Some(start) = cleaned.find("P>|")
+        && let Some(end) = cleaned[start..].find('\\')
+    {
+        cleaned = format!("{}{}", &cleaned[..start], &cleaned[start + end + 1..]);
     }
 
     let noise_prefixes = ["\x1b", "P>|", "P<|"];
@@ -765,10 +801,10 @@ fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
         serde_json::Value::Array(arr) => {
             let mut texts = Vec::new();
             for item in arr {
-                if item.get("type").and_then(|v| v.as_str()) == Some("text") {
-                    if let Some(t) = item.get("text").and_then(|v| v.as_str()) {
-                        texts.push(t.to_string());
-                    }
+                if item.get("type").and_then(|v| v.as_str()) == Some("text")
+                    && let Some(t) = item.get("text").and_then(|v| v.as_str())
+                {
+                    texts.push(t.to_string());
                 }
             }
             if texts.is_empty() {
@@ -811,15 +847,15 @@ struct App {
     focus: Focus,
     input_mode: InputMode,
     input_buffer: String,
-    rename_target: Option<usize>, // session index for rename
+    rename_target: Option<usize>,           // session index for rename
     rename_workspace_target: Option<usize>, // workspace index for rename
-    new_workspace_name: Option<String>, // temp name during workspace creation
-    pending_session_name: Option<String>, // name entered before agent selection
-    available_agents: Vec<Agent>, // detected at startup
-    agent_state: ListState, // selection state for agent picker
-    browse_dir: PathBuf,          // current directory in browser
-    browse_entries: Vec<DirEntry>, // cached directory listing
-    browse_state: ListState,      // selection state for browser
+    new_workspace_name: Option<String>,     // temp name during workspace creation
+    pending_session_name: Option<String>,   // name entered before agent selection
+    available_agents: Vec<Agent>,           // detected at startup
+    agent_state: ListState,                 // selection state for agent picker
+    browse_dir: PathBuf,                    // current directory in browser
+    browse_entries: Vec<DirEntry>,          // cached directory listing
+    browse_state: ListState,                // selection state for browser
     ptys: Vec<PtySlot>,
     active_pty: Option<usize>, // which PTY is shown in chat area
     status: String,
@@ -888,19 +924,21 @@ impl App {
         // Auto-remove dead Codex sessions (no resume support)
         let before = self.ptys.len();
         self.ptys.retain(|slot| {
-            if slot.info.agent == Agent::Codex
-                && !slot.handle.alive.load(Ordering::Relaxed)
-            {
+            if slot.info.agent == Agent::Codex && !slot.handle.alive.load(Ordering::Relaxed) {
                 return false;
             }
             true
         });
         if self.ptys.len() != before {
             // Fix active_pty index if needed
-            if let Some(cur) = self.active_pty {
-                if cur >= self.ptys.len() {
-                    self.active_pty = if self.ptys.is_empty() { None } else { Some(self.ptys.len() - 1) };
-                }
+            if let Some(cur) = self.active_pty
+                && cur >= self.ptys.len()
+            {
+                self.active_pty = if self.ptys.is_empty() {
+                    None
+                } else {
+                    Some(self.ptys.len() - 1)
+                };
             }
             self.rebuild_tree();
         }
@@ -924,13 +962,13 @@ impl App {
 
         // Link newly created sessions to running PTYs
         for slot in &mut self.ptys {
-            if slot.info.session_id.is_none() {
-                if let Some(found) = self.sessions.iter().find(|s| {
+            if slot.info.session_id.is_none()
+                && let Some(found) = self.sessions.iter().find(|s| {
                     s.workspace_path == slot.info.workspace_path
                         && s.last_active >= slot.info.started_at
-                }) {
-                    slot.info.session_id = Some(found.id.clone());
-                }
+                })
+            {
+                slot.info.session_id = Some(found.id.clone());
             }
         }
 
@@ -1022,33 +1060,33 @@ impl App {
                     return Ok(Action::Continue);
                 }
                 // Ctrl+J / Ctrl+K: switch between active PTYs
-                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    if key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k') {
-                        if self.ptys.len() > 1 {
-                            let cur = self.active_pty.unwrap_or(0);
-                            let delta = if key.code == KeyCode::Char('j') {
-                                1isize
-                            } else {
-                                -1
-                            };
-                            let next = ((cur as isize + delta).rem_euclid(self.ptys.len() as isize))
-                                as usize;
-                            self.active_pty = Some(next);
-                            self.status = format!(
-                                "Switched to: {} ({}/{})",
-                                self.ptys[next].info.title,
-                                next + 1,
-                                self.ptys.len()
-                            );
-                        }
-                        return Ok(Action::Continue);
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
+                {
+                    if self.ptys.len() > 1 {
+                        let cur = self.active_pty.unwrap_or(0);
+                        let delta = if key.code == KeyCode::Char('j') {
+                            1isize
+                        } else {
+                            -1
+                        };
+                        let next =
+                            ((cur as isize + delta).rem_euclid(self.ptys.len() as isize)) as usize;
+                        self.active_pty = Some(next);
+                        self.status = format!(
+                            "Switched to: {} ({}/{})",
+                            self.ptys[next].info.title,
+                            next + 1,
+                            self.ptys.len()
+                        );
                     }
+                    return Ok(Action::Continue);
                 }
                 let bytes = key_to_bytes(&key);
-                if !bytes.is_empty() {
-                    if let Some(slot) = self.ptys.get(idx) {
-                        slot.handle.write_input(&bytes);
-                    }
+                if !bytes.is_empty()
+                    && let Some(slot) = self.ptys.get(idx)
+                {
+                    slot.handle.write_input(&bytes);
                 }
                 return Ok(Action::Continue);
             }
@@ -1222,7 +1260,10 @@ impl App {
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 if self.available_agents.contains(&Agent::Claude) {
                     self.agent_state.select(Some(
-                        self.available_agents.iter().position(|a| *a == Agent::Claude).unwrap()
+                        self.available_agents
+                            .iter()
+                            .position(|a| *a == Agent::Claude)
+                            .unwrap(),
                     ));
                     self.confirm_input()?;
                 }
@@ -1230,7 +1271,10 @@ impl App {
             KeyCode::Char('x') | KeyCode::Char('X') => {
                 if self.available_agents.contains(&Agent::Codex) {
                     self.agent_state.select(Some(
-                        self.available_agents.iter().position(|a| *a == Agent::Codex).unwrap()
+                        self.available_agents
+                            .iter()
+                            .position(|a| *a == Agent::Codex)
+                            .unwrap(),
                     ));
                     self.confirm_input()?;
                 }
@@ -1270,7 +1314,9 @@ impl App {
                 let display_name = name.clone().unwrap_or_else(|| "unnamed".into());
                 self.status = format!(
                     "Starting {} '{}' in {}...",
-                    agent.label(), display_name, self.workspaces[wi].name
+                    agent.label(),
+                    display_name,
+                    self.workspaces[wi].name
                 );
                 let pty = PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size)
                     .context(format!("failed to spawn {}", agent.label()))?;
@@ -1331,12 +1377,11 @@ impl App {
     fn handle_paste(&mut self, text: &str) -> Result<Action> {
         if self.input_mode != InputMode::None {
             self.input_buffer.push_str(text);
-        } else if self.focus == Focus::Chat {
-            if let Some(idx) = self.active_pty {
-                if let Some(slot) = self.ptys.get(idx) {
-                    slot.handle.write_input(text.as_bytes());
-                }
-            }
+        } else if self.focus == Focus::Chat
+            && let Some(idx) = self.active_pty
+            && let Some(slot) = self.ptys.get(idx)
+        {
+            slot.handle.write_input(text.as_bytes());
         }
         Ok(Action::Continue)
     }
@@ -1359,7 +1404,8 @@ impl App {
                 } else {
                     self.input_mode = InputMode::SelectAgent;
                     self.agent_state.select(Some(0));
-                    self.status = "Select agent \u{00b7} Enter to confirm \u{00b7} Esc to cancel".into();
+                    self.status =
+                        "Select agent \u{00b7} Enter to confirm \u{00b7} Esc to cancel".into();
                 }
             }
             InputMode::RenameSession => {
@@ -1407,12 +1453,12 @@ impl App {
                 self.rename_workspace_target = None;
             }
             InputMode::SelectAgent => {
-                if let Some(idx) = self.agent_state.selected() {
-                    if let Some(&agent) = self.available_agents.get(idx) {
-                        self.input_mode = InputMode::None;
-                        self.spawn_session(agent)?;
-                        return Ok(());
-                    }
+                if let Some(idx) = self.agent_state.selected()
+                    && let Some(&agent) = self.available_agents.get(idx)
+                {
+                    self.input_mode = InputMode::None;
+                    self.spawn_session(agent)?;
+                    return Ok(());
                 }
                 self.input_mode = InputMode::None;
             }
@@ -1539,7 +1585,11 @@ impl App {
                     created_at: now_secs(),
                     expanded: true,
                 };
-                self.status = format!("Created workspace: {} \u{2192} {}", ws.name, ws.path.as_ref().unwrap().display());
+                self.status = format!(
+                    "Created workspace: {} \u{2192} {}",
+                    ws.name,
+                    ws.path.as_ref().unwrap().display()
+                );
                 self.workspaces.push(ws);
                 self.save_config();
                 self.rebuild_tree();
@@ -1590,15 +1640,21 @@ impl App {
                 self.status = format!("Deleted workspace: {}", name);
             }
             Some(TreeNode::Session(_wi, si)) => {
-                if si >= self.sessions.len() { return; }
+                if si >= self.sessions.len() {
+                    return;
+                }
                 let session = self.sessions[si].clone();
                 // Kill active PTY if running
                 if let Some(pi) = self.pty_index_for_session(&session.id) {
                     self.ptys.remove(pi);
-                    if let Some(cur) = self.active_pty {
-                        if cur >= self.ptys.len() {
-                            self.active_pty = if self.ptys.is_empty() { None } else { Some(self.ptys.len() - 1) };
-                        }
+                    if let Some(cur) = self.active_pty
+                        && cur >= self.ptys.len()
+                    {
+                        self.active_pty = if self.ptys.is_empty() {
+                            None
+                        } else {
+                            Some(self.ptys.len() - 1)
+                        };
                     }
                 }
                 // Delete title override
@@ -1739,8 +1795,16 @@ impl App {
 
                     ListItem::new(vec![
                         Line::from(vec![
-                            Span::styled(format!("{} {} ", icon, binding_icon), binding_style.add_modifier(Modifier::BOLD)),
-                            Span::styled(ws.name.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                format!("{} {} ", icon, binding_icon),
+                                binding_style.add_modifier(Modifier::BOLD),
+                            ),
+                            Span::styled(
+                                ws.name.clone(),
+                                Style::default()
+                                    .fg(Color::Cyan)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         ]),
                         Line::from(subtitle).style(Style::default().fg(Color::DarkGray)),
                     ])
@@ -1748,9 +1812,7 @@ impl App {
                 TreeNode::Session(_wi, si) => {
                     if let Some(session) = self.sessions.get(*si) {
                         let short_id = &session.id[..8.min(session.id.len())];
-                        let pty_info = pty_states
-                            .iter()
-                            .find(|(sid, _)| sid == &session.id);
+                        let pty_info = pty_states.iter().find(|(sid, _)| sid == &session.id);
                         let pty_state = pty_info.map(|(_, s)| *s);
 
                         // Always show agent tag from session data
@@ -1796,7 +1858,11 @@ impl App {
                     }
                 }
                 TreeNode::ActiveTab(pi) => {
-                    let title = self.ptys.get(*pi).map(|s| s.info.title.as_str()).unwrap_or("New Session");
+                    let title = self
+                        .ptys
+                        .get(*pi)
+                        .map(|s| s.info.title.as_str())
+                        .unwrap_or("New Session");
                     let info = active_tab_states.get(*pi);
                     let state = info.map(|(s, _)| *s).unwrap_or(PtyState::Running);
                     let agent = info.map(|(_, a)| *a).unwrap_or(Agent::Claude);
@@ -1808,7 +1874,10 @@ impl App {
                         Span::styled("   \u{25cf} ", Style::default().fg(dot_color)),
                         Span::styled(title, Style::default().fg(Color::White)),
                         Span::styled(state_text, Style::default().fg(Color::Green)),
-                        Span::styled(format!(" [{}]", agent.icon()), Style::default().fg(agent.color())),
+                        Span::styled(
+                            format!(" [{}]", agent.icon()),
+                            Style::default().fg(agent.color()),
+                        ),
                     ];
                     ListItem::new(vec![
                         Line::from(title_spans),
@@ -1851,7 +1920,13 @@ impl App {
 
         let title = if let Some(idx) = self.active_pty {
             if let Some(slot) = self.ptys.get(idx) {
-                format!(" {} [{}] ({}/{}) ", slot.info.title, slot.info.agent.label(), idx + 1, self.ptys.len())
+                format!(
+                    " {} [{}] ({}/{}) ",
+                    slot.info.title,
+                    slot.info.agent.label(),
+                    idx + 1,
+                    self.ptys.len()
+                )
             } else {
                 " Agent ".into()
             }
@@ -1864,17 +1939,17 @@ impl App {
             .title(title)
             .border_style(Style::default().fg(border_color));
 
-        if let Some(idx) = self.active_pty {
-            if let Some(slot) = self.ptys.get(idx) {
-                let inner = block.inner(area);
-                slot.handle.resize((inner.width, inner.height));
+        if let Some(idx) = self.active_pty
+            && let Some(slot) = self.ptys.get(idx)
+        {
+            let inner = block.inner(area);
+            slot.handle.resize((inner.width, inner.height));
 
-                let parser = slot.handle.screen();
-                let screen = parser.read().unwrap().screen().clone();
-                let term = PseudoTerminal::new(&screen).block(block);
-                frame.render_widget(term, area);
-                return;
-            }
+            let parser = slot.handle.screen();
+            let screen = parser.read().unwrap().screen().clone();
+            let term = PseudoTerminal::new(&screen).block(block);
+            frame.render_widget(term, area);
+            return;
         }
 
         let lines = self.render_placeholder();
@@ -2049,7 +2124,12 @@ impl App {
             .map(|agent| {
                 ListItem::new(vec![
                     Line::from(vec![
-                        Span::styled(format!(" [{}] ", agent.icon()), Style::default().fg(agent.color()).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            format!(" [{}] ", agent.icon()),
+                            Style::default()
+                                .fg(agent.color())
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         Span::styled(agent.label(), Style::default().fg(Color::White)),
                     ]),
                     Line::from(format!("     {}", agent.cmd()))
@@ -2101,7 +2181,9 @@ impl App {
                 let is_parent = entry.name == PARENT_DIR;
 
                 let style = if is_select_current {
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
                 } else if is_virtual {
                     Style::default().fg(Color::Yellow)
                 } else if is_parent {
@@ -2140,7 +2222,11 @@ impl App {
         // Split: path header (1 line), list (rest), help footer (1 line)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Min(3), Constraint::Length(1)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(3),
+                Constraint::Length(1),
+            ])
             .split(inner);
 
         frame.render_widget(Paragraph::new(path_line), chunks[0]);
@@ -2219,7 +2305,7 @@ fn key_to_bytes(key: &KeyEvent) -> Vec<u8> {
         KeyCode::Char(c) => {
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 let code = c.to_ascii_lowercase();
-                if ('a'..='z').contains(&code) {
+                if code.is_ascii_lowercase() {
                     vec![(code as u8) - b'a' + 1]
                 } else {
                     c.to_string().into_bytes()
@@ -2299,8 +2385,18 @@ fn main() -> Result<()> {
     if !io::stdout().is_terminal() {
         let sessions = discover_sessions(&app.workspaces);
         for (wi, ws) in app.workspaces.iter().enumerate() {
-            println!("{} {}", ws.name, ws.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "virtual".into()));
-            for s in sessions.iter().filter(|s| app.ws_matches_path(wi, &s.workspace_path)) {
+            println!(
+                "{} {}",
+                ws.name,
+                ws.path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "virtual".into())
+            );
+            for s in sessions
+                .iter()
+                .filter(|s| app.ws_matches_path(wi, &s.workspace_path))
+            {
                 println!(
                     "  [{}] {} - {}",
                     &s.id[..8],
@@ -2356,4 +2452,195 @@ fn which(cmd: &str) -> Option<PathBuf> {
             full.is_file().then_some(full)
         })
     })
+}
+
+// ─── Tests ──────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_project_path_simple() {
+        assert_eq!(
+            encode_project_path(Path::new("/home/user/my-project")),
+            "-home-user-my-project"
+        );
+    }
+
+    #[test]
+    fn encode_project_path_root() {
+        assert_eq!(encode_project_path(Path::new("/")), "-");
+    }
+
+    #[test]
+    fn encode_project_path_relative() {
+        assert_eq!(encode_project_path(Path::new("my-project")), "my-project");
+    }
+
+    #[test]
+    fn config_roundtrip() {
+        let config = Config {
+            workspaces: vec![
+                Workspace {
+                    id: "ws-1".into(),
+                    name: "Project A".into(),
+                    path: Some(PathBuf::from("/home/user/proj-a")),
+                    created_at: 1000,
+                    expanded: false,
+                },
+                Workspace {
+                    id: "ws-2".into(),
+                    name: "Virtual".into(),
+                    path: None,
+                    created_at: 2000,
+                    expanded: true,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.workspaces.len(), 2);
+        assert_eq!(parsed.workspaces[0].id, "ws-1");
+        assert_eq!(
+            parsed.workspaces[0].path,
+            Some(PathBuf::from("/home/user/proj-a"))
+        );
+        assert_eq!(parsed.workspaces[1].path, None);
+        // expanded is serde(skip), so it defaults to false
+        assert!(!parsed.workspaces[0].expanded);
+        assert!(!parsed.workspaces[1].expanded);
+    }
+
+    #[test]
+    fn workspace_serialization_virtual() {
+        let ws = Workspace {
+            id: "test-id".into(),
+            name: "No Path".into(),
+            path: None,
+            created_at: 0,
+            expanded: false,
+        };
+        let json = serde_json::to_string(&ws).unwrap();
+        assert!(json.contains("\"path\":null"));
+        let parsed: Workspace = serde_json::from_str(&json).unwrap();
+        assert!(parsed.path.is_none());
+    }
+
+    #[test]
+    fn clean_user_message_normal() {
+        assert_eq!(clean_user_message("hello world"), "hello world");
+    }
+
+    #[test]
+    fn clean_user_message_escapes() {
+        assert_eq!(clean_user_message("\x1b[32m"), "");
+    }
+
+    #[test]
+    fn clean_user_message_noise_prefix() {
+        assert_eq!(clean_user_message("P>|stuff"), "");
+        assert_eq!(clean_user_message("P<|stuff"), "");
+    }
+
+    #[test]
+    fn clean_user_message_strips_whitespace() {
+        assert_eq!(clean_user_message("  hello  "), "hello");
+    }
+
+    #[test]
+    fn extract_text_from_string_content() {
+        let val = serde_json::json!("hello");
+        assert_eq!(extract_text_from_content(val), Some("hello".into()));
+    }
+
+    #[test]
+    fn extract_text_from_array_content() {
+        let val = serde_json::json!([
+            {"type": "text", "text": "hello "},
+            {"type": "text", "text": "world"}
+        ]);
+        assert_eq!(extract_text_from_content(val), Some("hello  world".into()));
+    }
+
+    #[test]
+    fn extract_text_from_array_with_non_text() {
+        let val = serde_json::json!([
+            {"type": "image", "url": "http://example.com"},
+            {"type": "text", "text": "visible"}
+        ]);
+        assert_eq!(extract_text_from_content(val), Some("visible".into()));
+    }
+
+    #[test]
+    fn extract_text_from_empty_array() {
+        let val = serde_json::json!([{"type": "image"}]);
+        assert_eq!(extract_text_from_content(val), None);
+    }
+
+    #[test]
+    fn extract_text_from_number() {
+        let val = serde_json::json!(42);
+        assert_eq!(extract_text_from_content(val), None);
+    }
+
+    #[test]
+    fn agent_traits() {
+        assert_eq!(Agent::Claude.cmd(), "claude");
+        assert_eq!(Agent::Codex.cmd(), "codex");
+        assert_eq!(Agent::Claude.label(), "Claude Code");
+        assert_eq!(Agent::Codex.label(), "Codex");
+    }
+
+    #[test]
+    fn relative_time_formatting() {
+        let now = now_secs();
+        assert_eq!(relative_time(now), "just now");
+        assert_eq!(relative_time(now - 30), "just now");
+        assert_eq!(relative_time(now - 120), "2m ago");
+        assert_eq!(relative_time(now - 7200), "2h ago");
+        assert_eq!(relative_time(now - 172800), "2d ago");
+    }
+
+    #[test]
+    fn generate_id_is_unique() {
+        let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
+        for i in 0..ids.len() {
+            for j in (i + 1)..ids.len() {
+                assert_ne!(ids[i], ids[j], "duplicate id at indices {} and {}", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn parse_codex_session_valid() {
+        let jsonl = r#"{"type":"session_meta","payload":{"id":"sess-123","cwd":"/home/user/proj"}}
+{"type":"user_message","payload":{"text":"fix the bug"}}"#;
+        let dir = std::env::temp_dir().join("agent-test-codex");
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("rollout-20260115-sess-123.jsonl");
+        fs::write(&path, jsonl).unwrap();
+
+        let result = parse_codex_session(&path);
+        assert!(result.is_some());
+        let (id, title, cwd) = result.unwrap();
+        assert_eq!(id, "sess-123");
+        assert_eq!(title.unwrap(), "fix the bug");
+        assert_eq!(cwd, "/home/user/proj");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_codex_session_invalid_json() {
+        let dir = std::env::temp_dir().join("agent-test-codex-invalid");
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("bad.jsonl");
+        fs::write(&path, "not json").unwrap();
+
+        let result = parse_codex_session(&path);
+        assert!(result.is_none());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
