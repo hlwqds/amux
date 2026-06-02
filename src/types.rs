@@ -13,12 +13,12 @@ pub enum Agent {
 // Manual Ord impl to guarantee fixed sort order: Claude < Codex < Gsd
 impl Ord for Agent {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        (*self as u8).cmp(&(*other as u8))
     }
 }
 impl PartialOrd for Agent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some((*self as u8).cmp(&(*other as u8)))
+        Some(self.cmp(other))
     }
 }
 

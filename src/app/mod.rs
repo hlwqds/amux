@@ -104,23 +104,39 @@ impl App {
         self.status = format!("Sort: {}", self.sort_mode.label());
     }
 
-    fn sort_session_indices(&self, indices: &mut Vec<usize>) {
+    fn sort_session_indices(&self, indices: &mut [usize]) {
         match self.sort_mode {
             SortMode::TimeDesc => indices.sort_by(|&a, &b| {
-                self.sessions[b].last_active.cmp(&self.sessions[a].last_active)
+                self.sessions[b]
+                    .last_active
+                    .cmp(&self.sessions[a].last_active)
             }),
             SortMode::TimeAsc => indices.sort_by(|&a, &b| {
-                self.sessions[a].last_active.cmp(&self.sessions[b].last_active)
+                self.sessions[a]
+                    .last_active
+                    .cmp(&self.sessions[b].last_active)
             }),
             SortMode::NameAsc => indices.sort_by(|&a, &b| {
-                self.sessions[a].title.to_lowercase().cmp(&self.sessions[b].title.to_lowercase())
+                self.sessions[a]
+                    .title
+                    .to_lowercase()
+                    .cmp(&self.sessions[b].title.to_lowercase())
             }),
             SortMode::NameDesc => indices.sort_by(|&a, &b| {
-                self.sessions[b].title.to_lowercase().cmp(&self.sessions[a].title.to_lowercase())
+                self.sessions[b]
+                    .title
+                    .to_lowercase()
+                    .cmp(&self.sessions[a].title.to_lowercase())
             }),
             SortMode::AgentGroup => indices.sort_by(|&a, &b| {
-                self.sessions[a].agent.cmp(&self.sessions[b].agent)
-                    .then_with(|| self.sessions[b].last_active.cmp(&self.sessions[a].last_active))
+                self.sessions[a]
+                    .agent
+                    .cmp(&self.sessions[b].agent)
+                    .then_with(|| {
+                        self.sessions[b]
+                            .last_active
+                            .cmp(&self.sessions[a].last_active)
+                    })
             }),
         }
     }
@@ -273,7 +289,12 @@ impl App {
                         tree.push(TreeNode::ActiveTab(pi));
                     }
                     if self.sort_mode == SortMode::AgentGroup {
-                        Self::append_agent_grouped(&self.sessions, &matching_sessions, wi, &mut tree);
+                        Self::append_agent_grouped(
+                            &self.sessions,
+                            &matching_sessions,
+                            wi,
+                            &mut tree,
+                        );
                     } else {
                         for &si in &matching_sessions {
                             tree.push(TreeNode::Session(wi, si));
@@ -583,6 +604,16 @@ mod tests {
         }
     }
 
+    fn sess_with_time(id: &str, title: &str, ws_path: &str, last_active: u64) -> Session {
+        Session {
+            id: id.into(),
+            workspace_path: PathBuf::from(ws_path),
+            title: title.into(),
+            last_active,
+            agent: Agent::Claude,
+        }
+    }
+
     // ─── session_fuzzy_score tests ───
 
     #[test]
@@ -840,5 +871,281 @@ mod tests {
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.agent_filter, None);
         assert_eq!(app.tree.len(), 3, "workspace + all 2 sessions restored");
+    }
+
+    // ─── sort mode tests ───
+
+    #[test]
+    fn sort_mode_cycles_through_all_variants() {
+        let start = SortMode::TimeDesc;
+        let mut mode = start;
+        let mut visited = vec![mode];
+        for _ in 0..4 {
+            mode = mode.next();
+            visited.push(mode);
+        }
+        // After 5 steps we should be back at the start
+        let wrapped = mode.next();
+        assert_eq!(wrapped, start, "sort mode should wrap to TimeDesc");
+
+        // All 5 variants visited
+        assert_eq!(visited.len(), 5);
+        assert!(visited.contains(&SortMode::TimeDesc));
+        assert!(visited.contains(&SortMode::TimeAsc));
+        assert!(visited.contains(&SortMode::NameAsc));
+        assert!(visited.contains(&SortMode::NameDesc));
+        assert!(visited.contains(&SortMode::AgentGroup));
+    }
+
+    #[test]
+    fn sort_mode_default_is_time_desc() {
+        assert_eq!(SortMode::default(), SortMode::TimeDesc);
+    }
+
+    #[test]
+    fn sort_time_desc_newest_first() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_time("s1", "old", "/home/user/proj", 100),
+            sess_with_time("s2", "mid", "/home/user/proj", 500),
+            sess_with_time("s3", "new", "/home/user/proj", 900),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::TimeDesc;
+        app.rebuild_tree();
+
+        // Tree: [Workspace(0), Session(0,2), Session(0,1), Session(0,0)]
+        // (newest first: s3=900, s2=500, s1=100)
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 2))); // newest
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 1)));
+        assert!(matches!(app.tree[3], TreeNode::Session(0, 0))); // oldest
+    }
+
+    #[test]
+    fn sort_time_asc_oldest_first() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_time("s1", "old", "/home/user/proj", 100),
+            sess_with_time("s2", "mid", "/home/user/proj", 500),
+            sess_with_time("s3", "new", "/home/user/proj", 900),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::TimeAsc;
+        app.rebuild_tree();
+
+        // Tree: [Workspace(0), Session(0,0), Session(0,1), Session(0,2)]
+        // (oldest first: s1=100, s2=500, s3=900)
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // oldest
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 1)));
+        assert!(matches!(app.tree[3], TreeNode::Session(0, 2))); // newest
+    }
+
+    #[test]
+    fn sort_name_asc_alphabetical() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1", "Charlie", "/home/user/proj"),
+            sess("s2", "alpha", "/home/user/proj"),
+            sess("s3", "Bravo", "/home/user/proj"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::NameAsc;
+        app.rebuild_tree();
+
+        // Case-insensitive: alpha < Bravo < Charlie
+        // s2=alpha(idx1), s3=Bravo(idx2), s1=Charlie(idx0)
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 1))); // alpha
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 2))); // Bravo
+        assert!(matches!(app.tree[3], TreeNode::Session(0, 0))); // Charlie
+    }
+
+    #[test]
+    fn sort_name_desc_reverse_alphabetical() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1", "Charlie", "/home/user/proj"),
+            sess("s2", "alpha", "/home/user/proj"),
+            sess("s3", "Bravo", "/home/user/proj"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::NameDesc;
+        app.rebuild_tree();
+
+        // Case-insensitive reverse: Charlie > Bravo > alpha
+        // s1=Charlie(idx0), s3=Bravo(idx2), s2=alpha(idx1)
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // Charlie
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 2))); // Bravo
+        assert!(matches!(app.tree[3], TreeNode::Session(0, 1))); // alpha
+    }
+
+    #[test]
+    fn sort_agent_group_groups_by_agent() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "task 1", "/home/user/proj", Agent::Gsd),
+            sess_with_agent("s2", "task 2", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s3", "task 3", "/home/user/proj", Agent::Codex),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::AgentGroup;
+        app.rebuild_tree();
+
+        // Expected tree: Workspace(0), AgentHeader(Claude), Session(Claude),
+        //                AgentHeader(Codex), Session(Codex), AgentHeader(Gsd), Session(Gsd)
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::AgentHeader(Agent::Claude)));
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 1))); // s2 = Claude
+        assert!(matches!(app.tree[3], TreeNode::AgentHeader(Agent::Codex)));
+        assert!(matches!(app.tree[4], TreeNode::Session(0, 2))); // s3 = Codex
+        assert!(matches!(app.tree[5], TreeNode::AgentHeader(Agent::Gsd)));
+        assert!(matches!(app.tree[6], TreeNode::Session(0, 0))); // s1 = Gsd
+    }
+
+    #[test]
+    fn sort_agent_group_omits_empty_groups() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "task 1", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "task 2", "/home/user/proj", Agent::Claude),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::AgentGroup;
+        app.rebuild_tree();
+
+        // Only Claude sessions — no Codex or Gsd headers
+        assert_eq!(app.tree.len(), 4, "workspace + header + 2 sessions");
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::AgentHeader(Agent::Claude)));
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 0)));
+        assert!(matches!(app.tree[3], TreeNode::Session(0, 1)));
+
+        // No other agent headers
+        for node in &app.tree {
+            if let TreeNode::AgentHeader(a) = node {
+                assert_eq!(*a, Agent::Claude, "only Claude header should appear");
+            }
+        }
+    }
+
+    #[test]
+    fn sort_with_active_filter() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_time("s1", "fix alpha", "/home/user/proj", 100),
+            sess_with_time("s2", "fix beta", "/home/user/proj", 500),
+            sess_with_time("s3", "add feature", "/home/user/proj", 900),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Apply filter + sort
+        app.search_query = Some("fix".into());
+        app.sort_mode = SortMode::TimeAsc;
+        app.rebuild_tree();
+
+        // Filter matches s1 and s2; TimeAsc puts oldest first
+        // Tree: [Workspace(0), Session(0,0) s1=100, Session(0,1) s2=500]
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // s1 oldest
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 1))); // s2 newer
+    }
+
+    #[test]
+    fn agent_header_is_inert_for_activate() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "task", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "task", "/home/user/proj", Agent::Codex),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::AgentGroup;
+        app.rebuild_tree();
+
+        // Find an AgentHeader node index
+        let header_idx = app
+            .tree
+            .iter()
+            .position(|n| matches!(n, TreeNode::AgentHeader(_)))
+            .expect("should have an AgentHeader");
+        app.tree_state.select(Some(header_idx));
+
+        let focus_before = app.focus;
+        let mode_before = app.input_mode;
+        let result = app.activate_selection();
+        assert!(
+            result.is_ok(),
+            "activate_selection on AgentHeader should succeed"
+        );
+        assert_eq!(app.focus, focus_before, "focus should not change");
+        assert_eq!(app.input_mode, mode_before, "input_mode should not change");
+    }
+
+    #[test]
+    fn agent_header_is_inert_for_delete() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "task", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "task", "/home/user/proj", Agent::Codex),
+        ];
+        let mut app = test_app(workspaces, sessions);
+        app.sort_mode = SortMode::AgentGroup;
+        app.rebuild_tree();
+
+        let session_count_before = app.sessions.len();
+        let tree_len_before = app.tree.len();
+
+        // Select an AgentHeader
+        let header_idx = app
+            .tree
+            .iter()
+            .position(|n| matches!(n, TreeNode::AgentHeader(_)))
+            .expect("should have an AgentHeader");
+        app.tree_state.select(Some(header_idx));
+        app.delete_selected();
+
+        // Nothing should be deleted
+        assert_eq!(
+            app.sessions.len(),
+            session_count_before,
+            "no session should be deleted"
+        );
+        assert_eq!(
+            app.tree.len(),
+            tree_len_before,
+            "tree should not change after deleting AgentHeader"
+        );
+    }
+
+    #[test]
+    fn sort_preserves_selection_clamping() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_time("s1", "old", "/home/user/proj", 100),
+            sess_with_time("s2", "mid", "/home/user/proj", 500),
+            sess_with_time("s3", "new", "/home/user/proj", 900),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Select last session (index 3 = session s3)
+        app.tree_state.select(Some(3));
+        assert_eq!(app.tree_state.selected(), Some(3));
+
+        // Switch to AgentGroup mode which adds AgentHeader nodes (tree grows)
+        app.sort_mode = SortMode::AgentGroup;
+        app.rebuild_tree();
+
+        // Selection should be clamped to valid range
+        let sel = app.tree_state.selected();
+        assert!(sel.is_some(), "selection must exist when tree non-empty");
+        let idx = sel.unwrap();
+        assert!(
+            idx < app.tree.len(),
+            "selection ({}) must be < tree len ({})",
+            idx,
+            app.tree.len()
+        );
     }
 }
