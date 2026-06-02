@@ -186,11 +186,15 @@ impl super::App {
         };
 
         let is_searching = self.input_mode == InputMode::Search;
-        let title = if is_searching {
-            let query = self.search_query.as_deref().unwrap_or("");
-            format!(" [search: {}] ", query)
-        } else {
-            " Workspaces ".to_string()
+        let search_query = self.search_query.as_deref().unwrap_or("");
+
+        let title = match (is_searching, &self.agent_filter) {
+            (true, Some(agent)) => {
+                format!(" [{}] [search: {}] ", agent.label(), search_query)
+            }
+            (true, None) => format!(" [search: {}] ", search_query),
+            (false, Some(agent)) => format!(" [{}] Workspaces ", agent.label()),
+            (false, None) => " Workspaces ".to_string(),
         };
 
         let block = Block::default()
