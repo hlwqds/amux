@@ -10,6 +10,10 @@
 .gsd-id
 .mcp.json
 .bg-shell/
+.gsd/event-log.jsonl
+.gsd/metrics.json
+.gsd/runtime/
+.gsd/state-manifest.json
 .DS_Store
 Thumbs.db
 nul
