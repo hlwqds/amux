@@ -232,7 +232,7 @@ impl App {
                     self.active_pty = None;
                     self.focus = Focus::Sidebar;
                     self.refresh_sessions();
-                    self.status = "Claude Code terminated. Sessions refreshed.".into();
+                    self.status = "Session terminated. Sessions refreshed.".into();
                     return Ok(Action::Continue);
                 }
                 if key.modifiers.contains(KeyModifiers::CONTROL)
@@ -471,6 +471,17 @@ impl App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Codex)
+                        .unwrap(),
+                ));
+                self.confirm_input()?;
+            }
+            KeyCode::Char('g') | KeyCode::Char('G')
+                if self.available_agents.contains(&Agent::Gsd) =>
+            {
+                self.agent_state.select(Some(
+                    self.available_agents
+                        .iter()
+                        .position(|a| *a == Agent::Gsd)
                         .unwrap(),
                 ));
                 self.confirm_input()?;
@@ -1257,7 +1268,7 @@ impl App {
         lines.push(Line::from("D            Delete workspace"));
         lines.push(Line::from("Tab          Toggle sidebar/chat"));
         lines.push(Line::from("Ctrl+J/K     Switch between active sessions"));
-        lines.push(Line::from("Ctrl+Q       Kill current Claude Code session"));
+        lines.push(Line::from("Ctrl+Q       Kill current session"));
         lines.push(Line::from("q / Esc      Quit"));
 
         lines
@@ -1349,7 +1360,7 @@ impl App {
             .highlight_symbol("\u{203a}");
         frame.render_stateful_widget(list, chunks[0], &mut self.agent_state);
 
-        let help = Line::from(" C:Claude  X:Codex  j/k:navigate  Enter:confirm  Esc:cancel")
+        let help = Line::from(" C:Claude  X:Codex  G:GSD  j/k:navigate  Enter:confirm  Esc:cancel")
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(Paragraph::new(help), chunks[1]);
         frame.render_widget(block, popup);
@@ -1480,7 +1491,7 @@ impl App {
 pub fn run() -> anyhow::Result<()> {
     let agents = detect_agents();
     if agents.is_empty() {
-        anyhow::bail!("No agent CLI found. Install Claude Code or Codex.");
+        anyhow::bail!("No agent CLI found. Install Claude Code, Codex, or GSD.");
     }
 
     crate::config::ensure_data_dir().context("failed to create data directory")?;
