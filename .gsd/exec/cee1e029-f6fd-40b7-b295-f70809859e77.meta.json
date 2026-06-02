@@ -1,0 +1,18 @@
+{
+  "id": "cee1e029-f6fd-40b7-b295-f70809859e77",
+  "runtime": "bash",
+  "purpose": "Check compilation after Gsd enum changes",
+  "script_chars": 93,
+  "started_at": "2026-06-02T11:01:19.242Z",
+  "finished_at": "2026-06-02T11:01:23.130Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 3888,
+  "stdout_bytes": 1399,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/cee1e029-f6fd-40b7-b295-f70809859e77.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/cee1e029-f6fd-40b7-b295-f70809859e77.stderr"
+}

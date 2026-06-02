@@ -1,0 +1,11 @@
+=== All GSD session dirs ===
+/home/huanglin/.gsd/sessions/--home-huanglin-code-agent-workspace-tui--/
+/home/huanglin/.gsd/sessions/--home-huanglin-code-gsd-provider--/
+/home/huanglin/.gsd/sessions/--home-huanglin-code-gsd-search-zhipu--/
+/home/huanglin/.gsd/sessions/--home-huanglin-code-wuxia--/
+
+=== Decode each and check ===
+  --home-huanglin-code-agent-workspace-tui-- → //home/huanglin/code/agent/workspace/tui/ (exists: NO)
+  --home-huanglin-code-gsd-provider-- → //home/huanglin/code/gsd/provider/ (exists: NO)
+  --home-huanglin-code-gsd-search-zhipu-- → //home/huanglin/code/gsd/search/zhipu/ (exists: NO)
+  --home-huanglin-code-wuxia-- → //home/huanglin/code/wuxia/ (exists: YES)

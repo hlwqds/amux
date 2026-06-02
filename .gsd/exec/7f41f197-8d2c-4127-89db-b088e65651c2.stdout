@@ -1,0 +1,25 @@
+=== GSD sessions dir ===
+--home-huanglin-code-agent-workspace-tui--
+--home-huanglin-code-gsd-provider--
+--home-huanglin-code-gsd-search-zhipu--
+--home-huanglin-code-wuxia--
+
+=== Sample dir listing ===
+--- --home-huanglin-code-agent-workspace-tui-- ---
+2026-06-02T09-28-33-534Z_019e87a9-cffe-7d09-b57d-a8169d02794a.jsonl
+2026-06-02T09-48-21-234Z_019e87bb-ef72-7eb1-a869-e37147b39f9c.jsonl
+--- --home-huanglin-code-gsd-provider-- ---
+2026-06-02T05-51-34-878Z_019e86e3-29de-737c-8641-68392f37c6b4.jsonl
+2026-06-02T05-52-11-487Z_019e86e3-b8df-7b21-821d-0032dfcdad72.jsonl
+2026-06-02T05-53-05-837Z_019e86e4-8d2d-797d-9086-55f478fed16b.jsonl
+2026-06-02T05-55-55-496Z_019e86e7-23e8-75c3-9f72-b8ceefd939b8.jsonl
+2026-06-02T05-56-49-133Z_019e86e7-f56d-718a-8ce1-09220cebdc32.jsonl
+--- --home-huanglin-code-gsd-search-zhipu-- ---
+2026-06-02T06-17-29-469Z_019e86fa-e27d-7588-bbfc-493b8618fb77.jsonl
+2026-06-02T06-18-06-828Z_019e86fb-746c-70ed-a45e-e98951beef00.jsonl
+2026-06-02T06-19-39-350Z_019e86fc-ddd6-7299-860a-1e0487e7918c.jsonl
+2026-06-02T06-21-15-933Z_019e86fe-571d-736f-a2b4-2e0121990201.jsonl
+2026-06-02T06-23-00-997Z_019e86ff-f185-75a1-8584-ed32171db21b.jsonl
+--- --home-huanglin-code-wuxia-- ---
+2026-06-02T05-53-58-213Z_019e86e5-59c5-7bb5-b922-4cdf373cf151.jsonl
+2026-06-02T06-07-18-920Z_019e86f1-9188-7119-b602-6406971848e3.jsonl

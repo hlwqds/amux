@@ -1,0 +1,30 @@
+    |
+ 90 | fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
+    | --------------------------------------------------------------------- previous definition of the value `walk_codex_jsonl` here
+...
+258 | fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `walk_codex_jsonl` redefined here
+    |
+    = note: `walk_codex_jsonl` must be defined only once in the value namespace of this module
+
+error[E0308]: mismatched types
+   --> src/discovery.rs:235:29
+    |
+235 | ...                   extract_text_from_content(record.get("message")?.clone())
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Option<&str>`, found `Option<String>`
+    |
+    = note: expected enum `std::option::Option<&str>`
+               found enum `std::option::Option<std::string::String>`
+note: return type inferred to be `std::option::Option<&str>` here
+   --> src/discovery.rs:235:55
+    |
+235 | ...                   extract_text_from_content(record.get("message")?.clone())
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+help: try using `.as_deref()` to convert `std::option::Option<std::string::String>` to `std::option::Option<&str>`
+    |
+235 |                             extract_text_from_content(record.get("message")?.clone()).as_deref()
+    |                                                                                      +++++++++++
+
+Some errors have detailed explanations: E0308, E0428.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `amux` (bin "amux") due to 2 previous errors

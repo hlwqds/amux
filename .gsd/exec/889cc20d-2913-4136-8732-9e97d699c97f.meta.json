@@ -1,0 +1,18 @@
+{
+  "id": "889cc20d-2913-4136-8732-9e97d699c97f",
+  "runtime": "bash",
+  "purpose": "Find hardcoded Claude Code strings in app.rs",
+  "script_chars": 185,
+  "started_at": "2026-06-02T11:18:01.793Z",
+  "finished_at": "2026-06-02T11:18:01.801Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 8,
+  "stdout_bytes": 357,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/889cc20d-2913-4136-8732-9e97d699c97f.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/889cc20d-2913-4136-8732-9e97d699c97f.stderr"
+}

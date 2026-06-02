@@ -1,0 +1,18 @@
+{
+  "id": "ec3b3714-ad1e-4a1e-9a69-2124232fed8e",
+  "runtime": "bash",
+  "purpose": "S02 research: find how Enter on a session node triggers resume",
+  "script_chars": 217,
+  "started_at": "2026-06-02T11:13:27.586Z",
+  "finished_at": "2026-06-02T11:13:27.596Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 10,
+  "stdout_bytes": 1246,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/ec3b3714-ad1e-4a1e-9a69-2124232fed8e.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/ec3b3714-ad1e-4a1e-9a69-2124232fed8e.stderr"
+}

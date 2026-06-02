@@ -1,0 +1,18 @@
+{
+  "id": "453d85e4-9d8f-4316-91e6-a067758f3209",
+  "runtime": "bash",
+  "purpose": "Get session record and gsd-run custom_message structure from a GSD session",
+  "script_chars": 562,
+  "started_at": "2026-06-02T09:50:35.517Z",
+  "finished_at": "2026-06-02T09:50:35.571Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 54,
+  "stdout_bytes": 632,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/453d85e4-9d8f-4316-91e6-a067758f3209.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/453d85e4-9d8f-4316-91e6-a067758f3209.stderr"
+}

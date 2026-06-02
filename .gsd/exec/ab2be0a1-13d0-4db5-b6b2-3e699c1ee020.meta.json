@@ -1,0 +1,18 @@
+{
+  "id": "ab2be0a1-13d0-4db5-b6b2-3e699c1ee020",
+  "runtime": "bash",
+  "purpose": "Get the gsd-run custom_message structure for title extraction",
+  "script_chars": 623,
+  "started_at": "2026-06-02T09:51:01.992Z",
+  "finished_at": "2026-06-02T09:51:02.024Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 32,
+  "stdout_bytes": 459,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/ab2be0a1-13d0-4db5-b6b2-3e699c1ee020.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/ab2be0a1-13d0-4db5-b6b2-3e699c1ee020.stderr"
+}

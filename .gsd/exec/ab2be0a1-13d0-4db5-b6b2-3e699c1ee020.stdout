@@ -1,0 +1,12 @@
+=== custom_message with gsd-run ===
+Keys: ['type', 'customType', 'content', 'display', 'id', 'parentId', 'timestamp']
+customType: gsd-run
+id: 61cf68d8
+parentId: 44e18681
+timestamp: 2026-06-02T05:56:41.646Z
+display: False
+content length: 43215
+content[:200]: Read the following GSD workflow protocol excerpt and execute exactly. Use the source path for a full protocol read only if the excerpt lacks a required rule.
+
+## GSD Workflow Protocol Excerpt
+Source: 

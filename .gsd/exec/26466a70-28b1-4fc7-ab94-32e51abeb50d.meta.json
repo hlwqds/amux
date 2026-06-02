@@ -1,0 +1,18 @@
+{
+  "id": "26466a70-28b1-4fc7-ab94-32e51abeb50d",
+  "runtime": "bash",
+  "purpose": "Examine GSD JSONL format - first lines of sample files",
+  "script_chars": 473,
+  "started_at": "2026-06-02T09:49:23.771Z",
+  "finished_at": "2026-06-02T09:49:23.810Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 39,
+  "stdout_bytes": 822,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/26466a70-28b1-4fc7-ab94-32e51abeb50d.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/26466a70-28b1-4fc7-ab94-32e51abeb50d.stderr"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "b8699c02-69ed-46d5-acd6-3eda81222dad",
+  "runtime": "bash",
+  "purpose": "Check compilation after type fix",
+  "script_chars": 93,
+  "started_at": "2026-06-02T11:03:21.744Z",
+  "finished_at": "2026-06-02T11:03:22.032Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 288,
+  "stdout_bytes": 156,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/b8699c02-69ed-46d5-acd6-3eda81222dad.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/b8699c02-69ed-46d5-acd6-3eda81222dad.stderr"
+}

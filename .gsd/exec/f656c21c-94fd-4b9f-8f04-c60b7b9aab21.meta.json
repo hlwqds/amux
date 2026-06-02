@@ -1,0 +1,18 @@
+{
+  "id": "f656c21c-94fd-4b9f-8f04-c60b7b9aab21",
+  "runtime": "bash",
+  "purpose": "Find sessions with gsd-run custom_message and examine record structure",
+  "script_chars": 100,
+  "started_at": "2026-06-02T09:50:09.070Z",
+  "finished_at": "2026-06-02T09:50:09.091Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 21,
+  "stdout_bytes": 413,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/f656c21c-94fd-4b9f-8f04-c60b7b9aab21.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/f656c21c-94fd-4b9f-8f04-c60b7b9aab21.stderr"
+}

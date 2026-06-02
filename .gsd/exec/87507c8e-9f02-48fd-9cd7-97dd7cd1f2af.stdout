@@ -1,0 +1,11 @@
+18:use crate::config::{data_dir, generate_id, save_config_file, save_session_title, title_override_path};
+613:                    let _ = save_session_title(&self.sessions[si].id, &new_title);
+926:        self.render_sidebar(frame, cols[0]);
+936:    fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
+1000:                            format!(" [{}]", session.agent.icon()),
+1001:                            Style::default().fg(session.agent.color()),
+1058:                            format!(" [{}]", agent.icon()),
+1059:                            Style::default().fg(agent.color()),
+1319:                            format!(" [{}] ", agent.icon()),
+1321:                                .fg(agent.color())
+1324:                        Span::styled(agent.label(), Style::default().fg(Color::White)),

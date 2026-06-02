@@ -1,0 +1,20 @@
+=== Session struct ===
+151:    pub id: String,
+165:pub struct Session {
+166:    pub id: String,
+167:    pub workspace_path: PathBuf,
+168:    pub title: String,
+170:    pub agent: Agent,
+187:    pub workspace_path: PathBuf,
+188:    pub title: String,
+192:    pub agent: Agent,
+
+=== SessionInfo / RunningInfo ===
+
+=== Session construction in discovery ===
+184:                    out.push(Session {
+297:                .unwrap_or_else(|| format!("Session {}", &id[..8.min(id.len())]));
+299:            out.push(Session {
+390:                                    out.push(Session {
+
+=== PtySlot struct ===

@@ -1,0 +1,18 @@
+{
+  "id": "80dd5de8-6ffb-4bf8-99f3-8922c4da10f2",
+  "runtime": "bash",
+  "purpose": "Get full gsd help output",
+  "script_chars": 61,
+  "started_at": "2026-06-02T09:53:56.781Z",
+  "finished_at": "2026-06-02T09:53:56.793Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 12,
+  "stdout_bytes": 0,
+  "stderr_bytes": 103,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/80dd5de8-6ffb-4bf8-99f3-8922c4da10f2.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/80dd5de8-6ffb-4bf8-99f3-8922c4da10f2.stderr"
+}

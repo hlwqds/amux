@@ -1,0 +1,18 @@
+{
+  "id": "21f3e4c5-f133-4ecc-8f5e-9fcc4385ccb3",
+  "runtime": "bash",
+  "purpose": "Examine GSD auto-mode session with gsd-run custom_message",
+  "script_chars": 353,
+  "started_at": "2026-06-02T09:50:18.915Z",
+  "finished_at": "2026-06-02T09:50:18.943Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 28,
+  "stdout_bytes": 90725,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/21f3e4c5-f133-4ecc-8f5e-9fcc4385ccb3.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/21f3e4c5-f133-4ecc-8f5e-9fcc4385ccb3.stderr"
+}

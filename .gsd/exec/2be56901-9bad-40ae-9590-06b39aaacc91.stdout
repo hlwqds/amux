@@ -1,0 +1,8 @@
+=== PtyHandle::spawn signature ===
+43:    pub fn spawn(
+
+=== spawn body ===
+46:        session_id: Option<&str>,
+61:        let cmd = if let Some(id) = session_id {
+62:            agent.build_resume_cmd(workspace_path, id)
+64:            agent.build_new_cmd(workspace_path, session_name)

@@ -1,0 +1,11 @@
+34:pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
+36:    discover_claude_sessions(workspaces, &mut sessions);
+37:    discover_codex_sessions(workspaces, &mut sessions);
+38:    discover_gsd_sessions(workspaces, &mut sessions);
+57:        Agent::Gsd => {
+58:            let sessions_root = Agent::Gsd.sessions_dir()?;
+128:fn discover_gsd_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
+129:    let sessions_root = match Agent::Gsd.sessions_dir() {
+189:                        agent: Agent::Gsd,
+259:fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
+330:fn discover_codex_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {

@@ -1,0 +1,18 @@
+{
+  "id": "4318ef58-5afd-4564-9f00-df2de7862221",
+  "runtime": "bash",
+  "purpose": "Verify zero warnings with GSD keybinding changes",
+  "script_chars": 16,
+  "started_at": "2026-06-02T11:22:30.594Z",
+  "finished_at": "2026-06-02T11:22:30.657Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 63,
+  "stdout_bytes": 72,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/4318ef58-5afd-4564-9f00-df2de7862221.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/4318ef58-5afd-4564-9f00-df2de7862221.stderr"
+}

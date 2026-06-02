@@ -1,0 +1,37 @@
+src/app.rs:79:            available_agents: detect_agents(),
+src/app.rs:1481:    let agents = detect_agents();
+---
+src/main.rs:14:#[cfg(test)]
+---
+src/util.rs:51:pub fn detect_agents() -> Vec<Agent> {
+---
+mod app;
+mod config;
+mod discovery;
+mod pty;
+mod types;
+mod util;
+
+fn main() -> anyhow::Result<()> {
+    app::run()
+}
+
+// ─── Tests ──────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::config::*;
+    use super::discovery::*;
+    use super::types::*;
+    use super::util::*;
+
+    #[test]
+    fn encode_project_path_simple() {
+        assert_eq!(
+            encode_project_path(Path::new("/home/user/my-project")),
+            "-home-user-my-project"
+        );
+    }
+

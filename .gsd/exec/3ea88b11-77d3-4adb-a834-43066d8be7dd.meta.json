@@ -1,0 +1,18 @@
+{
+  "id": "3ea88b11-77d3-4adb-a834-43066d8be7dd",
+  "runtime": "bash",
+  "purpose": "Check how GSD encodes directory names - trailing dashes, special patterns",
+  "script_chars": 656,
+  "started_at": "2026-06-02T09:51:19.510Z",
+  "finished_at": "2026-06-02T09:51:19.528Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 18,
+  "stdout_bytes": 721,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/3ea88b11-77d3-4adb-a834-43066d8be7dd.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/3ea88b11-77d3-4adb-a834-43066d8be7dd.stderr"
+}

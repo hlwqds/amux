@@ -1,0 +1,58 @@
+=== gsd --help ===
+GSD v1.1.1 — Git Ship Done
+https://opengsd.net
+
+Usage: gsd [options] [message...]
+
+Options:
+  --mode <text|json|rpc|mcp> Output mode (default: interactive)
+  --print, -p              Single-shot print mode
+  --continue, -c           Resume the most recent session
+  --worktree, -w [name]    Start in an isolated worktree (auto-named if omitted)
+  --model <id>             Override model (e.g. provider/model-id)
+  --no-session             Disable session persistence
+  --extension <path>       Load additional extension
+  --tools <a,b,c>          Restrict available tools
+  --list-models [search]   List available models and exit
+  --version, -v            Print version and exit
+  --help, -h               Print this help and exit
+
+Subcommands:
+  config                   Re-run the setup wizard
+  install <source>         Install a package/extension source
+  remove <source>          Remove an installed package source
+  list                     List installed package sources
+  update                   Update GSD to the latest version
+  upgrade                  Alias for update
+  sessions                 List and resume a past session
+  worktree <cmd>           Manage worktrees (list, merge, clean, remove)
+  auto [args]              Run auto-mode without TUI (pipeable)
+  headless [cmd] [args]    Run /gsd commands without TUI (default: auto)
+  graph <subcommand>       Manage knowledge graph (build, query, status, diff)
+
+=== gsd sessions --help ===
+GSD v1.1.1 — Git Ship Done
+https://opengsd.net
+
+Usage: gsd sessions
+
+List all saved sessions for the current directory and interactively
+pick one to resume. Shows date, message count, and a preview of the
+first message for each session.
+
+Sessions are stored per-directory, so you only see sessions that were
+started from the current working directory.
+
+Compare with --continue (-c) which always resumes the most recent session.
+
+=== gsd -c help ===
+GSD v1.1.1 — Git Ship Done
+https://opengsd.net
+
+Usage: gsd [options] [message...]
+
+Options:
+  --mode <text|json|rpc|mcp> Output mode (default: interactive)
+  --print, -p              Single-shot print mode
+  --continue, -c           Resume the most recent session
+  --worktree, -w [name]    Start in an isolated worktree (auto-named if omitted)

@@ -1,0 +1,7 @@
+18:            Agent::Gsd => "gsd",
+26:            Agent::Gsd => "GSD",
+34:            Agent::Gsd => "G",
+42:            Agent::Gsd => Color::Magenta,
+75:            Agent::Gsd => {
+114:            Agent::Gsd => {
+140:            Agent::Gsd => {

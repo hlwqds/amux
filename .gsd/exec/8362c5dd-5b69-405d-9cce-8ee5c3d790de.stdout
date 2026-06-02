@@ -1,0 +1,4 @@
+38:    discover_gsd_sessions(workspaces, &mut sessions);
+128:fn discover_gsd_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
+161:                    let meta = parse_gsd_session(&path);
+199:pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<String>)> {

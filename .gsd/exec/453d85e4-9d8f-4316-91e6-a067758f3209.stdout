@@ -1,0 +1,19 @@
+=== Session record (line 1) ===
+{
+    "type": "session",
+    "version": 3,
+    "id": "019e86e7-23e8-75c3-9f72-b8ceefd939b8",
+    "timestamp": "2026-06-02T05:55:55.496Z",
+    "cwd": "/home/huanglin/code/gsd-provider"
+}
+
+=== gsd-run record ===
+{
+  "type": "custom_message",
+  "customType": "gsd-run",
+  "content": "Read the following GSD workflow protocol excerpt and execute exactly. Use the source path for a full protocol read only if the excerpt lacks a required rule.\n\n## GSD Workflow Protocol Excerpt\nSource: ...",
+  "display": false,
+  "id": "61cf68d8",
+  "parentId": "44e18681",
+  "timestamp": "2026-06-02T05:56:41.646Z"
+}

@@ -1,0 +1,6 @@
+139:    fn refresh_sessions(&mut self) {
+---
+19:use crate::discovery::{discover_sessions, find_session_jsonl};
+65:        let sessions = discover_sessions(&config.workspaces);
+140:        self.sessions = discover_sessions(&self.workspaces);
+1491:        let sessions = discover_sessions(&app.workspaces);

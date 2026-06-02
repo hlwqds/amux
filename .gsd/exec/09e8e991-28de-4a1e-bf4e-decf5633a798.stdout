@@ -1,0 +1,24 @@
+=== Status/help strings mentioning agent names ===
+110:            if slot.info.agent == Agent::Codex && !slot.handle.is_alive() {
+235:                    self.status = "Claude Code terminated. Sessions refreshed.".into();
+468:                if self.available_agents.contains(&Agent::Codex) =>
+473:                        .position(|a| *a == Agent::Codex)
+545:                self.status = format!("Resuming: {}...", &id[..8.min(id.len())]);
+615:                    self.status = format!("Renamed to: {}", new_title);
+643:                    self.status = format!("Workspace renamed to: {}", new_name);
+671:                self.status = "Edit workspace name (Enter=confirm, Esc=cancel):".into();
+677:                self.status = "Edit session name (Enter=confirm, Esc=cancel):".into();
+687:        self.status = "Workspace name (Esc = cancel):".into();
+695:        self.status = "Select directory \u{00b7} Enter: open/select \u{00b7} Backspace: up \u{00b7} Esc: cancel".into();
+793:                self.status = format!("Created virtual workspace: {}", ws.name);
+824:                self.status = format!("Deleted workspace: {}", name);
+851:                self.status = format!("Deleted session: {}", title);
+889:                self.status = "Enter session name (empty = unnamed, Esc = cancel):".into();
+
+=== render_status or help bar ===
+86:            status: "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws q:quit".into(),
+929:        self.render_status(frame, chunks[1]);
+1259:        lines.push(Line::from("Ctrl+J/K     Switch between active sessions"));
+1260:        lines.push(Line::from("Ctrl+Q       Kill current Claude Code session"));
+1437:    fn render_status(&self, frame: &mut Frame, area: Rect) {
+1462:                "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws Tab:toggle Ctrl+J/K:switch Ctrl+Q:kill q:quit",

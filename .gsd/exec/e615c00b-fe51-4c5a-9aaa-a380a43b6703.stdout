@@ -1,0 +1,17 @@
+=== Claude encoding (config.rs) ===
+fn encode_project_path: s.replace("/", "-")
+/home/huanglin/code/wuxia → -home-huanglin-code-wuxia
+
+=== Actual GSD dirs ===
+  raw: '--home-huanglin-code-agent-workspace-tui--'
+  raw: '--home-huanglin-code-gsd-provider--'
+  raw: '--home-huanglin-code-gsd-search-zhipu--'
+  raw: '--home-huanglin-code-wuxia--'
+
+=== Testing: / replaced by - with leading - already from root ===
+Char analysis of '--home-huanglin-code-wuxia--':
+  starts with --: True
+  ends with --: True
+  stripped --: home-huanglin-code-wuxia
+  Expected: --home-huanglin-code-wuxia-
+  Match: False

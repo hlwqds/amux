@@ -1,0 +1,8 @@
+=== Root session (no workspace dir) ===
+
+=== Workspace dir session ===
+{"type":"session","version":3,"id":"019e86e5-59c5-7bb5-b922-4cdf373cf151","timestamp":"2026-06-02T05:53:58.213Z","cwd":"/home/huanglin/code/wuxia"}
+{"type":"model_change","id":"cebda55d","parentId":null,"timestamp":"2026-06-02T05:53:58.367Z","provider":"zhipu-cn","modelId":"glm-5.1"}
+{"type":"thinking_level_change","id":"3a39df44","parentId":"cebda55d","timestamp":"2026-06-02T05:53:58.367Z","thinkingLevel":"off"}
+{"type":"model_change","id":"cb667a6d","parentId":"3a39df44","timestamp":"2026-06-02T05:54:03.612Z","provider":"zhipu-cn","modelId":"glm-5.1"}
+{"type":"message","id":"11e07537","parentId":"cb667a6d","timestamp":"2026-06-02T05:54:04.895Z","message":{"role":"user","content":[{"type":"text","text":"nihao"}],"timestamp":1780379644873}}

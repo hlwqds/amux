@@ -1,0 +1,15 @@
+=== GSD session directory listing ===
+--home-huanglin-code-agent-workspace-tui--
+--home-huanglin-code-gsd-provider--
+--home-huanglin-code-gsd-search-zhipu--
+--home-huanglin-code-wuxia--
+
+=== Understanding dir encoding ===
+Pattern: path slashes replaced with dashes, wrapped in dashes
+/home/huanglin/code/wuxia → -home-huanglin-code-wuxia-
+
+Verification:
+  --home-huanglin-code-agent-workspace-tui-- → /home/huanglin/code/agent/workspace/tui/ (exists: NO)
+  --home-huanglin-code-gsd-provider-- → /home/huanglin/code/gsd/provider/ (exists: NO)
+  --home-huanglin-code-gsd-search-zhipu-- → /home/huanglin/code/gsd/search/zhipu/ (exists: NO)
+  --home-huanglin-code-wuxia-- → /home/huanglin/code/wuxia/ (exists: YES)
