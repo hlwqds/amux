@@ -35,6 +35,7 @@ pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
     let mut sessions = Vec::new();
     discover_claude_sessions(workspaces, &mut sessions);
     discover_codex_sessions(workspaces, &mut sessions);
+    discover_gsd_sessions(workspaces, &mut sessions);
     sessions.sort_by_key(|b| std::cmp::Reverse(b.last_active));
     sessions
 }
@@ -53,7 +54,37 @@ pub fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
             let sessions_root = Agent::Codex.sessions_dir()?;
             walk_codex_jsonl(&sessions_root, &session.id)
         }
+        Agent::Gsd => {
+            let sessions_root = Agent::Gsd.sessions_dir()?;
+            walk_gsd_jsonl(&sessions_root, &session.id)
+        }
     }
+}
+
+fn walk_gsd_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
+    // GSD sessions are stored in subdirs named after the encoded workspace path
+    // e.g. ~/.gsd/sessions/-home-user-proj/<session-id>.jsonl
+    if let Ok(subdirs) = fs::read_dir(root) {
+        for subdir in subdirs.flatten() {
+            if !subdir.path().is_dir() {
+                continue;
+            }
+            if let Ok(files) = fs::read_dir(subdir.path()) {
+                for file in files.flatten() {
+                    let path = file.path();
+                    if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                        continue;
+                    }
+                    if let Ok(content) = fs::read_to_string(&path)
+                        && content.contains(session_id)
+                    {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
@@ -93,6 +124,137 @@ fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
     }
     None
 }
+
+fn discover_gsd_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
+    let sessions_root = match Agent::Gsd.sessions_dir() {
+        Some(d) => d,
+        None => return,
+    };
+
+    let ws_paths: Vec<PathBuf> = workspaces
+        .iter()
+        .map(|ws| {
+            ws.path.clone().unwrap_or_else(|| {
+                let dir = data_dir().join("workspaces").join(&ws.id);
+                let _ = fs::create_dir_all(&dir);
+                dir
+            })
+        })
+        .collect();
+
+    if let Ok(subdirs) = fs::read_dir(&sessions_root) {
+        for subdir in subdirs.flatten() {
+            if !subdir.path().is_dir() {
+                continue;
+            }
+            // Decode directory name back to workspace path (reverse of replace '/' with '-')
+            let dir_name = subdir.file_name().to_string_lossy().into_owned();
+            let decoded_ws_path = PathBuf::from(dir_name.replace('-', "/"));
+
+            if let Ok(files) = fs::read_dir(subdir.path()) {
+                for file in files.flatten() {
+                    let path = file.path();
+                    if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                        continue;
+                    }
+
+                    let meta = parse_gsd_session(&path);
+                    let (id, title, cwd) = match meta {
+                        Some(m) => m,
+                        None => continue,
+                    };
+
+                    let ws_path = if let Some(ref cwd_str) = cwd {
+                        ws_paths
+                            .iter()
+                            .find(|p| cwd_str == &p.to_string_lossy().as_ref())
+                            .cloned()
+                            .unwrap_or_else(|| decoded_ws_path.clone())
+                    } else {
+                        decoded_ws_path.clone()
+                    };
+
+                    let last_active = fs::metadata(&path)
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+
+                    out.push(Session {
+                        id,
+                        workspace_path: ws_path,
+                        title: title.unwrap_or_else(|| "GSD session".into()),
+                        last_active,
+                        agent: Agent::Gsd,
+                    });
+                }
+            }
+        }
+    }
+}
+
+/// Parse GSD JSONL v3 session. First line: `{"type":"session","version":3,"id":"...","timestamp":"...","cwd":"..."}`
+/// Title: prefer `custom_message` with `customType:"gsd-run"`, fallback to `message` with `role:"user"`.
+pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<String>)> {
+    let content = fs::read_to_string(path).ok()?;
+    let mut id = String::new();
+    let mut cwd: Option<String> = None;
+    let mut title: Option<String> = None;
+
+    for line in content.lines() {
+        let record: serde_json::Value = serde_json::from_str(line).ok()?;
+        let r#type = record.get("type")?.as_str()?;
+
+        match r#type {
+            "session" => {
+                id = record.get("id")?.as_str()?.to_string();
+                cwd = record
+                    .get("cwd")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+            }
+            "custom_message" if title.is_none() => {
+                if record.get("customType").and_then(|v| v.as_str()) == Some("gsd-run") {
+                    if let Some(t) = record
+                        .get("message")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                    {
+                        let truncated: String = t.chars().take(50).collect();
+                        title = Some(truncated);
+                    }
+                }
+            }
+            "message" if title.is_none() => {
+                if record.get("role").and_then(|v| v.as_str()) == Some("user") {
+                    let text = record
+                        .get("message")
+                        .and_then(|v| v.as_str().map(|s| s.to_string()))
+                        .or_else(|| {
+                            record.get("message").and_then(|v| extract_text_from_content(v.clone()))
+                        });
+                    if let Some(t) = text {
+                        let truncated: String = t.chars().take(50).collect();
+                        title = Some(truncated);
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        // Early exit once we have everything
+        if !id.is_empty() && title.is_some() {
+            break;
+        }
+    }
+
+    if id.is_empty() {
+        return None;
+    }
+    Some((id, title, cwd))
+}
+
 
 fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
     let projects_dir = match Agent::Claude.sessions_dir() {

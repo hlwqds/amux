@@ -15,6 +15,8 @@ fn main() -> anyhow::Result<()> {
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use ratatui::style::Color;
+
     use super::config::*;
     use super::discovery::*;
     use super::types::*;
@@ -147,8 +149,16 @@ mod tests {
     fn agent_traits() {
         assert_eq!(Agent::Claude.cmd(), "claude");
         assert_eq!(Agent::Codex.cmd(), "codex");
+        assert_eq!(Agent::Gsd.cmd(), "gsd");
         assert_eq!(Agent::Claude.label(), "Claude Code");
         assert_eq!(Agent::Codex.label(), "Codex");
+        assert_eq!(Agent::Gsd.label(), "GSD");
+        assert_eq!(Agent::Claude.icon(), "C");
+        assert_eq!(Agent::Codex.icon(), "X");
+        assert_eq!(Agent::Gsd.icon(), "G");
+        assert_eq!(Agent::Claude.color(), Color::Cyan);
+        assert_eq!(Agent::Codex.color(), Color::Green);
+        assert_eq!(Agent::Gsd.color(), Color::Magenta);
     }
 
     #[test]
@@ -201,5 +211,111 @@ mod tests {
         assert!(result.is_none());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_gsd_session_valid_with_gsd_run_title() {
+        let jsonl = r#"{"type":"session","version":3,"id":"gsd-sess-001","timestamp":"2026-06-02T10:00:00Z","cwd":"/home/user/proj"}
+{"type":"custom_message","customType":"gsd-run","message":"implement the feature"}"#;
+        let dir = std::env::temp_dir().join("agent-test-gsd");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("gsd-sess-001.jsonl");
+        std::fs::write(&path, jsonl).unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_some());
+        let (id, title, cwd) = result.unwrap();
+        assert_eq!(id, "gsd-sess-001");
+        assert_eq!(title.unwrap(), "implement the feature");
+        assert_eq!(cwd.unwrap(), "/home/user/proj");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_gsd_session_fallback_to_user_message() {
+        let jsonl = r#"{"type":"session","version":3,"id":"gsd-sess-002","timestamp":"2026-06-02T10:00:00Z","cwd":"/home/user/proj"}
+{"type":"message","role":"user","message":"hello from interactive"}"#;
+        let dir = std::env::temp_dir().join("agent-test-gsd-user-msg");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("gsd-sess-002.jsonl");
+        std::fs::write(&path, jsonl).unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_some());
+        let (id, title, _cwd) = result.unwrap();
+        assert_eq!(id, "gsd-sess-002");
+        assert_eq!(title.unwrap(), "hello from interactive");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_gsd_session_gsd_run_takes_priority() {
+        let jsonl = r#"{"type":"session","version":3,"id":"gsd-sess-003","timestamp":"2026-06-02T10:00:00Z","cwd":"/home/user/proj"}
+{"type":"custom_message","customType":"gsd-run","message":"auto-mode task"}
+{"type":"message","role":"user","message":"user typed something"}"#;
+        let dir = std::env::temp_dir().join("agent-test-gsd-priority");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("gsd-sess-003.jsonl");
+        std::fs::write(&path, jsonl).unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_some());
+        let (_id, title, _cwd) = result.unwrap();
+        assert_eq!(title.unwrap(), "auto-mode task");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_gsd_session_no_session_line() {
+        let jsonl = r#"{"type":"custom_message","customType":"gsd-run","message":"no session header"}"#;
+        let dir = std::env::temp_dir().join("agent-test-gsd-no-session");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("bad.jsonl");
+        std::fs::write(&path, jsonl).unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_gsd_session_title_truncated_to_50_chars() {
+        let long_title = "a".repeat(100);
+        let session_line = serde_json::json!({
+            "type": "session",
+            "version": 3,
+            "id": "gsd-sess-004",
+            "timestamp": "2026-06-02T10:00:00Z",
+            "cwd": "/home/user/proj"
+        });
+        let msg_line = serde_json::json!({
+            "type": "custom_message",
+            "customType": "gsd-run",
+            "message": long_title
+        });
+        let jsonl = format!("{}\n{}", session_line, msg_line);
+        let dir = std::env::temp_dir().join("agent-test-gsd-truncate");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("gsd-sess-004.jsonl");
+        std::fs::write(&path, jsonl).unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_some());
+        let (_id, title, _cwd) = result.unwrap();
+        assert_eq!(title.unwrap().len(), 50);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn gsd_directory_name_encoding() {
+        // Verify that GSD session dirs encode workspace paths by replacing / with -
+        let ws_path = Path::new("/home/user/proj");
+        let encoded = encode_project_path(ws_path);
+        assert_eq!(encoded, "-home-user-proj");
     }
 }

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum Agent {
     Claude,
     Codex,
+    Gsd,
 }
 
 impl Agent {
@@ -14,6 +15,7 @@ impl Agent {
         match self {
             Agent::Claude => "claude",
             Agent::Codex => "codex",
+            Agent::Gsd => "gsd",
         }
     }
 
@@ -21,6 +23,7 @@ impl Agent {
         match self {
             Agent::Claude => "Claude Code",
             Agent::Codex => "Codex",
+            Agent::Gsd => "GSD",
         }
     }
 
@@ -28,6 +31,7 @@ impl Agent {
         match self {
             Agent::Claude => "C",
             Agent::Codex => "X",
+            Agent::Gsd => "G",
         }
     }
 
@@ -35,6 +39,7 @@ impl Agent {
         match self {
             Agent::Claude => Color::Cyan,
             Agent::Codex => Color::Green,
+            Agent::Gsd => Color::Magenta,
         }
     }
 
@@ -67,6 +72,16 @@ impl Agent {
                 }
                 cmd
             }
+            Agent::Gsd => {
+                let mut cmd = portable_pty::CommandBuilder::new("gsd");
+                cmd.cwd(workspace_path);
+                cmd.env("TERM", "xterm-256color");
+                cmd.env_remove("KITTY_WINDOW_ID");
+                cmd.env_remove("KITTY_LISTEN_ON");
+                cmd.env_remove("TERM_PROGRAM");
+                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                cmd
+            }
         }
     }
 
@@ -96,6 +111,17 @@ impl Agent {
                 cmd.arg(session_id);
                 cmd
             }
+            Agent::Gsd => {
+                let mut cmd = portable_pty::CommandBuilder::new("gsd");
+                cmd.cwd(workspace_path);
+                cmd.env("TERM", "xterm-256color");
+                cmd.env_remove("KITTY_WINDOW_ID");
+                cmd.env_remove("KITTY_LISTEN_ON");
+                cmd.env_remove("TERM_PROGRAM");
+                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                cmd.arg("sessions");
+                cmd
+            }
         }
     }
 
@@ -109,6 +135,11 @@ impl Agent {
             Agent::Codex => {
                 let dir =
                     PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".codex/sessions");
+                if dir.exists() { Some(dir) } else { None }
+            }
+            Agent::Gsd => {
+                let dir =
+                    PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".gsd/sessions");
                 if dir.exists() { Some(dir) } else { None }
             }
         }
