@@ -2,4 +2,4 @@
 
 ## Milestones
 
-- 🔄 **M001: GSD Agent Support** (`depends:[—]`)
+- ✅ **M001: GSD Agent Support** (`depends:[—]`)

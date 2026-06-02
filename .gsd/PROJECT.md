@@ -11,11 +11,11 @@ Multi-agent session management in a single TUI — spawn, resume, and switch bet
 ## Project Shape
 
 - **Complexity:** simple
-- **Why:** Adding a third agent follows the exact same enum/discovery/PTY pattern already established for Claude Code and Codex. Well-defined seams, no architectural unknowns.
+- **Why:** Three-agent architecture is complete. All agents follow the same enum/discovery/PTY pattern. Well-defined seams, no architectural unknowns.
 
 ## Current State
 
-Working TUI with Claude Code and Codex support. Session discovery, spawn, resume, rename, delete all functional. PTY-embedded sessions with scrollback. CI via GitHub Actions. No tests in CI pipeline (tests exist in main.rs only).
+Working TUI with Claude Code, Codex, and GSD support. Session discovery, spawn, resume, rename, delete all functional. PTY-embedded sessions with scrollback. 33 unit tests passing. CI via GitHub Actions. No tests in CI pipeline (tests exist in main.rs only).
 
 ## Architecture / Key Patterns
 
@@ -33,4 +33,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [ ] M001: GSD Agent Support — Add GSD (gsd CLI) as a first-class agent alongside Claude Code and Codex
+- [x] M001: GSD Agent Support — Add GSD (gsd CLI) as a first-class agent alongside Claude Code and Codex
