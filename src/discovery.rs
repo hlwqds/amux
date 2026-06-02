@@ -167,7 +167,7 @@ fn discover_gsd_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                     let ws_path = if let Some(ref cwd_str) = cwd {
                         ws_paths
                             .iter()
-                            .find(|p| cwd_str == &p.to_string_lossy().as_ref())
+                            .find(|p| cwd_str == p.to_string_lossy().as_ref())
                             .cloned()
                             .unwrap_or_else(|| decoded_ws_path.clone())
                     } else {
@@ -215,15 +215,14 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
                     .map(|s| s.to_string());
             }
             "custom_message" if title.is_none() => {
-                if record.get("customType").and_then(|v| v.as_str()) == Some("gsd-run") {
-                    if let Some(t) = record
+                if record.get("customType").and_then(|v| v.as_str()) == Some("gsd-run")
+                    && let Some(t) = record
                         .get("message")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string())
-                    {
-                        let truncated: String = t.chars().take(50).collect();
-                        title = Some(truncated);
-                    }
+                {
+                    let truncated: String = t.chars().take(50).collect();
+                    title = Some(truncated);
                 }
             }
             "message" if title.is_none() => {
@@ -232,7 +231,9 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
                         .get("message")
                         .and_then(|v| v.as_str().map(|s| s.to_string()))
                         .or_else(|| {
-                            record.get("message").and_then(|v| extract_text_from_content(v.clone()))
+                            record
+                                .get("message")
+                                .and_then(|v| extract_text_from_content(v.clone()))
                         });
                     if let Some(t) = text {
                         let truncated: String = t.chars().take(50).collect();
@@ -254,7 +255,6 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
     }
     Some((id, title, cwd))
 }
-
 
 fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
     let projects_dir = match Agent::Claude.sessions_dir() {
