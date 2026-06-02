@@ -133,5 +133,4 @@ impl super::App {
             self.load_browse_entries();
         }
     }
-
 }

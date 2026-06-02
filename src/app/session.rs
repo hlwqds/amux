@@ -80,7 +80,6 @@ impl super::App {
         Ok(())
     }
 
-
     pub(super) fn confirm_input(&mut self) -> Result<()> {
         match self.input_mode {
             InputMode::SessionName => {
@@ -185,5 +184,4 @@ impl super::App {
         self.new_workspace_name = None;
         self.status = "Workspace name (Esc = cancel):".into();
     }
-
 }

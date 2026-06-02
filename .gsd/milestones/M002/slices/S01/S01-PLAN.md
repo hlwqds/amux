@@ -33,7 +33,7 @@ src/lib.rs is the library root exposing pub mod app. src/main.rs depends on the 
   - Files: `src/lib.rs`, `src/main.rs`
   - Verify: cargo test
 
-- [ ] **T02: Fix 2 clippy warnings in discovery.rs and fmt issues** `est:15m`
+- [x] **T02: Fix 2 clippy warnings in discovery.rs and fmt issues** `est:15m`
   Fix 2 clippy warnings in discovery.rs and fmt issues so that cargo clippy -- -D warnings exits 0 and cargo fmt --all -- --check exits 0.
   - Files: `src/discovery.rs`, `src/app.rs`
   - Verify: cargo clippy -- -D warnings && cargo fmt --all -- --check

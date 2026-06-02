@@ -1,13 +1,15 @@
 # Codebase Map
 
-Generated: 2026-06-02T13:49:06Z | Files: 13 | Described: 0/13
-<!-- gsd:codebase-meta {"generatedAt":"2026-06-02T13:49:06Z","fingerprint":"0722a734c749c320a0f85a6a6640dc6889b5c5d7","fileCount":13,"truncated":false} -->
+Generated: 2026-06-02T15:18:56Z | Files: 21 | Described: 0/21
+<!-- gsd:codebase-meta {"generatedAt":"2026-06-02T15:18:56Z","fingerprint":"cf21575f605646f81e298e08cddd401da7e38b9b","fileCount":21,"truncated":false} -->
 
 ### (root)/
+- `.codex`
 - `.gitignore`
 - `Cargo.toml`
 - `LICENSE`
 - `README.md`
+- `skills-lock.json`
 
 ### .github/workflows/
 - `.github/workflows/ci.yml`
@@ -17,7 +19,15 @@ Generated: 2026-06-02T13:49:06Z | Files: 13 | Described: 0/13
 - `src/app.rs`
 - `src/config.rs`
 - `src/discovery.rs`
+- `src/lib.rs`
 - `src/main.rs`
 - `src/pty.rs`
 - `src/types.rs`
 - `src/util.rs`
+
+### src/app/
+- `src/app/browse.rs`
+- `src/app/handler.rs`
+- `src/app/mod.rs`
+- `src/app/session.rs`
+- `src/app/ui.rs`

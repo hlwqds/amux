@@ -1,5 +1,6 @@
 use std::{
-    io, sync::{
+    io,
+    sync::{
         Arc, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc::Sender,
@@ -149,12 +150,20 @@ impl PtyHandle {
 
     pub fn scroll_page_up(&self, page_size: usize) {
         let current = self.scrollback_offset();
-        self.parser.write().unwrap().screen_mut().set_scrollback(current + page_size);
+        self.parser
+            .write()
+            .unwrap()
+            .screen_mut()
+            .set_scrollback(current + page_size);
     }
 
     pub fn scroll_page_down(&self, page_size: usize) {
         let current = self.scrollback_offset();
-        self.parser.write().unwrap().screen_mut().set_scrollback(current.saturating_sub(page_size));
+        self.parser
+            .write()
+            .unwrap()
+            .screen_mut()
+            .set_scrollback(current.saturating_sub(page_size));
     }
 
     pub fn reset_scroll(&self) {

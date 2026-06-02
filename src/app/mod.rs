@@ -4,14 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
-use crossterm::event::{Event, KeyEventKind};
-use ratatui::{layout::Rect, widgets::ListState};
 use crate::config::{data_dir, save_config_file, title_override_path};
 use crate::discovery::{discover_sessions, find_session_jsonl};
 use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::*;
+use anyhow::{Context, Result};
+use crossterm::event::{Event, KeyEventKind};
+use ratatui::{layout::Rect, widgets::ListState};
 
 struct App {
     workspaces: Vec<Workspace>,
@@ -39,10 +39,10 @@ struct App {
     prev_states: Vec<PtyState>,
 }
 
-mod ui;
+mod browse;
 mod handler;
 mod session;
-mod browse;
+mod ui;
 
 impl App {
     fn new() -> Self {
@@ -297,7 +297,6 @@ impl App {
         }
         Ok(())
     }
-
 }
 
 // ─── Main ─────────────────────────────────────────────────
