@@ -78,7 +78,9 @@ pub fn default_roots() -> Vec<PathBuf> {
 }
 
 pub fn title_override_path(session_id: &str) -> PathBuf {
-    data_dir().join("sessions").join(format!("{session_id}.title"))
+    data_dir()
+        .join("sessions")
+        .join(format!("{session_id}.title"))
 }
 
 pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> PathBuf {
@@ -116,4 +118,70 @@ pub fn load_session_title(session_id: &str, workspace_path: Option<&Path>) -> Op
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::*;
+
+    #[test]
+    fn encode_project_path_simple() {
+        assert_eq!(
+            encode_project_path(Path::new("/home/user/my-project")),
+            "-home-user-my-project"
+        );
+    }
+
+    #[test]
+    fn encode_project_path_root() {
+        assert_eq!(encode_project_path(Path::new("/")), "-");
+    }
+
+    #[test]
+    fn encode_project_path_relative() {
+        assert_eq!(encode_project_path(Path::new("my-project")), "my-project");
+    }
+
+    #[test]
+    fn generate_id_is_unique() {
+        let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
+        for i in 0..ids.len() {
+            for j in (i + 1)..ids.len() {
+                assert_ne!(ids[i], ids[j], "duplicate id at indices {} and {}", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn gsd_directory_name_encoding() {
+        // Verify that GSD session dirs encode workspace paths by replacing / with -
+        let ws_path = Path::new("/home/user/proj");
+        let encoded = encode_project_path(ws_path);
+        assert_eq!(encoded, "-home-user-proj");
+    }
+
+    #[test]
+    fn encode_decode_gsd_dir_roundtrip() {
+        // Roundtrip only holds for paths without hyphens (encoding is lossy for hyphens)
+        let original = Path::new("/home/user/myproject");
+        let encoded = encode_project_path(original);
+        let decoded = encoded.replace('-', "/");
+        assert_eq!(PathBuf::from(decoded), original.to_path_buf());
+    }
+
+    #[test]
+    fn decode_gsd_dir_name_simple() {
+        let dir_name = "-home-user-proj";
+        let decoded = dir_name.replace('-', "/");
+        assert_eq!(decoded, "/home/user/proj");
+    }
+
+    #[test]
+    fn decode_gsd_dir_name_root() {
+        let dir_name = "-";
+        let decoded = dir_name.replace('-', "/");
+        assert_eq!(decoded, "/");
+    }
 }

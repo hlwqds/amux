@@ -140,3 +140,18 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -
     terminal.show_cursor()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relative_time_formatting() {
+        let now = now_secs();
+        assert_eq!(relative_time(now), "just now");
+        assert_eq!(relative_time(now - 30), "just now");
+        assert_eq!(relative_time(now - 120), "2m ago");
+        assert_eq!(relative_time(now - 7200), "2h ago");
+        assert_eq!(relative_time(now - 172800), "2d ago");
+    }
+}
