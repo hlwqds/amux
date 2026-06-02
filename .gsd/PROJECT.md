@@ -37,3 +37,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M002: Modular Refactor — Split app.rs into modular sub-files (app/mod.rs, handler.rs, ui.rs, session.rs, browse.rs)
 - [ ] M003: Search and Filter — Live fuzzy search and agent-type filtering in the sidebar
 - [ ] M004: Session Sorting and Grouping — Configurable sort order with agent-type grouped view
+- [ ] M005: PTY Tab Bar — Visual tab bar for active PTY sessions with mouse-driven switching

@@ -1,0 +1,20 @@
+41:    agent_filter: Option<Agent>,
+90:            agent_filter: None,
+140:    fn toggle_agent_filter(&mut self, agent: Agent) {
+141:        if self.agent_filter == Some(agent) {
+142:            self.agent_filter = None;
+145:            self.agent_filter = Some(agent);
+184:                        && self.agent_filter.is_none_or(|agent| s.agent == agent)
+209:                            && self.agent_filter.is_none_or(|a| slot.info.agent == a)
+233:                            && self.agent_filter.is_none_or(|a| slot.info.agent == a)
+480:            agent_filter: None,
+688:    fn agent_filter_shows_only_matching_sessions() {
+698:        app.agent_filter = Some(Agent::Claude);
+708:    fn agent_filter_hides_non_matching_sessions() {
+720:        app.agent_filter = Some(Agent::Gsd);
+733:    fn agent_filter_combined_with_text_search() {
+744:        app.agent_filter = Some(Agent::Claude);
+768:        app.toggle_agent_filter(Agent::Claude);
+769:        assert_eq!(app.agent_filter, Some(Agent::Claude));
+773:        app.toggle_agent_filter(Agent::Claude);
+774:        assert_eq!(app.agent_filter, None);

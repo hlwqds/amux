@@ -1,0 +1,11 @@
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:181:
+                 .enumerate()
+                 .filter(|(_, s)| {
+                     self.ws_matches_path(wi, &s.workspace_path)
+[31m-                        && self
+(B[m[31m-                            .agent_filter
+(B[m[31m-                            .map_or(true, |agent| s.agent == agent)
+(B[m[32m+                        && self.agent_filter.map_or(true, |agent| s.agent == agent)
+(B[m                 })
+                 .map(|(i, _)| i)
+                 .collect();

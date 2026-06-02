@@ -50,7 +50,7 @@ Agent filter uses the same rebuild_tree filter path as text search. No new integ
   - Files: `src/app/handler.rs`
   - Verify: cargo check
 
-- [ ] **T03: Render combined filter indicators in sidebar header** `est:10 min`
+- [x] **T03: Render combined filter indicators in sidebar header** `est:10 min`
   1. In `src/app/ui.rs`, update `render_sidebar()` block title:
      - Show `[search: query]` when text search is active
      - Show `[Claude/Codex/GSD]` when agent filter is active
@@ -60,7 +60,7 @@ Agent filter uses the same rebuild_tree filter path as text search. No new integ
   - Files: `src/app/ui.rs`
   - Verify: cargo check
 
-- [ ] **T04: Verify agent filter and combined search+filter** `est:15 min`
+- [x] **T04: Verify agent filter and combined search+filter** `est:15 min`
   1. Run `cargo test` — all existing tests must pass
   2. Run `cargo clippy -- -D warnings` — zero warnings
   3. Run `cargo fmt --check` — clean

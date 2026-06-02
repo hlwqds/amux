@@ -1,0 +1,20 @@
+help: use is_none_or instead
+    |
+211 -                             && self.agent_filter.map_or(true, |a| slot.info.agent == a)
+211 +                             && self.agent_filter.is_none_or(|a| slot.info.agent == a)
+    |
+
+error: this `map_or` can be simplified
+   --> src/app/mod.rs:235:32
+    |
+235 | ...                   && self.agent_filter.map_or(true, |a| slot.info.agent == a)
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#unnecessary_map_or
+help: use is_none_or instead
+    |
+235 -                             && self.agent_filter.map_or(true, |a| slot.info.agent == a)
+235 +                             && self.agent_filter.is_none_or(|a| slot.info.agent == a)
+    |
+
+error: could not compile `amux` (lib) due to 4 previous errors

@@ -17,7 +17,7 @@
 - [x] **S01: Fuzzy search mode** `risk:medium` `depends:[]`
   > After this: Press `/` in sidebar → type "fix" → tree filters to sessions with "fix" in title/workspace/ID → press Esc → full tree restored
 
-- [ ] **S02: Agent-type toggle filter** `risk:low` `depends:[S01]`
+- [x] **S02: Agent-type toggle filter** `risk:low` `depends:[S01]`
   > After this: Press `3` in sidebar → only GSD sessions shown → type "fix" → only GSD sessions matching "fix" → press `3` again → filter cleared, text search still active
 
 ## Boundary Map
