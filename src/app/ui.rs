@@ -9,7 +9,7 @@ use tui_term::widget::PseudoTerminal;
 
 use crate::pty::PtyState;
 use crate::types::*;
-use crate::util::{relative_time, centered_rect, SELECT_CURRENT, SELECT_VIRTUAL, PARENT_DIR};
+use crate::util::{PARENT_DIR, SELECT_CURRENT, SELECT_VIRTUAL, centered_rect, relative_time};
 
 impl super::App {
     pub(super) fn chat_size(&self) -> (u16, u16) {
