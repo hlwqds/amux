@@ -399,3 +399,4 @@
 {"id":"b5b97d84-b7ec-4ee9-82a1-d1e44ba8c887","ts":"2026-06-02T16:47:25.071Z","severity":"info","message":"Resume: applied 2 fix(es) to state.","source":"notify","read":false}
 {"id":"6755e2d4-5733-4cec-ae81-b36daaa6ecc0","ts":"2026-06-02T16:47:25.072Z","severity":"warning","message":"[recovery] verify-fail unknown unknown: resolveExpectedArtifactPath returned null (parent dir missing)","source":"workflow-logger","read":false}
 {"id":"8dd60e72-a626-40d5-9c10-d43d4aef15d8","ts":"2026-06-02T16:47:25.125Z","severity":"info","message":"Recovered 82 tool calls from paused session. Resuming with context.","source":"notify","read":false}
+{"id":"00c2f9da-a563-42b1-a62d-e5f0e2c62b17","ts":"2026-06-02T16:47:25.793Z","severity":"info","message":"Auto-mode paused: Cannot complete milestone M003: uncommitted changes remain after the pre-completion commit. Commit or stash before closing.","source":"notify","read":false}
