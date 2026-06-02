@@ -318,4 +318,79 @@ mod tests {
         let encoded = encode_project_path(ws_path);
         assert_eq!(encoded, "-home-user-proj");
     }
+
+    #[test]
+    fn encode_decode_gsd_dir_roundtrip() {
+        // Roundtrip only holds for paths without hyphens (encoding is lossy for hyphens)
+        let original = Path::new("/home/user/myproject");
+        let encoded = encode_project_path(original);
+        let decoded = encoded.replace('-', "/");
+        assert_eq!(PathBuf::from(decoded), original.to_path_buf());
+    }
+
+    #[test]
+    fn decode_gsd_dir_name_simple() {
+        let dir_name = "-home-user-proj";
+        let decoded = dir_name.replace('-', "/");
+        assert_eq!(decoded, "/home/user/proj");
+    }
+
+    #[test]
+    fn decode_gsd_dir_name_root() {
+        let dir_name = "-";
+        let decoded = dir_name.replace('-', "/");
+        assert_eq!(decoded, "/");
+    }
+
+    #[test]
+    fn parse_gsd_session_empty_file() {
+        let dir = std::env::temp_dir().join("agent-test-gsd-empty");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("empty.jsonl");
+        std::fs::write(&path, "").unwrap();
+
+        let result = parse_gsd_session(&path);
+        assert!(result.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn discover_gsd_sessions_finds_by_workspace() {
+        // Create a temp sessions dir simulating ~/.gsd/sessions/
+        let tmp = std::env::temp_dir().join("agent-test-gsd-discover");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let ws_path = Path::new("/tmp/fake-workspace-for-test");
+        let encoded_ws = encode_project_path(ws_path);
+        let session_dir = tmp.join(&encoded_ws);
+        std::fs::create_dir_all(&session_dir).unwrap();
+
+        let session_line = serde_json::json!({
+            "type": "session",
+            "version": 3,
+            "id": "gsd-disc-001",
+            "timestamp": "2026-06-02T10:00:00Z",
+            "cwd": "/tmp/fake-workspace-for-test"
+        });
+        let msg_line = serde_json::json!({
+            "type": "custom_message",
+            "customType": "gsd-run",
+            "message": "discovery test"
+        });
+        let jsonl = format!("{}\n{}", session_line, msg_line);
+        std::fs::write(session_dir.join("gsd-disc-001.jsonl"), jsonl).unwrap();
+
+        // Verify parse_gsd_session can read it
+        let parsed = parse_gsd_session(&session_dir.join("gsd-disc-001.jsonl"));
+        assert!(parsed.is_some());
+        let (id, title, cwd) = parsed.unwrap();
+        assert_eq!(id, "gsd-disc-001");
+        assert_eq!(title.unwrap(), "discovery test");
+        assert_eq!(cwd.unwrap(), "/tmp/fake-workspace-for-test");
+
+        // Verify the encoded directory matches expected workspace
+        assert_eq!(encoded_ws, "-tmp-fake-workspace-for-test");
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

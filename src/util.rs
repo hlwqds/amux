@@ -56,6 +56,9 @@ pub fn detect_agents() -> Vec<Agent> {
     if which("codex").is_some() {
         agents.push(Agent::Codex);
     }
+    if which("gsd").is_some() {
+        agents.push(Agent::Gsd);
+    }
     agents
 }
 
