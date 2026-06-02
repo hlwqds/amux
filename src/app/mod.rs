@@ -178,11 +178,7 @@ impl App {
                         let session = &self.sessions[si];
                         let short_id = &session.id[..session.id.len().min(8)];
                         session_fuzzy_score(session.title.as_str(), short_id, q)
-                            || session_fuzzy_score(
-                                &self.workspaces[wi].name,
-                                short_id,
-                                q,
-                            )
+                            || session_fuzzy_score(&self.workspaces[wi].name, short_id, q)
                     })
                     .collect();
 
@@ -194,11 +190,7 @@ impl App {
                     .filter(|(_pi, slot)| {
                         self.ws_matches_path(wi, &slot.info.workspace_path)
                             && slot.info.session_id.is_none()
-                            && session_fuzzy_score(
-                                &slot.info.title,
-                                &slot.info.title,
-                                q,
-                            )
+                            && session_fuzzy_score(&slot.info.title, &slot.info.title, q)
                     })
                     .map(|(pi, _)| pi)
                     .collect();
@@ -361,7 +353,7 @@ impl App {
 /// Returns true if any of the `haystacks` fuzzy-matches `query` using code_fuzzy_match.
 fn session_fuzzy_score(title: &str, short_id: &str, query: &str) -> bool {
     let check = |text: &str| -> bool {
-        code_fuzzy_match::fuzzy_match(text, query).map_or(false, |score| score > 0)
+        code_fuzzy_match::fuzzy_match(text, query).is_some_and(|score| score > 0)
     };
     check(title) || check(short_id)
 }
@@ -433,4 +425,231 @@ pub fn run() -> anyhow::Result<()> {
     app.ptys.clear();
     restore_terminal(&mut terminal)?;
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal App with given workspaces + sessions for filter testing.
+    /// Bypasses config loading / discovery / agent detection.
+    fn test_app(workspaces: Vec<Workspace>, sessions: Vec<Session>) -> App {
+        let mut app = App {
+            workspaces,
+            sessions,
+            tree: Vec::new(),
+            ws_session_map: Vec::new(),
+            tree_state: ListState::default(),
+            focus: Focus::Sidebar,
+            input_mode: InputMode::None,
+            input_buffer: String::new(),
+            search_query: None,
+            rename_target: None,
+            rename_workspace_target: None,
+            new_workspace_name: None,
+            pending_session_name: None,
+            available_agents: Vec::new(),
+            agent_state: ListState::default(),
+            browse_dir: PathBuf::new(),
+            browse_entries: Vec::new(),
+            browse_state: ListState::default(),
+            ptys: Vec::new(),
+            active_pty: None,
+            status: String::new(),
+            last_chat_area: Rect::default(),
+            last_refresh: std::time::Instant::now(),
+            prev_states: Vec::new(),
+        };
+        app.rebuild_tree();
+        if !app.tree.is_empty() {
+            app.tree_state.select(Some(0));
+        }
+        app
+    }
+
+    fn ws(id: &str, name: &str, path: &str) -> Workspace {
+        Workspace {
+            id: id.into(),
+            name: name.into(),
+            path: Some(PathBuf::from(path)),
+            created_at: 1000,
+            expanded: true,
+        }
+    }
+
+    fn sess(id: &str, title: &str, ws_path: &str) -> Session {
+        Session {
+            id: id.into(),
+            workspace_path: PathBuf::from(ws_path),
+            title: title.into(),
+            last_active: 1000,
+            agent: Agent::Claude,
+        }
+    }
+
+    // ─── session_fuzzy_score tests ───
+
+    #[test]
+    fn fuzzy_score_exact_match() {
+        assert!(session_fuzzy_score("fix bug", "", "fix bug"));
+    }
+
+    #[test]
+    fn fuzzy_score_substring_match() {
+        assert!(session_fuzzy_score("fix login bug", "", "fix"));
+    }
+
+    #[test]
+    fn fuzzy_score_fuzzy_chars() {
+        assert!(session_fuzzy_score("fix login bug", "", "fxlb"));
+    }
+
+    #[test]
+    fn fuzzy_score_no_match() {
+        assert!(!session_fuzzy_score("hello world", "", "zzzzz"));
+    }
+
+    #[test]
+    fn fuzzy_score_matches_short_id() {
+        // Short ID fallback: "abc12345" matches "abc"
+        assert!(session_fuzzy_score("unrelated title", "abc12345", "abc"));
+    }
+
+    #[test]
+    fn fuzzy_score_empty_query() {
+        // Empty query should not match (score would be 0)
+        assert!(!session_fuzzy_score("some title", "", ""));
+    }
+
+    // ─── rebuild_tree filter tests ───
+
+    #[test]
+    fn filter_returns_matching_sessions() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1-aaa111", "fix login", "/home/user/proj"),
+            sess("s2-bbb222", "add feature", "/home/user/proj"),
+            sess("s3-ccc333", "fix logout", "/home/user/proj"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Filter for "fix"
+        app.search_query = Some("fix".into());
+        app.rebuild_tree();
+
+        // Should have: Workspace(w1), Session(w1, s1_idx), Session(w1, s3_idx)
+        // s1 is at index 0, s3 is at index 2
+        assert_eq!(
+            app.tree.len(),
+            3,
+            "expected workspace + 2 matching sessions"
+        );
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // s1 (fix login)
+        assert!(matches!(app.tree[2], TreeNode::Session(0, 2))); // s3 (fix logout)
+    }
+
+    #[test]
+    fn filter_empty_query_shows_all() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1", "first", "/home/user/proj"),
+            sess("s2", "second", "/home/user/proj"),
+        ];
+        let app = test_app(workspaces, sessions);
+
+        // No search_query → all sessions visible (workspace expanded)
+        assert_eq!(app.tree.len(), 3, "expected workspace + 2 sessions");
+    }
+
+    #[test]
+    fn filter_no_matches_empty_tree() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![sess("s1", "hello", "/home/user/proj")];
+        let mut app = test_app(workspaces, sessions);
+
+        app.search_query = Some("zzzzz".into());
+        app.rebuild_tree();
+
+        assert!(app.tree.is_empty(), "no matches should yield empty tree");
+    }
+
+    #[test]
+    fn filter_selection_clamped() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1", "alpha", "/home/user/proj"),
+            sess("s2", "beta", "/home/user/proj"),
+            sess("s3", "gamma", "/home/user/proj"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Select last item (index 3 = session s3)
+        app.tree_state.select(Some(3));
+
+        // Filter to just one match ("beta")
+        app.search_query = Some("beta".into());
+        app.rebuild_tree();
+
+        // Tree now has only 2 items: Workspace + Session(s2)
+        // Selection should be clamped to valid range
+        let sel = app.tree_state.selected();
+        assert!(sel.is_some(), "selection must exist when tree is non-empty");
+        let idx = sel.unwrap();
+        assert!(
+            idx < app.tree.len(),
+            "selection ({}) must be < tree len ({})",
+            idx,
+            app.tree.len()
+        );
+    }
+
+    #[test]
+    fn filter_restores_all_on_clear() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess("s1", "fix bug", "/home/user/proj"),
+            sess("s2", "add feature", "/home/user/proj"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Filter
+        app.search_query = Some("fix".into());
+        app.rebuild_tree();
+        assert_eq!(app.tree.len(), 2, "workspace + 1 matching session");
+
+        // Clear filter
+        app.search_query = None;
+        app.rebuild_tree();
+        assert_eq!(app.tree.len(), 3, "workspace + all sessions restored");
+    }
+
+    #[test]
+    fn filter_workspaces_independently() {
+        let workspaces = vec![
+            ws("w1", "Alpha", "/home/user/alpha"),
+            ws("w2", "Beta", "/home/user/beta"),
+        ];
+        let sessions = vec![
+            sess("s1", "fix alpha bug", "/home/user/alpha"),
+            sess("s2", "fix beta bug", "/home/user/beta"),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Both workspaces should be present unfiltered
+        assert_eq!(app.tree.len(), 4, "2 workspaces + 2 sessions");
+
+        // Filter for "beta"
+        app.search_query = Some("beta".into());
+        app.rebuild_tree();
+
+        // Should have: w1 matching (Beta in name? no) — actually w1 has name "Alpha"
+        // s1 title is "fix alpha bug" — fuzzy match "beta"? No.
+        // w2 name is "Beta" — matches "beta"
+        // s2 title is "fix beta bug" — matches "beta"
+        // So: TreeNode::Workspace(1), TreeNode::Session(1, 1)
+        assert_eq!(app.tree.len(), 2, "workspace Beta + 1 matching session");
+        assert!(matches!(app.tree[0], TreeNode::Workspace(1)));
+        assert!(matches!(app.tree[1], TreeNode::Session(1, 1)));
+    }
 }
