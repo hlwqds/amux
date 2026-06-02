@@ -42,7 +42,7 @@
   - Files: `src/app/mod.rs`
   - Verify: cargo check && cargo test
 
-- [ ] **T03: Add `s` keybinding to cycle sort mode** `est:10 min`
+- [x] **T03: Add `s` keybinding to cycle sort mode** `est:10 min`
   In `src/app/handler.rs`:
   1. In sidebar key dispatch section, add `KeyCode::Char('s')` case.
   2. Call `self.cycle_sort_mode()`.
@@ -51,7 +51,7 @@
   - Files: `src/app/handler.rs`
   - Verify: cargo check && cargo test
 
-- [ ] **T04: Render sort mode indicator and AgentHeader nodes in sidebar UI** `est:25 min`
+- [x] **T04: Render sort mode indicator and AgentHeader nodes in sidebar UI** `est:25 min`
   In `src/app/ui.rs`:
   1. Update sidebar header title to include sort mode label. Current header shows filter indicators from M003. Append sort indicator like `[sort: time ↓]`.
   2. Add `TreeNode::AgentHeader(agent)` match arm in session rendering section:

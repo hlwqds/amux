@@ -192,6 +192,14 @@ impl super::App {
             }
 
             KeyEvent {
+                code: KeyCode::Char('s'),
+                ..
+            } => {
+                self.cycle_sort_mode();
+                Ok(Action::Continue)
+            }
+
+            KeyEvent {
                 code: KeyCode::Char('/'),
                 ..
             } => {

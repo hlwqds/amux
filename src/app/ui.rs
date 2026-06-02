@@ -179,8 +179,10 @@ impl super::App {
                 TreeNode::AgentHeader(agent) => {
                     ListItem::new(Line::from(vec![
                         Span::styled(
-                            format!(" \u{25b8} {}", agent.label()),
-                            Style::default().fg(agent.color()).add_modifier(Modifier::BOLD),
+                            format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
+                            Style::default()
+                                .fg(agent.color())
+                                .add_modifier(Modifier::DIM),
                         ),
                     ]))
                 }
@@ -196,13 +198,15 @@ impl super::App {
         let is_searching = self.input_mode == InputMode::Search;
         let search_query = self.search_query.as_deref().unwrap_or("");
 
+        let sort_label = self.sort_mode.label();
+
         let title = match (is_searching, &self.agent_filter) {
             (true, Some(agent)) => {
-                format!(" [{}] [search: {}] ", agent.label(), search_query)
+                format!(" [{}] [search: {}] [sort: {}] ", agent.label(), search_query, sort_label)
             }
-            (true, None) => format!(" [search: {}] ", search_query),
-            (false, Some(agent)) => format!(" [{}] Workspaces ", agent.label()),
-            (false, None) => " Workspaces ".to_string(),
+            (true, None) => format!(" [search: {}] [sort: {}] ", search_query, sort_label),
+            (false, Some(agent)) => format!(" [{}] Workspaces [sort: {}] ", agent.label(), sort_label),
+            (false, None) => format!(" Workspaces [sort: {}] ", sort_label),
         };
 
         let block = Block::default()
