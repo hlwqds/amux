@@ -176,16 +176,12 @@ impl super::App {
                             .style(Style::default().fg(Color::DarkGray)),
                     ])
                 }
-                TreeNode::AgentHeader(agent) => {
-                    ListItem::new(Line::from(vec![
-                        Span::styled(
-                            format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
-                            Style::default()
-                                .fg(agent.color())
-                                .add_modifier(Modifier::DIM),
-                        ),
-                    ]))
-                }
+                TreeNode::AgentHeader(agent) => ListItem::new(Line::from(vec![Span::styled(
+                    format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
+                    Style::default()
+                        .fg(agent.color())
+                        .add_modifier(Modifier::DIM),
+                )])),
             })
             .collect();
 
@@ -202,10 +198,17 @@ impl super::App {
 
         let title = match (is_searching, &self.agent_filter) {
             (true, Some(agent)) => {
-                format!(" [{}] [search: {}] [sort: {}] ", agent.label(), search_query, sort_label)
+                format!(
+                    " [{}] [search: {}] [sort: {}] ",
+                    agent.label(),
+                    search_query,
+                    sort_label
+                )
             }
             (true, None) => format!(" [search: {}] [sort: {}] ", search_query, sort_label),
-            (false, Some(agent)) => format!(" [{}] Workspaces [sort: {}] ", agent.label(), sort_label),
+            (false, Some(agent)) => {
+                format!(" [{}] Workspaces [sort: {}] ", agent.label(), sort_label)
+            }
             (false, None) => format!(" Workspaces [sort: {}] ", sort_label),
         };
 
@@ -305,6 +308,40 @@ impl super::App {
             .title(title)
             .border_style(Style::default().fg(border_color));
 
+        // When PTYs are active, split inner area into [tab_bar(1)] + [pty_content]
+        if !self.ptys.is_empty() {
+            let inner = block.inner(area);
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(1), Constraint::Min(1)])
+                .split(inner);
+
+            self.tab_bar_rect = chunks[0];
+
+            // Render tab bar
+            let tab_line = self.build_tab_bar(chunks[0].width as usize);
+            frame.render_widget(
+                Paragraph::new(tab_line),
+                chunks[0],
+            );
+
+            // Render active PTY content
+            if let Some(idx) = self.active_pty
+                && let Some(slot) = self.ptys.get(idx)
+            {
+                slot.handle.resize((chunks[1].width, chunks[1].height));
+
+                let parser = slot.handle.screen();
+                let screen = parser.read().unwrap().screen().clone();
+                let term = PseudoTerminal::new(&screen);
+                frame.render_widget(term, chunks[1]);
+            }
+
+            frame.render_widget(block, area);
+            return;
+        }
+
+        // No PTYs — existing placeholder path
         if let Some(idx) = self.active_pty
             && let Some(slot) = self.ptys.get(idx)
         {
@@ -417,16 +454,12 @@ impl super::App {
                 let label = agent.label().to_string();
                 let color = agent.color();
                 lines.push(
-                    Line::from(label).style(
-                        Style::default()
-                            .fg(color)
-                            .add_modifier(Modifier::BOLD),
-                    ),
+                    Line::from(label)
+                        .style(Style::default().fg(color).add_modifier(Modifier::BOLD)),
                 );
                 lines.push(Line::from(""));
                 lines.push(
-                    Line::from("Agent group header")
-                        .style(Style::default().fg(Color::DarkGray)),
+                    Line::from("Agent group header").style(Style::default().fg(Color::DarkGray)),
                 );
             }
             None => {
@@ -625,6 +658,88 @@ impl super::App {
         frame.render_widget(block, popup);
     }
 
+    fn build_tab_bar(&self, width: usize) -> Line<'static> {
+        if self.ptys.is_empty() {
+            return Line::raw("");
+        }
+
+        let n_tabs = self.ptys.len();
+        let sep = "\u{2502}"; // │
+        let sep_width = sep.len();
+        // Each tab gets equal share, minus separators
+        let total_sep_width = n_tabs.saturating_sub(1) * sep_width;
+        let tab_width = if width > total_sep_width {
+            (width - total_sep_width) / n_tabs
+        } else {
+            // Extremely narrow: just show agent icons
+            2
+        };
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+
+        for (i, slot) in self.ptys.iter().enumerate() {
+            let is_active = self.active_pty == Some(i);
+            let state = self.pty_display_state(i);
+
+            // State indicator
+            let (state_char, state_color) = match state {
+                PtyState::Running => ("\u{25cf}", Color::Yellow),  // ●
+                PtyState::Completed => ("\u{2714}", Color::Green), // ✔
+            };
+
+            // Calculate available space for title
+            // Format: " [icon] title... state "
+            // Fixed parts: " [C] " (4) + " " (1) + state + " " (1) = ~8 chars
+            let fixed_overhead = 4 + state_char.len() + 2;
+            let max_title = tab_width.saturating_sub(fixed_overhead);
+
+            let title = truncate_title(&slot.info.title, max_title);
+
+            let agent = slot.info.agent;
+
+            if is_active {
+                // Active tab: highlighted background
+                let active_bg = Color::Rgb(24, 36, 72);
+                spans.push(Span::styled(
+                    format!(" [{}] ", agent.icon()),
+                    Style::default().fg(agent.color()).bg(active_bg).add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", title),
+                    Style::default().fg(Color::White).bg(active_bg),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", state_char),
+                    Style::default().fg(state_color).bg(active_bg),
+                ));
+            } else {
+                // Inactive tab: dimmed
+                spans.push(Span::styled(
+                    format!(" [{}] ", agent.icon()),
+                    Style::default().fg(Color::DarkGray),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", title),
+                    Style::default().fg(Color::DarkGray),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", state_char),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+
+            // Separator between tabs (not after last)
+            if i < n_tabs - 1 {
+                spans.push(Span::styled(
+                    sep.to_string(),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+        }
+
+        Line::from(spans)
+    }
+
     fn render_status(&self, frame: &mut Frame, area: Rect) {
         let active_count = self.ptys.len();
         let pty_status = if active_count > 0 {
@@ -663,5 +778,64 @@ impl super::App {
             ),
             area,
         );
+    }
+}
+
+/// Truncate a title to `max_len` characters, appending "..." if truncated.
+/// Returns the original string unchanged if max_len <= 3 or the title fits.
+fn truncate_title(title: &str, max_len: usize) -> String {
+    if max_len <= 3 || title.len() <= max_len {
+        return title.to_string();
+    }
+    // Find the char boundary at or before max_len - 3
+    let end = title
+        .char_indices()
+        .take_while(|(i, c)| *i + c.len_utf8() <= max_len - 3)
+        .last()
+        .map(|(i, c)| i + c.len_utf8())
+        .unwrap_or(0);
+    let mut s = title[..end].to_string();
+    s.push_str("...");
+    s
+}
+
+#[cfg(test)]
+mod tab_bar_tests {
+    use super::*;
+    use crate::pty::PtyHandle;
+    use crate::types::{Agent, PtySlot, RunningInfo};
+    use std::path::PathBuf;
+
+    #[test]
+    fn truncate_title_fits_within_limit() {
+        assert_eq!(truncate_title("hello", 10), "hello");
+    }
+
+    #[test]
+    fn truncate_title_exact_fit() {
+        assert_eq!(truncate_title("hello", 5), "hello");
+    }
+
+    #[test]
+    fn truncate_title_truncates_long_title() {
+        assert_eq!(truncate_title("hello world", 8), "hello...");
+    }
+
+    #[test]
+    fn truncate_title_small_max_len() {
+        // max_len <= 3 returns original
+        assert_eq!(truncate_title("hello", 3), "hello");
+    }
+
+    #[test]
+    fn truncate_title_zero_max_len() {
+        assert_eq!(truncate_title("hello", 0), "hello");
+    }
+
+    #[test]
+    fn truncate_title_unicode_aware() {
+        // Each Greek letter is 2 bytes; max_len=7 gives budget 4 for chars + "..."
+        // α (2 bytes at 0) + β (2 bytes at 2) = 4 <= 4. γ at 4 + 2 = 6 > 4.
+        assert_eq!(truncate_title("αβγδεζ", 7), "αβ...");
     }
 }
