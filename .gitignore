@@ -14,6 +14,14 @@
 .gsd/metrics.json
 .gsd/runtime/
 .gsd/state-manifest.json
+.gsd/STATE.md
+.gsd/gsd.db
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal
+.gsd/journal/
+.gsd/audit/
+.gsd/notifications.jsonl
+.gsd/exec/
 .DS_Store
 Thumbs.db
 nul
