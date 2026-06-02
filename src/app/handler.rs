@@ -168,6 +168,15 @@ impl super::App {
             }
 
             KeyEvent {
+                code: KeyCode::Char('/'),
+                ..
+            } => {
+                self.input_mode = InputMode::Search;
+                self.input_buffer.clear();
+                Ok(Action::Continue)
+            }
+
+            KeyEvent {
                 code: KeyCode::Enter,
                 ..
             } => {
@@ -186,6 +195,9 @@ impl super::App {
         if self.input_mode == InputMode::SelectAgent {
             return self.handle_agent_key(key);
         }
+        if self.input_mode == InputMode::Search {
+            return self.handle_search_key(key);
+        }
 
         match key.code {
             KeyCode::Esc => {
@@ -203,6 +215,33 @@ impl super::App {
             }
             KeyCode::Char(c) => {
                 self.input_buffer.push(c);
+            }
+            _ => {}
+        }
+        Ok(Action::Continue)
+    }
+
+    fn handle_search_key(&mut self, key: KeyEvent) -> Result<Action> {
+        match key.code {
+            KeyCode::Char(c) => {
+                self.input_buffer.push(c);
+                self.search_query = Some(self.input_buffer.clone());
+                self.rebuild_tree();
+            }
+            KeyCode::Backspace => {
+                self.input_buffer.pop();
+                if self.input_buffer.is_empty() {
+                    self.search_query = None;
+                } else {
+                    self.search_query = Some(self.input_buffer.clone());
+                }
+                self.rebuild_tree();
+            }
+            KeyCode::Esc => {
+                self.input_mode = InputMode::None;
+                self.input_buffer.clear();
+                self.search_query = None;
+                self.rebuild_tree();
             }
             _ => {}
         }

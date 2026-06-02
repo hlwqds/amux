@@ -185,21 +185,68 @@ impl super::App {
             Color::DarkGray
         };
 
+        let is_searching = self.input_mode == InputMode::Search;
+        let title = if is_searching {
+            let query = self.search_query.as_deref().unwrap_or("");
+            format!(" [search: {}] ", query)
+        } else {
+            " Workspaces ".to_string()
+        };
+
         let block = Block::default()
             .borders(Borders::ALL)
-            .title(" Workspaces ")
+            .title(title)
             .border_style(Style::default().fg(border_color));
 
-        let list = List::new(items)
-            .block(block)
-            .highlight_style(
-                Style::default()
-                    .bg(Color::Rgb(24, 36, 72))
-                    .add_modifier(Modifier::BOLD),
-            )
-            .highlight_symbol("\u{203a}");
+        if is_searching {
+            // Split sidebar into tree area (top) and search prompt (bottom)
+            let inner = block.inner(area);
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(3), Constraint::Length(1)])
+                .split(inner);
 
-        frame.render_stateful_widget(list, area, &mut self.tree_state);
+            let list = List::new(items)
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::Rgb(24, 36, 72))
+                        .add_modifier(Modifier::BOLD),
+                )
+                .highlight_symbol("\u{203a}");
+
+            frame.render_stateful_widget(list, chunks[0], &mut self.tree_state);
+
+            let query = self.search_query.as_deref().unwrap_or("");
+            let filter_count = self.tree.len();
+            let filter_text = match filter_count {
+                0 => "0 matches".to_string(),
+                1 => "1 match".to_string(),
+                n => format!("{} matches", n),
+            };
+
+            let search_line = Line::from(vec![
+                Span::styled(" search: ", Style::default().fg(Color::Cyan).bold()),
+                Span::styled(query.to_string(), Style::default().fg(Color::White)),
+                Span::styled("|", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!(" {}", filter_text),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]);
+            frame.render_widget(Paragraph::new(search_line), chunks[1]);
+            frame.render_widget(block, area);
+        } else {
+            let list = List::new(items)
+                .block(block)
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::Rgb(24, 36, 72))
+                        .add_modifier(Modifier::BOLD),
+                )
+                .highlight_symbol("\u{203a}");
+
+            frame.render_stateful_widget(list, area, &mut self.tree_state);
+        }
     }
 
     fn render_chat(&mut self, frame: &mut Frame, area: Rect) {

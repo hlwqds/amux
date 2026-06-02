@@ -47,7 +47,7 @@ Search mode coexists with existing PTY session management. Keystrokes in search 
   - Files: `src/app/mod.rs`
   - Verify: cargo check && cargo test
 
-- [ ] **T03: Add slash keybinding and search mode key handling** `est:15 min`
+- [x] **T03: Add slash keybinding and search mode key handling** `est:15 min`
   1. In `src/app/handler.rs`, add slash keybinding in the sidebar key match section:
      - `KeyCode::Char('/')` sets `input_mode = InputMode::Search`, clears `input_buffer`
   2. Add `InputMode::Search` handling in `handle_input_key()`:
@@ -58,7 +58,7 @@ Search mode coexists with existing PTY session management. Keystrokes in search 
   - Files: `src/app/handler.rs`
   - Verify: cargo check
 
-- [ ] **T04: Render search prompt and filter indicator in sidebar** `est:10 min`
+- [x] **T04: Render search prompt and filter indicator in sidebar** `est:10 min`
   1. In `src/app/ui.rs`, modify `render_sidebar()`:
      - When `input_mode == InputMode::Search`, render a search input line at the bottom of the sidebar area showing the prompt with current input_buffer content
      - Update the sidebar block title to show `[search: {query}]` when search is active
