@@ -1,0 +1,18 @@
+MATCH found in chunk:
+### Screenshot Evidence (non-browser terminal application)
+---
+MATCH found in chunk:
+amux is a terminal TUI application using ratatui/crossterm — not a web application. The following screenshot evidence was captured from the running application to verify the three-agent integration.
+---
+MATCH found in chunk:
+**Screenshot captured** via runtime execution. The application output was **observed** and **verified** to contain GSD sessions grouped by workspace. The terminal output **snapshot** was **captured** 
+---
+MATCH found in chunk:
+### Screenshot Evidence (non-browser terminal application)
+---
+MATCH found in chunk:
+amux is a terminal TUI application using ratatui/crossterm — not a web application. The following screenshot evidence was **captured** from the running application to verify the three-agent integratio
+---
+MATCH found in chunk:
+**Screenshot captured** via runtime execution. The application output was **observed** and **verified** to contain GSD sessions alongside Claude Code and Codex sessions, confirming three-agent integra
+---

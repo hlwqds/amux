@@ -1,0 +1,18 @@
+{
+  "id": "d9eb3829-a08a-45f2-a4a0-d89752926a9c",
+  "runtime": "bash",
+  "purpose": "Check for remaining Claude Code references",
+  "script_chars": 32,
+  "started_at": "2026-06-02T11:23:30.242Z",
+  "finished_at": "2026-06-02T11:23:30.256Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 14,
+  "stdout_bytes": 175,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/d9eb3829-a08a-45f2-a4a0-d89752926a9c.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/d9eb3829-a08a-45f2-a4a0-d89752926a9c.stderr"
+}

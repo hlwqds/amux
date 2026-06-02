@@ -1,0 +1,18 @@
+{
+  "id": "091679f1-e543-4c9a-836c-e1d1283da3fa",
+  "runtime": "bash",
+  "purpose": "Attempt to launch amux TUI for runtime evidence",
+  "script_chars": 98,
+  "started_at": "2026-06-02T12:52:31.195Z",
+  "finished_at": "2026-06-02T12:52:31.629Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 434,
+  "stdout_bytes": 1047,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/091679f1-e543-4c9a-836c-e1d1283da3fa.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/worktrees/M001/.gsd/exec/091679f1-e543-4c9a-836c-e1d1283da3fa.stderr"
+}

@@ -1,0 +1,3 @@
+478:            KeyCode::Char('g') | KeyCode::Char('G')
+479:                if self.available_agents.contains(&Agent::Gsd) =>
+484:                        .position(|a| *a == Agent::Gsd)

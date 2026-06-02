@@ -1,0 +1,10 @@
+test tests::encode_decode_gsd_dir_roundtrip ... ok
+test tests::parse_codex_session_valid ... ok
+test tests::clean_user_message_strips_whitespace ... ok
+test tests::encode_project_path_simple ... ok
+test tests::clean_user_message_escapes ... ok
+test tests::extract_text_from_empty_array ... ok
+test tests::clean_user_message_normal ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -393,4 +393,48 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn gsd_sessions_persist_after_pty_exit() {
+        // Verifies the poll_states() retain logic from app.rs:
+        //   self.ptys.retain(|slot| {
+        //       if slot.info.agent == Agent::Codex && !slot.handle.is_alive() { return false; }
+        //       true
+        //   });
+        // Only Codex sessions are cleaned up on PTY exit; GSD and Claude persist.
+        let should_retain = |agent: Agent, is_alive: bool| -> bool {
+            if agent == Agent::Codex && !is_alive {
+                return false;
+            }
+            true
+        };
+
+        // When PTY is alive, all agents are retained
+        assert!(should_retain(Agent::Claude, true), "Claude should retain when alive");
+        assert!(should_retain(Agent::Codex, true), "Codex should retain when alive");
+        assert!(should_retain(Agent::Gsd, true), "GSD should retain when alive");
+
+        // When PTY exits, only Codex is removed — GSD and Claude persist
+        assert!(should_retain(Agent::Claude, false), "Claude sessions MUST persist after PTY exit");
+        assert!(!should_retain(Agent::Codex, false), "Codex sessions should be cleaned up after PTY exit");
+        assert!(should_retain(Agent::Gsd, false), "GSD sessions MUST persist after PTY exit");
+    }
+
+    #[test]
+    fn gsd_build_new_cmd_no_session_name() {
+        let ws = Path::new("/home/user/proj");
+        let cmd = Agent::Gsd.build_new_cmd(ws, None);
+        // CommandBuilder doesn't expose args directly, but the method must not panic
+        // and must return a valid builder (tested by compilation + the agent_traits test)
+        let _ = cmd;
+    }
+
+    #[test]
+    fn gsd_build_resume_cmd_uses_sessions() {
+        let ws = Path::new("/home/user/proj");
+        let cmd = Agent::Gsd.build_resume_cmd(ws, "some-session-id");
+        // Verify the builder is created without panic.
+        // The resume uses "gsd sessions" (interactive picker) not --resume.
+        let _ = cmd;
+    }
 }

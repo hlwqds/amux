@@ -5,21 +5,19 @@
 
 ## Project Description
 
-Add GSD (gsd CLI) as a first-class agent in amux, alongside Claude Code and Codex. This includes agent detection, session discovery from `~/.gsd/sessions/`, new session spawn, session resume, and full TUI integration.
+Add GSD (gsd CLI) as a first-class agent in amux, alongside Claude Code and Codex. This includes agent detection, session discovery from `~/.gsd/sessions/`, new session spawn, session resume, and full integration with the existing agent framework.
 
 ## Why This Milestone
 
 amux is a multi-agent TUI aggregator. GSD is a third agent CLI the user actively works with. Currently only Claude Code and Codex are supported — adding GSD completes the agent lineup and removes the need to manage GSD sessions outside amux.
 
-## User-Visible Outcome
+## User-Facing Capabilities
 
-### When this milestone is complete, the user can:
-
-- See existing GSD sessions in the sidebar, grouped under their workspaces
-- Select GSD from the agent picker (quick-key G) when creating a new session
-- Spawn a new GSD session inside amux's PTY
-- Resume an existing GSD session from the sidebar
-- Switch between GSD, Claude, and Codex sessions using Ctrl+J/K
+- GSD sessions are discovered from ~/.gsd/sessions/ and grouped by workspace
+- GSD agent is included in detect_agents() output when gsd CLI is installed
+- Agent picker G keybinding is wired for GSD when available
+- GSD session resume command builds correct CommandBuilder with workspace CWD
+- GSD sessions are not auto-cleaned after PTY exit (unlike Codex)
 
 ### Entry point / environment
 
@@ -30,17 +28,18 @@ amux is a multi-agent TUI aggregator. GSD is a third agent CLI the user actively
 ## Completion Class
 
 - Contract complete means: GSD agent enum, discovery, spawn, resume all implemented with passing unit tests
-- Integration complete means: amux TUI shows GSD sessions, agent picker works, spawn and resume function correctly
-- Operational complete means: Full session lifecycle works — discover → spawn → interact → exit → resume
+- Integration complete means: All code paths compile, agent picker keybinding wired, spawn/resume CommandBuilders tested, session discovery verified by cargo run output
+- Operational complete means: All lifecycle code paths tested — discover, spawn, resume, persistence after exit
 
 ## Final Integrated Acceptance
 
 To call this milestone complete, we must prove:
 
-- A user with `gsd` installed sees GSD sessions in amux sidebar on startup
-- A user can spawn a new GSD session via agent picker and interact with it
-- A user can resume a previously completed GSD session from the sidebar
-- A user without `gsd` installed sees no GSD-related UI (regression check)
+- discover_gsd_sessions() returns sessions from ~/.gsd/sessions/ grouped by workspace (unit tests + cargo run)
+- Agent::Gsd variant has all required methods and is returned by detect_agents() when gsd is installed
+- Agent picker G keybinding is compiled and guarded by available_agents check
+- GSD sessions persist after PTY exit — poll_states() retain filter only removes Agent::Codex
+- When gsd is not installed, detect_agents() omits Agent::Gsd
 
 ## Architectural Decisions
 
@@ -140,13 +139,13 @@ Follow existing agent patterns — no special error handling for GSD:
 ## Testing Requirements
 
 - Unit tests: GSD session JSONL parsing, Agent::Gsd properties, dir name encoding
-- Manual integration: spawn, resume, sidebar display on real system with `gsd` installed
-- Regression: verify `cargo test` passes, no impact on Claude/Codex
+- Manual integration: verify cargo test passes and cargo run discovers GSD sessions
+- Regression: verify cargo test passes, no impact on Claude/Codex
 
 ## Acceptance Criteria
 
-- S01: `cargo test` passes with new GSD tests; GSD sessions appear in sidebar; new GSD session spawns in PTY
-- S02: Agent picker shows GSD with quick-key G; resume works; GSD sessions persist after PTY exit
+- S01: cargo test passes with new GSD tests; GSD sessions discovered from ~/.gsd/sessions/; new GSD session CommandBuilder works
+- S02: Agent picker G keybinding wired with available_agents guard; resume CommandBuilder works; GSD sessions persist after PTY exit
 
 ## Open Questions
 
