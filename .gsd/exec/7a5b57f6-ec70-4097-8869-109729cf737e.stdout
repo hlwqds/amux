@@ -1,0 +1,12 @@
+src/app/mod.rs:180:                        session_fuzzy_score(session.title.as_str(), short_id, q)
+src/app/mod.rs:181:                            || session_fuzzy_score(&self.workspaces[wi].name, short_id, q)
+src/app/mod.rs:193:                            && session_fuzzy_score(&slot.info.title, &slot.info.title, q)
+src/app/mod.rs:199:                let ws_matches = session_fuzzy_score(&self.workspaces[wi].name, "", q);
+src/app/mod.rs:354:fn session_fuzzy_score(title: &str, short_id: &str, query: &str) -> bool {
+src/app/mod.rs:490:    // ─── session_fuzzy_score tests ───
+src/app/mod.rs:494:        assert!(session_fuzzy_score("fix bug", "", "fix bug"));
+src/app/mod.rs:499:        assert!(session_fuzzy_score("fix login bug", "", "fix"));
+src/app/mod.rs:504:        assert!(session_fuzzy_score("fix login bug", "", "fxlb"));
+src/app/mod.rs:509:        assert!(!session_fuzzy_score("hello world", "", "zzzzz"));
+src/app/mod.rs:515:        assert!(session_fuzzy_score("unrelated title", "abc12345", "abc"));
+src/app/mod.rs:521:        assert!(!session_fuzzy_score("some title", "", ""));

@@ -14,7 +14,7 @@
 
 ## Slices
 
-- [ ] **S01: Fuzzy search mode** `risk:medium` `depends:[]`
+- [x] **S01: Fuzzy search mode** `risk:medium` `depends:[]`
   > After this: Press `/` in sidebar → type "fix" → tree filters to sessions with "fix" in title/workspace/ID → press Esc → full tree restored
 
 - [ ] **S02: Agent-type toggle filter** `risk:low` `depends:[S01]`

@@ -1,16 +1,16 @@
 {
   "nodes": [
     {
-      "id": "milestone:M002",
-      "label": "M002: Modular Refactor",
+      "id": "milestone:M003",
+      "label": "M003: Search and Filter",
       "type": "milestone",
-      "description": "Active milestone: M002",
+      "description": "Active milestone: M003",
       "confidence": "EXTRACTED",
       "sourceFile": "STATE.md"
     },
     {
-      "id": "concept:phase:pre-planning",
-      "label": "Phase: pre-planning",
+      "id": "concept:phase:executing",
+      "label": "Phase: executing",
       "type": "concept",
       "confidence": "EXTRACTED",
       "sourceFile": "STATE.md"
@@ -67,6 +67,13 @@
       "confidence": "EXTRACTED"
     },
     {
+      "id": "milestone:M002",
+      "label": "M002: M002: Modular Refactor",
+      "type": "milestone",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M002/M002-ROADMAP.md"
+    },
+    {
       "id": "slice:M002:S01",
       "label": "S01: Foundation - lib.rs split and lint fixes",
       "type": "slice",
@@ -118,11 +125,78 @@
       "confidence": "EXTRACTED"
     },
     {
-      "id": "milestone:M003",
-      "label": "M003: M003: M003",
-      "type": "milestone",
+      "id": "slice:M003:S01",
+      "label": "S01: Fuzzy search mode",
+      "type": "slice",
       "confidence": "EXTRACTED",
-      "sourceFile": "milestones/M003/M003-ROADMAP.md"
+      "sourceFile": "milestones/M003/slices/S01/S01-PLAN.md"
+    },
+    {
+      "id": "task:M003:S01:T01",
+      "label": "T01: Add code-fuzzy-match dependency and InputMode::Search variant",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S01:T02",
+      "label": "T02: Add search fields to App and modify rebuild_tree with filter logic",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S01:T03",
+      "label": "T03: Add slash keybinding and search mode key handling",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S01:T04",
+      "label": "T04: Render search prompt and filter indicator in sidebar",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S01:T05",
+      "label": "T05: Verify and test fuzzy search",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "slice:M003:S02",
+      "label": "S02: Agent-type toggle filter",
+      "type": "slice",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M003/slices/S02/S02-PLAN.md"
+    },
+    {
+      "id": "task:M003:S02:T01",
+      "label": "T01: Add agent_filter field and integrate into rebuild_tree",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S02:T02",
+      "label": "T02: Add 1/2/3 keybindings for agent filter toggle",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S02:T03",
+      "label": "T03: Render combined filter indicators in sidebar header",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M003:S02:T04",
+      "label": "T04: Verify agent filter and combined search+filter",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "milestone:M004",
+      "label": "M004",
+      "type": "milestone",
+      "confidence": "EXTRACTED"
     },
     {
       "id": "decision:M001:1",
@@ -433,6 +507,72 @@
       "confidence": "EXTRACTED"
     },
     {
+      "from": "milestone:M003",
+      "to": "slice:M003:S01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S01",
+      "to": "task:M003:S01:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S01",
+      "to": "task:M003:S01:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S01",
+      "to": "task:M003:S01:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S01",
+      "to": "task:M003:S01:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S01",
+      "to": "task:M003:S01:T05",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M003",
+      "to": "slice:M003:S02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S02",
+      "to": "task:M003:S02:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S02",
+      "to": "task:M003:S02:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S02",
+      "to": "task:M003:S02:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M003:S02",
+      "to": "task:M003:S02:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
       "from": "milestone:M001",
       "to": "decision:M001:1",
       "type": "relates_to",
@@ -595,5 +735,5 @@
       "confidence": "EXTRACTED"
     }
   ],
-  "builtAt": "2026-06-02T15:18:20.468Z"
+  "builtAt": "2026-06-02T16:04:39.445Z"
 }

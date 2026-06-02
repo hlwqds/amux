@@ -1,0 +1,26 @@
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:178:
+                         let session = &self.sessions[si];
+                         let short_id = &session.id[..session.id.len().min(8)];
+                         session_fuzzy_score(session.title.as_str(), short_id, q)
+[31m-                            || session_fuzzy_score(
+(B[m[31m-                                &self.workspaces[wi].name,
+(B[m[31m-                                short_id,
+(B[m[31m-                                q,
+(B[m[31m-                            )
+(B[m[32m+                            || session_fuzzy_score(&self.workspaces[wi].name, short_id, q)
+(B[m                     })
+                     .collect();
+ 
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:194:
+                     .filter(|(_pi, slot)| {
+                         self.ws_matches_path(wi, &slot.info.workspace_path)
+                             && slot.info.session_id.is_none()
+[31m-                            && session_fuzzy_score(
+(B[m[31m-                                &slot.info.title,
+(B[m[31m-                                &slot.info.title,
+(B[m[31m-                                q,
+(B[m[31m-                            )
+(B[m[32m+                            && session_fuzzy_score(&slot.info.title, &slot.info.title, q)
+(B[m                     })
+                     .map(|(pi, _)| pi)
+                     .collect();

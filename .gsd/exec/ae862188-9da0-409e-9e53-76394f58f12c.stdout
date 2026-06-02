@@ -1,0 +1,17 @@
+    Checking amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+error: this `map_or` can be simplified
+   --> src/app/mod.rs:364:9
+    |
+364 |         code_fuzzy_match::fuzzy_match(text, query).map_or(false, |score| score > 0)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#unnecessary_map_or
+    = note: `-D clippy::unnecessary-map-or` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_map_or)]`
+help: use is_some_and instead
+    |
+364 -         code_fuzzy_match::fuzzy_match(text, query).map_or(false, |score| score > 0)
+364 +         code_fuzzy_match::fuzzy_match(text, query).is_some_and(|score| score > 0)
+    |
+
+error: could not compile `amux` (lib) due to 1 previous error

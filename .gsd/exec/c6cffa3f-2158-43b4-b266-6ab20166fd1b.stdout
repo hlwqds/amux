@@ -1,0 +1,11 @@
+25:    search_query: Option<String>,
+73:            search_query: None,
+159:            .search_query
+446:            search_query: None,
+537:        app.search_query = Some("fix".into());
+561:        // No search_query → all sessions visible (workspace expanded)
+571:        app.search_query = Some("zzzzz".into());
+591:        app.search_query = Some("beta".into());
+617:        app.search_query = Some("fix".into());
+622:        app.search_query = None;
+643:        app.search_query = Some("beta".into());

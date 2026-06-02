@@ -38,6 +38,7 @@ struct App {
     last_chat_area: Rect,
     last_refresh: std::time::Instant,
     prev_states: Vec<PtyState>,
+    agent_filter: Option<Agent>,
 }
 
 mod browse;
@@ -86,6 +87,7 @@ impl App {
             last_chat_area: Rect::default(),
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
+            agent_filter: None,
         };
         app.rebuild_tree();
         if !app.tree.is_empty() {
@@ -135,6 +137,17 @@ impl App {
         }
     }
 
+    fn toggle_agent_filter(&mut self, agent: Agent) {
+        if self.agent_filter == Some(agent) {
+            self.agent_filter = None;
+            self.status = format!("Filter: all agents");
+        } else {
+            self.agent_filter = Some(agent);
+            self.status = format!("Filter: {}", agent.label());
+        }
+        self.rebuild_tree();
+    }
+
     fn refresh_sessions(&mut self) {
         self.sessions = discover_sessions(&self.workspaces);
 
@@ -166,7 +179,12 @@ impl App {
                 .sessions
                 .iter()
                 .enumerate()
-                .filter(|(_, s)| self.ws_matches_path(wi, &s.workspace_path))
+                .filter(|(_, s)| {
+                    self.ws_matches_path(wi, &s.workspace_path)
+                        && self
+                            .agent_filter
+                            .map_or(true, |agent| s.agent == agent)
+                })
                 .map(|(i, _)| i)
                 .collect();
 
@@ -190,6 +208,7 @@ impl App {
                     .filter(|(_pi, slot)| {
                         self.ws_matches_path(wi, &slot.info.workspace_path)
                             && slot.info.session_id.is_none()
+                            && self.agent_filter.map_or(true, |a| slot.info.agent == a)
                             && session_fuzzy_score(&slot.info.title, &slot.info.title, q)
                     })
                     .map(|(pi, _)| pi)
@@ -213,6 +232,7 @@ impl App {
                     for (pi, slot) in self.ptys.iter().enumerate() {
                         if self.ws_matches_path(wi, &slot.info.workspace_path)
                             && slot.info.session_id.is_none()
+                            && self.agent_filter.map_or(true, |a| slot.info.agent == a)
                         {
                             tree.push(TreeNode::ActiveTab(pi));
                         }
@@ -459,6 +479,7 @@ mod tests {
             last_chat_area: Rect::default(),
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
+            agent_filter: None,
         };
         app.rebuild_tree();
         if !app.tree.is_empty() {

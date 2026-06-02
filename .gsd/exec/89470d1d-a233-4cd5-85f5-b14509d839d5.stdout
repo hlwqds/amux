@@ -1,0 +1,28 @@
+218:    Search,
+---
+25:    search_query: Option<String>,
+73:            search_query: None,
+159:            .search_query
+446:            search_query: None,
+537:        app.search_query = Some("fix".into());
+561:        // No search_query → all sessions visible (workspace expanded)
+571:        app.search_query = Some("zzzzz".into());
+591:        app.search_query = Some("beta".into());
+617:        app.search_query = Some("fix".into());
+622:        app.search_query = None;
+---
+174:                self.input_mode = InputMode::Search;
+198:        if self.input_mode == InputMode::Search {
+199:            return self.handle_search_key(key);
+224:    fn handle_search_key(&mut self, key: KeyEvent) -> Result<Action> {
+---
+188:        let is_searching = self.input_mode == InputMode::Search;
+189:        let title = if is_searching {
+190:            let query = self.search_query.as_deref().unwrap_or("");
+191:            format!(" [search: {}] ", query)
+201:        if is_searching {
+202:            // Split sidebar into tree area (top) and search prompt (bottom)
+219:            let query = self.search_query.as_deref().unwrap_or("");
+227:            let search_line = Line::from(vec![
+228:                Span::styled(" search: ", Style::default().fg(Color::Cyan).bold()),
+236:            frame.render_widget(Paragraph::new(search_line), chunks[1]);

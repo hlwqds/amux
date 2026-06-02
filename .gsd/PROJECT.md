@@ -34,3 +34,6 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 ## Milestone Sequence
 
 - [x] M001: GSD Agent Support — Add GSD (gsd CLI) as a first-class agent alongside Claude Code and Codex
+- [x] M002: Modular Refactor — Split app.rs into modular sub-files (app/mod.rs, handler.rs, ui.rs, session.rs, browse.rs)
+- [ ] M003: Search and Filter — Live fuzzy search and agent-type filtering in the sidebar
+- [ ] M004: Session Sorting and Grouping — Configurable sort order with agent-type grouped view

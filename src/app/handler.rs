@@ -168,6 +168,30 @@ impl super::App {
             }
 
             KeyEvent {
+                code: KeyCode::Char('1'),
+                ..
+            } => {
+                self.toggle_agent_filter(Agent::Claude);
+                Ok(Action::Continue)
+            }
+
+            KeyEvent {
+                code: KeyCode::Char('2'),
+                ..
+            } => {
+                self.toggle_agent_filter(Agent::Codex);
+                Ok(Action::Continue)
+            }
+
+            KeyEvent {
+                code: KeyCode::Char('3'),
+                ..
+            } => {
+                self.toggle_agent_filter(Agent::Gsd);
+                Ok(Action::Continue)
+            }
+
+            KeyEvent {
                 code: KeyCode::Char('/'),
                 ..
             } => {
@@ -241,6 +265,7 @@ impl super::App {
                 self.input_mode = InputMode::None;
                 self.input_buffer.clear();
                 self.search_query = None;
+                self.agent_filter = None;
                 self.rebuild_tree();
             }
             _ => {}

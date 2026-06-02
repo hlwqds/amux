@@ -1,0 +1,18 @@
+{
+  "id": "e0a0445e-061c-4e9b-8bec-3e6ca2744e15",
+  "runtime": "bash",
+  "purpose": "Check search UI rendering in sidebar",
+  "script_chars": 116,
+  "started_at": "2026-06-02T16:05:11.824Z",
+  "finished_at": "2026-06-02T16:05:11.836Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 12,
+  "stdout_bytes": 0,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/e0a0445e-061c-4e9b-8bec-3e6ca2744e15.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/e0a0445e-061c-4e9b-8bec-3e6ca2744e15.stderr"
+}

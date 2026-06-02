@@ -1,0 +1,18 @@
+{
+  "id": "6a943f7b-f235-43e5-97f4-b7dec66d7f68",
+  "runtime": "bash",
+  "purpose": "Find fuzzy matching function definition",
+  "script_chars": 121,
+  "started_at": "2026-06-02T16:06:08.283Z",
+  "finished_at": "2026-06-02T16:06:08.299Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 16,
+  "stdout_bytes": 0,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/6a943f7b-f235-43e5-97f4-b7dec66d7f68.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/6a943f7b-f235-43e5-97f4-b7dec66d7f68.stderr"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "49215cc0-6cc4-43b8-bed1-99eb159b7bff",
+  "runtime": "bash",
+  "purpose": "Check formatting",
+  "script_chars": 68,
+  "started_at": "2026-06-02T15:59:21.029Z",
+  "finished_at": "2026-06-02T15:59:21.134Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 105,
+  "stdout_bytes": 1458,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/49215cc0-6cc4-43b8-bed1-99eb159b7bff.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/49215cc0-6cc4-43b8-bed1-99eb159b7bff.stderr"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "380efc06-b8c0-4d1c-afa2-83518e8edf23",
+  "runtime": "bash",
+  "purpose": "Check search mode implementation across key files",
+  "script_chars": 151,
+  "started_at": "2026-06-02T16:04:57.043Z",
+  "finished_at": "2026-06-02T16:04:57.056Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 13,
+  "stdout_bytes": 0,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/380efc06-b8c0-4d1c-afa2-83518e8edf23.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/380efc06-b8c0-4d1c-afa2-83518e8edf23.stderr"
+}

@@ -27,7 +27,7 @@ Agent filter uses the same rebuild_tree filter path as text search. No new integ
 
 ## Tasks
 
-- [ ] **T01: Add agent_filter field and integrate into rebuild_tree** `est:10 min`
+- [x] **T01: Add agent_filter field and integrate into rebuild_tree** `est:10 min`
   1. Add `agent_filter: Option<Agent>` field to App struct in `src/app/mod.rs`
   2. Initialize to `None` in `App::new()`
   3. Modify `rebuild_tree()` to also check `self.agent_filter`:
@@ -38,7 +38,7 @@ Agent filter uses the same rebuild_tree filter path as text search. No new integ
   - Files: `src/app/mod.rs`
   - Verify: cargo check && cargo test
 
-- [ ] **T02: Add 1/2/3 keybindings for agent filter toggle** `est:10 min`
+- [x] **T02: Add 1/2/3 keybindings for agent filter toggle** `est:10 min`
   1. In `src/app/handler.rs`, add keybindings in the sidebar key match section:
      - `KeyCode::Char('1')` toggles `agent_filter` to/from `Some(Agent::Claude)`
      - `KeyCode::Char('2')` toggles to/from `Some(Agent::Codex)`

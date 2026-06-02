@@ -1,0 +1,8 @@
+test config::tests::generate_id_is_unique ... ok
+test discovery::tests::parse_gsd_session_gsd_run_takes_priority ... ok
+
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Checking amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
+ALL CHECKS PASSED

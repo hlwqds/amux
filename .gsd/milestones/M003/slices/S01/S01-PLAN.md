@@ -67,7 +67,7 @@ Search mode coexists with existing PTY session management. Keystrokes in search 
   - Files: `src/app/ui.rs`
   - Verify: cargo check
 
-- [ ] **T05: Verify and test fuzzy search** `est:20 min`
+- [x] **T05: Verify and test fuzzy search** `est:20 min`
   1. Run `cargo test` — all existing tests must pass
   2. Run `cargo clippy -- -D warnings` — zero warnings
   3. Run `cargo fmt --check` — clean
