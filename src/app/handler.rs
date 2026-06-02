@@ -369,6 +369,36 @@ impl super::App {
         Ok(Action::Continue)
     }
 
+    pub(super) fn handle_mouse_click(&mut self, x: u16, y: u16) {
+        let rect = self.tab_bar_rect;
+        if self.ptys.is_empty() || rect.width == 0 || rect.height == 0 {
+            return;
+        }
+        if y < rect.y || y >= rect.y + rect.height || x < rect.x || x >= rect.x + rect.width {
+            return;
+        }
+        let local_x = x - rect.x;
+        let tab_width = rect.width / self.ptys.len() as u16;
+        if tab_width == 0 {
+            return;
+        }
+        let tab_index = (local_x / tab_width) as usize;
+        if tab_index < self.ptys.len()
+            && self.active_pty != Some(tab_index)
+        {
+            self.active_pty = Some(tab_index);
+            if let Some(slot) = self.ptys.get(tab_index) {
+                slot.handle.reset_scroll();
+            }
+            self.status = format!(
+                "Switched to: {} ({}/{})",
+                self.ptys[tab_index].info.title,
+                tab_index + 1,
+                self.ptys.len()
+            );
+        }
+    }
+
     pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
         if self.input_mode != InputMode::None {
             self.input_buffer.push_str(text);

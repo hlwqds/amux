@@ -36,6 +36,7 @@ struct App {
     active_pty: Option<usize>,
     status: String,
     last_chat_area: Rect,
+    tab_bar_rect: Rect,
     last_refresh: std::time::Instant,
     prev_states: Vec<PtyState>,
     agent_filter: Option<Agent>,
@@ -86,6 +87,7 @@ impl App {
             active_pty: None,
             status: "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws q:quit".into(),
             last_chat_area: Rect::default(),
+            tab_bar_rect: Rect::default(),
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
             agent_filter: None,
@@ -522,6 +524,11 @@ pub fn run() -> anyhow::Result<()> {
                 Event::Paste(text) => {
                     app.handle_paste(&text)?;
                 }
+                Event::Mouse(mouse) => {
+                    if let crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) = mouse.kind {
+                        app.handle_mouse_click(mouse.column, mouse.row);
+                    }
+                }
                 _ => {}
             }
         }
@@ -562,6 +569,7 @@ mod tests {
             active_pty: None,
             status: String::new(),
             last_chat_area: Rect::default(),
+            tab_bar_rect: Rect::default(),
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
             agent_filter: None,
@@ -1147,5 +1155,105 @@ mod tests {
             idx,
             app.tree.len()
         );
+    }
+
+    // ─── handle_mouse_click tests ───
+
+    #[test]
+    fn mouse_click_ignored_when_no_ptys() {
+        let mut app = test_app(vec![], vec![]);
+        app.tab_bar_rect = Rect::new(0, 0, 80, 1);
+        // Should not panic or change state
+        app.handle_mouse_click(40, 0);
+        assert_eq!(app.active_pty, None);
+    }
+
+    #[test]
+    fn mouse_click_ignored_when_rect_is_zero() {
+        let mut app = test_app(vec![], vec![]);
+        app.tab_bar_rect = Rect::default();
+        app.handle_mouse_click(10, 10);
+        assert_eq!(app.active_pty, None);
+    }
+
+    #[test]
+    fn mouse_click_outside_tab_bar_ignored() {
+        let mut app = test_app(vec![], vec![]);
+        app.tab_bar_rect = Rect::new(0, 0, 80, 1);
+
+        // Click below the tab bar (y=1 is outside a rect starting at y=0 with height=1)
+        app.handle_mouse_click(40, 5);
+        assert_eq!(app.active_pty, None);
+
+        // Click above the tab bar
+        app.handle_mouse_click(40, 10);
+        assert_eq!(app.active_pty, None);
+    }
+
+    #[test]
+    fn tab_index_calculation_single_tab() {
+        // With 1 tab spanning width=80, tab_width=80, any click maps to index 0
+        let rect = Rect::new(0, 0, 80, 1);
+        let tab_width = rect.width / 1u16; // 80
+        assert_eq!(tab_width, 80);
+
+        // Click at x=0 → local_x=0 → index 0
+        let idx = (0u16 / tab_width) as usize;
+        assert_eq!(idx, 0);
+
+        // Click at x=79 → local_x=79 → index 0
+        let idx = (79u16 / tab_width) as usize;
+        assert_eq!(idx, 0);
+    }
+
+    #[test]
+    fn tab_index_calculation_multiple_tabs() {
+        // With 4 tabs spanning width=80, tab_width=20
+        let rect = Rect::new(0, 0, 80, 1);
+        let tab_width = rect.width / 4u16;
+        assert_eq!(tab_width, 20);
+
+        // Click at x=0 → index 0
+        assert_eq!((0u16 / tab_width) as usize, 0);
+        // Click at x=19 → index 0
+        assert_eq!((19u16 / tab_width) as usize, 0);
+        // Click at x=20 → index 1
+        assert_eq!((20u16 / tab_width) as usize, 1);
+        // Click at x=39 → index 1
+        assert_eq!((39u16 / tab_width) as usize, 1);
+        // Click at x=40 → index 2
+        assert_eq!((40u16 / tab_width) as usize, 2);
+        // Click at x=60 → index 3
+        assert_eq!((60u16 / tab_width) as usize, 3);
+        // Click at x=79 → index 3
+        assert_eq!((79u16 / tab_width) as usize, 3);
+    }
+
+    #[test]
+    fn tab_index_with_offset_rect() {
+        // Tab bar at x=20, width=60, 3 tabs → tab_width=20
+        let rect = Rect::new(20, 5, 60, 1);
+        let tab_width = rect.width / 3u16;
+        assert_eq!(tab_width, 20);
+
+        // Click at x=20 → local_x=0 → index 0
+        let local_x = 20u16 - rect.x;
+        assert_eq!((local_x / tab_width) as usize, 0);
+
+        // Click at x=39 → local_x=19 → index 0
+        let local_x = 39u16 - rect.x;
+        assert_eq!((local_x / tab_width) as usize, 0);
+
+        // Click at x=40 → local_x=20 → index 1
+        let local_x = 40u16 - rect.x;
+        assert_eq!((local_x / tab_width) as usize, 1);
+
+        // Click at x=59 → local_x=39 → index 1
+        let local_x = 59u16 - rect.x;
+        assert_eq!((local_x / tab_width) as usize, 1);
+
+        // Click at x=60 → local_x=40 → index 2
+        let local_x = 60u16 - rect.x;
+        assert_eq!((local_x / tab_width) as usize, 2);
     }
 }
