@@ -140,7 +140,7 @@ impl App {
     fn toggle_agent_filter(&mut self, agent: Agent) {
         if self.agent_filter == Some(agent) {
             self.agent_filter = None;
-            self.status = format!("Filter: all agents");
+            self.status = "Filter: all agents".to_string();
         } else {
             self.agent_filter = Some(agent);
             self.status = format!("Filter: {}", agent.label());
@@ -181,9 +181,7 @@ impl App {
                 .enumerate()
                 .filter(|(_, s)| {
                     self.ws_matches_path(wi, &s.workspace_path)
-                        && self
-                            .agent_filter
-                            .map_or(true, |agent| s.agent == agent)
+                        && self.agent_filter.is_none_or(|agent| s.agent == agent)
                 })
                 .map(|(i, _)| i)
                 .collect();
@@ -208,7 +206,7 @@ impl App {
                     .filter(|(_pi, slot)| {
                         self.ws_matches_path(wi, &slot.info.workspace_path)
                             && slot.info.session_id.is_none()
-                            && self.agent_filter.map_or(true, |a| slot.info.agent == a)
+                            && self.agent_filter.is_none_or(|a| slot.info.agent == a)
                             && session_fuzzy_score(&slot.info.title, &slot.info.title, q)
                     })
                     .map(|(pi, _)| pi)
@@ -232,7 +230,7 @@ impl App {
                     for (pi, slot) in self.ptys.iter().enumerate() {
                         if self.ws_matches_path(wi, &slot.info.workspace_path)
                             && slot.info.session_id.is_none()
-                            && self.agent_filter.map_or(true, |a| slot.info.agent == a)
+                            && self.agent_filter.is_none_or(|a| slot.info.agent == a)
                         {
                             tree.push(TreeNode::ActiveTab(pi));
                         }
@@ -508,6 +506,16 @@ mod tests {
         }
     }
 
+    fn sess_with_agent(id: &str, title: &str, ws_path: &str, agent: Agent) -> Session {
+        Session {
+            id: id.into(),
+            workspace_path: PathBuf::from(ws_path),
+            title: title.into(),
+            last_active: 1000,
+            agent,
+        }
+    }
+
     // ─── session_fuzzy_score tests ───
 
     #[test]
@@ -672,5 +680,98 @@ mod tests {
         assert_eq!(app.tree.len(), 2, "workspace Beta + 1 matching session");
         assert!(matches!(app.tree[0], TreeNode::Workspace(1)));
         assert!(matches!(app.tree[1], TreeNode::Session(1, 1)));
+    }
+
+    // ─── agent filter tests ───
+
+    #[test]
+    fn agent_filter_shows_only_matching_sessions() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "claude task", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "codex task", "/home/user/proj", Agent::Codex),
+            sess_with_agent("s3", "gsd task", "/home/user/proj", Agent::Gsd),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Filter to Claude only
+        app.agent_filter = Some(Agent::Claude);
+        app.rebuild_tree();
+
+        // Should have: Workspace(w1), Session(w1, 0) — only Claude session
+        assert_eq!(app.tree.len(), 2, "workspace + 1 Claude session");
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // s1 (Claude)
+    }
+
+    #[test]
+    fn agent_filter_hides_non_matching_sessions() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "claude task", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "codex task", "/home/user/proj", Agent::Codex),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Unfiltered: workspace + 2 sessions
+        assert_eq!(app.tree.len(), 3, "workspace + 2 sessions unfiltered");
+
+        // Filter to GSD (none exist)
+        app.agent_filter = Some(Agent::Gsd);
+        app.rebuild_tree();
+
+        // Without search query, workspace is still shown but has no sessions under it
+        assert_eq!(
+            app.tree.len(),
+            1,
+            "workspace header present, no matching sessions listed"
+        );
+        assert!(matches!(app.tree[0], TreeNode::Workspace(0)));
+    }
+
+    #[test]
+    fn agent_filter_combined_with_text_search() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "fix bug", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "fix bug", "/home/user/proj", Agent::Codex),
+            sess_with_agent("s3", "add feature", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s4", "fix bug", "/home/user/proj", Agent::Gsd),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Filter to Claude + search "fix"
+        app.agent_filter = Some(Agent::Claude);
+        app.search_query = Some("fix".into());
+        app.rebuild_tree();
+
+        // Should have: Workspace(w1), Session(w1, 0) — only Claude session matching "fix"
+        // s1 (Claude, "fix bug") ✓  s3 (Claude, "add feature") ✗
+        assert_eq!(
+            app.tree.len(),
+            2,
+            "workspace + 1 Claude session matching 'fix'"
+        );
+        assert!(matches!(app.tree[1], TreeNode::Session(0, 0))); // s1
+    }
+
+    #[test]
+    fn toggle_same_agent_key_clears_filter() {
+        let workspaces = vec![ws("w1", "Project", "/home/user/proj")];
+        let sessions = vec![
+            sess_with_agent("s1", "task a", "/home/user/proj", Agent::Claude),
+            sess_with_agent("s2", "task b", "/home/user/proj", Agent::Gsd),
+        ];
+        let mut app = test_app(workspaces, sessions);
+
+        // Set filter to Claude
+        app.toggle_agent_filter(Agent::Claude);
+        assert_eq!(app.agent_filter, Some(Agent::Claude));
+        assert_eq!(app.tree.len(), 2, "workspace + 1 Claude session");
+
+        // Toggle same agent again should clear
+        app.toggle_agent_filter(Agent::Claude);
+        assert_eq!(app.agent_filter, None);
+        assert_eq!(app.tree.len(), 3, "workspace + all 2 sessions restored");
     }
 }
