@@ -10,6 +10,18 @@ pub enum Agent {
     Gsd,
 }
 
+// Manual Ord impl to guarantee fixed sort order: Claude < Codex < Gsd
+impl Ord for Agent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+impl PartialOrd for Agent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some((*self as u8).cmp(&(*other as u8)))
+    }
+}
+
 impl Agent {
     pub fn cmd(&self) -> &str {
         match self {
@@ -183,6 +195,39 @@ pub enum TreeNode {
     Workspace(usize),
     Session(usize, usize),
     ActiveTab(usize),
+    AgentHeader(Agent),
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SortMode {
+    #[default]
+    TimeDesc,
+    TimeAsc,
+    NameAsc,
+    NameDesc,
+    AgentGroup,
+}
+
+impl SortMode {
+    pub fn next(&self) -> SortMode {
+        match self {
+            SortMode::TimeDesc => SortMode::TimeAsc,
+            SortMode::TimeAsc => SortMode::NameAsc,
+            SortMode::NameAsc => SortMode::NameDesc,
+            SortMode::NameDesc => SortMode::AgentGroup,
+            SortMode::AgentGroup => SortMode::TimeDesc,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            SortMode::TimeDesc => "time \u{2193}",
+            SortMode::TimeAsc => "time \u{2191}",
+            SortMode::NameAsc => "name A\u{2192}Z",
+            SortMode::NameDesc => "name Z\u{2192}A",
+            SortMode::AgentGroup => "agent",
+        }
+    }
 }
 
 pub struct PtySlot {

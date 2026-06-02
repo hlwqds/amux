@@ -176,6 +176,14 @@ impl super::App {
                             .style(Style::default().fg(Color::DarkGray)),
                     ])
                 }
+                TreeNode::AgentHeader(agent) => {
+                    ListItem::new(Line::from(vec![
+                        Span::styled(
+                            format!(" \u{25b8} {}", agent.label()),
+                            Style::default().fg(agent.color()).add_modifier(Modifier::BOLD),
+                        ),
+                    ]))
+                }
             })
             .collect();
 
@@ -399,6 +407,22 @@ impl super::App {
                 lines.push(
                     Line::from("Press Enter to switch to this session")
                         .style(Style::default().fg(Color::Yellow)),
+                );
+            }
+            Some(&TreeNode::AgentHeader(agent)) => {
+                let label = agent.label().to_string();
+                let color = agent.color();
+                lines.push(
+                    Line::from(label).style(
+                        Style::default()
+                            .fg(color)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                );
+                lines.push(Line::from(""));
+                lines.push(
+                    Line::from("Agent group header")
+                        .style(Style::default().fg(Color::DarkGray)),
                 );
             }
             None => {

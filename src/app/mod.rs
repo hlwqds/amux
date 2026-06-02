@@ -39,6 +39,7 @@ struct App {
     last_refresh: std::time::Instant,
     prev_states: Vec<PtyState>,
     agent_filter: Option<Agent>,
+    sort_mode: SortMode,
 }
 
 mod browse;
@@ -88,12 +89,63 @@ impl App {
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
             agent_filter: None,
+            sort_mode: SortMode::default(),
         };
         app.rebuild_tree();
         if !app.tree.is_empty() {
             app.tree_state.select(Some(0));
         }
         app
+    }
+
+    fn cycle_sort_mode(&mut self) {
+        self.sort_mode = self.sort_mode.next();
+        self.rebuild_tree();
+        self.status = format!("Sort: {}", self.sort_mode.label());
+    }
+
+    fn sort_session_indices(&self, indices: &mut Vec<usize>) {
+        match self.sort_mode {
+            SortMode::TimeDesc => indices.sort_by(|&a, &b| {
+                self.sessions[b].last_active.cmp(&self.sessions[a].last_active)
+            }),
+            SortMode::TimeAsc => indices.sort_by(|&a, &b| {
+                self.sessions[a].last_active.cmp(&self.sessions[b].last_active)
+            }),
+            SortMode::NameAsc => indices.sort_by(|&a, &b| {
+                self.sessions[a].title.to_lowercase().cmp(&self.sessions[b].title.to_lowercase())
+            }),
+            SortMode::NameDesc => indices.sort_by(|&a, &b| {
+                self.sessions[b].title.to_lowercase().cmp(&self.sessions[a].title.to_lowercase())
+            }),
+            SortMode::AgentGroup => indices.sort_by(|&a, &b| {
+                self.sessions[a].agent.cmp(&self.sessions[b].agent)
+                    .then_with(|| self.sessions[b].last_active.cmp(&self.sessions[a].last_active))
+            }),
+        }
+    }
+
+    fn append_agent_grouped(
+        sessions: &[Session],
+        indices: &[usize],
+        wi: usize,
+        tree: &mut Vec<TreeNode>,
+    ) {
+        let agent_order = [Agent::Claude, Agent::Codex, Agent::Gsd];
+        for agent in agent_order {
+            let group: Vec<usize> = indices
+                .iter()
+                .copied()
+                .filter(|&si| sessions[si].agent == agent)
+                .collect();
+            if group.is_empty() {
+                continue;
+            }
+            tree.push(TreeNode::AgentHeader(agent));
+            for &si in &group {
+                tree.push(TreeNode::Session(wi, si));
+            }
+        }
     }
 
     fn poll_states(&mut self) {
@@ -188,7 +240,7 @@ impl App {
 
             if let Some(q) = query {
                 // Fuzzy-filter sessions for this workspace
-                let matching_sessions: Vec<usize> = sess_idxs
+                let mut matching_sessions: Vec<usize> = sess_idxs
                     .into_iter()
                     .filter(|&si| {
                         let session = &self.sessions[si];
@@ -197,6 +249,7 @@ impl App {
                             || session_fuzzy_score(&self.workspaces[wi].name, short_id, q)
                     })
                     .collect();
+                self.sort_session_indices(&mut matching_sessions);
 
                 // Fuzzy-filter active PTYs for this workspace
                 let matching_ptys: Vec<usize> = self
@@ -219,12 +272,18 @@ impl App {
                     for &pi in &matching_ptys {
                         tree.push(TreeNode::ActiveTab(pi));
                     }
-                    for &si in &matching_sessions {
-                        tree.push(TreeNode::Session(wi, si));
+                    if self.sort_mode == SortMode::AgentGroup {
+                        Self::append_agent_grouped(&self.sessions, &matching_sessions, wi, &mut tree);
+                    } else {
+                        for &si in &matching_sessions {
+                            tree.push(TreeNode::Session(wi, si));
+                        }
                     }
                 }
                 ws_map.push(matching_sessions);
             } else {
+                let mut sorted_idxs = sess_idxs.clone();
+                self.sort_session_indices(&mut sorted_idxs);
                 tree.push(TreeNode::Workspace(wi));
                 if self.workspaces[wi].expanded {
                     for (pi, slot) in self.ptys.iter().enumerate() {
@@ -235,8 +294,12 @@ impl App {
                             tree.push(TreeNode::ActiveTab(pi));
                         }
                     }
-                    for &si in &sess_idxs {
-                        tree.push(TreeNode::Session(wi, si));
+                    if self.sort_mode == SortMode::AgentGroup {
+                        Self::append_agent_grouped(&self.sessions, &sorted_idxs, wi, &mut tree);
+                    } else {
+                        for &si in &sorted_idxs {
+                            tree.push(TreeNode::Session(wi, si));
+                        }
                     }
                 }
                 ws_map.push(sess_idxs);
@@ -316,7 +379,9 @@ impl App {
                 self.rebuild_tree();
                 self.status = format!("Deleted session: {}", title);
             }
-            _ => {}
+            Some(TreeNode::AgentHeader(_)) => {}
+            Some(TreeNode::ActiveTab(_)) => {}
+            None => {}
         }
     }
 
@@ -362,6 +427,7 @@ impl App {
                 self.active_pty = Some(pi);
                 self.focus = Focus::Chat;
             }
+            Some(TreeNode::AgentHeader(_)) => {}
             None => {}
         }
         Ok(())
@@ -478,6 +544,7 @@ mod tests {
             last_refresh: std::time::Instant::now(),
             prev_states: Vec::new(),
             agent_filter: None,
+            sort_mode: SortMode::default(),
         };
         app.rebuild_tree();
         if !app.tree.is_empty() {

@@ -75,6 +75,7 @@ impl super::App {
                 self.active_pty = Some(pi);
                 self.focus = Focus::Chat;
             }
+            Some(TreeNode::AgentHeader(_)) => {}
             None => {}
         }
         Ok(())

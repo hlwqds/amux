@@ -1,4 +1,4 @@
 # Queue
 
-- ⬜ **M004: M004**
+- 🔄 **M004: Session Sorting and Grouping**
 - ⬜ **M005: M005**
