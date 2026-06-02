@@ -1,0 +1,18 @@
+{
+  "id": "afe053c3-1af4-4f71-8e4d-7505edc3e6f7",
+  "runtime": "bash",
+  "purpose": "Map method boundaries in app.rs with line ranges",
+  "script_chars": 212,
+  "started_at": "2026-06-02T13:45:57.550Z",
+  "finished_at": "2026-06-02T13:45:57.562Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 12,
+  "stdout_bytes": 2187,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/afe053c3-1af4-4f71-8e4d-7505edc3e6f7.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/afe053c3-1af4-4f71-8e4d-7505edc3e6f7.stderr"
+}

@@ -1,9 +1,4 @@
-mod app;
-mod config;
-mod discovery;
-mod pty;
-mod types;
-mod util;
+use amux::app;
 
 fn main() -> anyhow::Result<()> {
     app::run()
@@ -17,10 +12,10 @@ mod tests {
 
     use ratatui::style::Color;
 
-    use super::config::*;
-    use super::discovery::*;
-    use super::types::*;
-    use super::util::*;
+    use amux::config::*;
+    use amux::discovery::*;
+    use amux::types::*;
+    use amux::util::*;
 
     #[test]
     fn encode_project_path_simple() {

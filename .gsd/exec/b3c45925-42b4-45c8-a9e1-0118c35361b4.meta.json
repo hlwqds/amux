@@ -1,0 +1,18 @@
+{
+  "id": "b3c45925-42b4-45c8-a9e1-0118c35361b4",
+  "runtime": "bash",
+  "purpose": "Map each test to the module it logically belongs to",
+  "script_chars": 623,
+  "started_at": "2026-06-02T13:48:22.579Z",
+  "finished_at": "2026-06-02T13:48:22.609Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 30,
+  "stdout_bytes": 1776,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/b3c45925-42b4-45c8-a9e1-0118c35361b4.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/b3c45925-42b4-45c8-a9e1-0118c35361b4.stderr"
+}

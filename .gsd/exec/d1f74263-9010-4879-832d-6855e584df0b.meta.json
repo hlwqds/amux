@@ -1,0 +1,18 @@
+{
+  "id": "d1f74263-9010-4879-832d-6855e584df0b",
+  "runtime": "bash",
+  "purpose": "Check fmt failures detail",
+  "script_chars": 104,
+  "started_at": "2026-06-02T13:48:01.042Z",
+  "finished_at": "2026-06-02T13:48:01.133Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 91,
+  "stdout_bytes": 8988,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/d1f74263-9010-4879-832d-6855e584df0b.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/d1f74263-9010-4879-832d-6855e584df0b.stderr"
+}

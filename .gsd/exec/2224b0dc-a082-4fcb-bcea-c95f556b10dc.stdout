@@ -1,0 +1,17 @@
+=== Test count ===
+33
+=== LOC total ===
+  3140 总计
+=== LOC per file ===
+  1556 src/app.rs
+   119 src/config.rs
+   485 src/discovery.rs
+   440 src/main.rs
+   163 src/pty.rs
+   235 src/types.rs
+   142 src/util.rs
+  3140 总计
+=== Clippy ===
+
+warning: `amux` (bin "amux") generated 2 warnings (run `cargo clippy --fix --bin "amux" -p amux` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.55s

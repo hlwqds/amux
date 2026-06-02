@@ -1,0 +1,18 @@
+{
+  "id": "aa47da2b-b899-4a6e-827e-eff909a642d1",
+  "runtime": "bash",
+  "purpose": "Check test results summary",
+  "script_chars": 103,
+  "started_at": "2026-06-02T13:47:51.894Z",
+  "finished_at": "2026-06-02T13:47:52.010Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 116,
+  "stdout_bytes": 112,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/aa47da2b-b899-4a6e-827e-eff909a642d1.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/aa47da2b-b899-4a6e-827e-eff909a642d1.stderr"
+}

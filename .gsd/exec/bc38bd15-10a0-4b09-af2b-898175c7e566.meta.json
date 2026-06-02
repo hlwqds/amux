@@ -1,0 +1,18 @@
+{
+  "id": "bc38bd15-10a0-4b09-af2b-898175c7e566",
+  "runtime": "bash",
+  "purpose": "Check visibility modifiers across all source files",
+  "script_chars": 435,
+  "started_at": "2026-06-02T13:46:39.031Z",
+  "finished_at": "2026-06-02T13:46:39.047Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 16,
+  "stdout_bytes": 2635,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/bc38bd15-10a0-4b09-af2b-898175c7e566.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/bc38bd15-10a0-4b09-af2b-898175c7e566.stderr"
+}
