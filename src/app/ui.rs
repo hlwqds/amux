@@ -781,6 +781,20 @@ impl super::App {
     }
 }
 
+/// Calculate tab index from a local x-coordinate within the tab bar.
+/// Returns `None` if `tab_width` is 0 or `num_tabs` is 0.
+pub(super) fn tab_index_from_x(local_x: u16, tab_width: usize, num_tabs: usize) -> Option<usize> {
+    if tab_width == 0 || num_tabs == 0 {
+        return None;
+    }
+    let idx = (local_x as usize) / tab_width;
+    if idx < num_tabs {
+        Some(idx)
+    } else {
+        None
+    }
+}
+
 /// Truncate a title to `max_len` characters, appending "..." if truncated.
 /// Returns the original string unchanged if max_len <= 3 or the title fits.
 fn truncate_title(title: &str, max_len: usize) -> String {
@@ -802,9 +816,72 @@ fn truncate_title(title: &str, max_len: usize) -> String {
 #[cfg(test)]
 mod tab_bar_tests {
     use super::*;
-    use crate::pty::PtyHandle;
-    use crate::types::{Agent, PtySlot, RunningInfo};
-    use std::path::PathBuf;
+
+    // ─── tab_index_from_x tests ───
+
+    #[test]
+    fn tab_index_click_first_tab() {
+        // 4 tabs, width=20 each, click at x=0 → index 0
+        assert_eq!(tab_index_from_x(0, 20, 4), Some(0));
+    }
+
+    #[test]
+    fn tab_index_click_second_tab() {
+        // 4 tabs, width=20 each, click at x=20 → index 1
+        assert_eq!(tab_index_from_x(20, 20, 4), Some(1));
+    }
+
+    #[test]
+    fn tab_index_click_last_pixel_of_second_tab() {
+        // 4 tabs, width=20 each, x=39 → still tab 1
+        assert_eq!(tab_index_from_x(39, 20, 4), Some(1));
+    }
+
+    #[test]
+    fn tab_index_click_third_tab() {
+        assert_eq!(tab_index_from_x(40, 20, 4), Some(2));
+    }
+
+    #[test]
+    fn tab_index_click_beyond_last_tab() {
+        // 4 tabs spanning 80px, click at local_x=80 → index 4 which is >= num_tabs → None
+        assert_eq!(tab_index_from_x(80, 20, 4), None);
+    }
+
+    #[test]
+    fn tab_index_click_on_current_tab_returns_valid_index() {
+        // The "no switch" logic is in handle_mouse_click, not this helper.
+        // This helper always returns the computed index.
+        assert_eq!(tab_index_from_x(0, 20, 4), Some(0));
+    }
+
+    #[test]
+    fn tab_index_zero_tab_width_returns_none() {
+        assert_eq!(tab_index_from_x(10, 0, 4), None);
+    }
+
+    #[test]
+    fn tab_index_zero_num_tabs_returns_none() {
+        assert_eq!(tab_index_from_x(10, 20, 0), None);
+    }
+
+    #[test]
+    fn tab_index_single_tab_always_zero() {
+        assert_eq!(tab_index_from_x(0, 80, 1), Some(0));
+        assert_eq!(tab_index_from_x(79, 80, 1), Some(0));
+    }
+
+    #[test]
+    fn tab_index_with_narrow_tabs() {
+        // 10 tabs in 80px → tab_width=8
+        assert_eq!(tab_index_from_x(0, 8, 10), Some(0));
+        assert_eq!(tab_index_from_x(7, 8, 10), Some(0));
+        assert_eq!(tab_index_from_x(8, 8, 10), Some(1));
+        assert_eq!(tab_index_from_x(72, 8, 10), Some(9));
+        assert_eq!(tab_index_from_x(79, 8, 10), Some(9));
+    }
+
+    // ─── truncate_title tests ───
 
     #[test]
     fn truncate_title_fits_within_limit() {
@@ -833,9 +910,50 @@ mod tab_bar_tests {
     }
 
     #[test]
+    fn truncate_title_empty_string() {
+        assert_eq!(truncate_title("", 10), "");
+        assert_eq!(truncate_title("", 0), "");
+    }
+
+    #[test]
     fn truncate_title_unicode_aware() {
         // Each Greek letter is 2 bytes; max_len=7 gives budget 4 for chars + "..."
         // α (2 bytes at 0) + β (2 bytes at 2) = 4 <= 4. γ at 4 + 2 = 6 > 4.
         assert_eq!(truncate_title("αβγδεζ", 7), "αβ...");
+    }
+
+    #[test]
+    fn truncate_title_at_boundary() {
+        // "hello" is exactly 5 bytes; max_len=5 → fits exactly
+        assert_eq!(truncate_title("hello", 5), "hello");
+        // max_len=6 still fits
+        assert_eq!(truncate_title("hello", 6), "hello");
+    }
+
+    // ─── tab bar hidden when empty ───
+
+    #[test]
+    fn tab_bar_hidden_when_no_ptys() {
+        // When ptys is empty, build_tab_bar returns an empty Line
+        let mut app = crate::app::tests::test_app(vec![], vec![]);
+        let line = app.build_tab_bar(80);
+        // An empty Line has no spans
+        assert!(line.spans.is_empty(), "tab bar should be empty when no PTYs active");
+    }
+
+    #[test]
+    fn tab_bar_hidden_default_rect() {
+        // Default Rect has width=0, height=0 — rendering should skip
+        let rect = Rect::default();
+        assert_eq!(rect.width, 0);
+        assert_eq!(rect.height, 0);
+    }
+
+    #[test]
+    fn handle_mouse_click_ignores_when_no_ptys() {
+        let mut app = crate::app::tests::test_app(vec![], vec![]);
+        app.tab_bar_rect = Rect::new(0, 0, 80, 1);
+        app.handle_mouse_click(40, 0);
+        assert_eq!(app.active_pty, None, "no active_pty when no PTYs exist");
     }
 }

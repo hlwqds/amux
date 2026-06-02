@@ -378,14 +378,12 @@ impl super::App {
             return;
         }
         let local_x = x - rect.x;
-        let tab_width = rect.width / self.ptys.len() as u16;
-        if tab_width == 0 {
+        let tab_width = rect.width as usize / self.ptys.len();
+        let num_tabs = self.ptys.len();
+        let Some(tab_index) = super::ui::tab_index_from_x(local_x, tab_width, num_tabs) else {
             return;
-        }
-        let tab_index = (local_x / tab_width) as usize;
-        if tab_index < self.ptys.len()
-            && self.active_pty != Some(tab_index)
-        {
+        };
+        if self.active_pty != Some(tab_index) {
             self.active_pty = Some(tab_index);
             if let Some(slot) = self.ptys.get(tab_index) {
                 slot.handle.reset_scroll();

@@ -545,7 +545,7 @@ mod tests {
 
     /// Build a minimal App with given workspaces + sessions for filter testing.
     /// Bypasses config loading / discovery / agent detection.
-    fn test_app(workspaces: Vec<Workspace>, sessions: Vec<Session>) -> App {
+    pub(crate) fn test_app(workspaces: Vec<Workspace>, sessions: Vec<Session>) -> App {
         let mut app = App {
             workspaces,
             sessions,
