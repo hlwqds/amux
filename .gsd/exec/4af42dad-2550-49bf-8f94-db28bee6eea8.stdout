@@ -1,0 +1,3 @@
+error[E0624]: method `handle_key` is private
+error[E0624]: method `handle_paste` is private
+error: could not compile `amux` (lib) due to 2 previous errors; 4 warnings emitted

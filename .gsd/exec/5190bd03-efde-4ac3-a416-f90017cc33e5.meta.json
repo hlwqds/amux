@@ -1,0 +1,18 @@
+{
+  "id": "5190bd03-efde-4ac3-a416-f90017cc33e5",
+  "runtime": "bash",
+  "purpose": "Verify full compilation success",
+  "script_chars": 26,
+  "started_at": "2026-06-02T14:56:41.250Z",
+  "finished_at": "2026-06-02T14:56:41.352Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 102,
+  "stdout_bytes": 171,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/5190bd03-efde-4ac3-a416-f90017cc33e5.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/5190bd03-efde-4ac3-a416-f90017cc33e5.stderr"
+}

@@ -1,0 +1,100 @@
+use amux::app;
+
+fn main() -> anyhow::Result<()> {
+    app::run()
+}
+
+// ─── Tests ──────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use ratatui::style::Color;
+
+    use amux::config::*;
+    use amux::discovery::*;
+    use amux::types::*;
+    use amux::util::*;
+
+    #[test]
+    fn encode_project_path_simple() {
+        assert_eq!(
+            encode_project_path(Path::new("/home/user/my-project")),
+            "-home-user-my-project"
+        );
+    }
+
+    #[test]
+    fn encode_project_path_root() {
+        assert_eq!(encode_project_path(Path::new("/")), "-");
+    }
+
+    #[test]
+    fn encode_project_path_relative() {
+        assert_eq!(encode_project_path(Path::new("my-project")), "my-project");
+    }
+
+    #[test]
+    fn config_roundtrip() {
+        let config = Config {
+            workspaces: vec![
+                Workspace {
+                    id: "ws-1".into(),
+                    name: "Project A".into(),
+                    path: Some(PathBuf::from("/home/user/proj-a")),
+                    created_at: 1000,
+                    expanded: false,
+                },
+                Workspace {
+                    id: "ws-2".into(),
+                    name: "Virtual".into(),
+                    path: None,
+                    created_at: 2000,
+                    expanded: true,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.workspaces.len(), 2);
+        assert_eq!(parsed.workspaces[0].id, "ws-1");
+        assert_eq!(
+            parsed.workspaces[0].path,
+            Some(PathBuf::from("/home/user/proj-a"))
+        );
+        assert_eq!(parsed.workspaces[1].path, None);
+        assert!(!parsed.workspaces[0].expanded);
+        assert!(!parsed.workspaces[1].expanded);
+    }
+
+    #[test]
+    fn workspace_serialization_virtual() {
+        let ws = Workspace {
+            id: "test-id".into(),
+            name: "No Path".into(),
+            path: None,
+            created_at: 0,
+            expanded: false,
+        };
+        let json = serde_json::to_string(&ws).unwrap();
+        assert!(json.contains("\"path\":null"));
+        let parsed: Workspace = serde_json::from_str(&json).unwrap();
+        assert!(parsed.path.is_none());
+    }
+
+    #[test]
+    fn clean_user_message_normal() {
+        assert_eq!(clean_user_message("hello world"), "hello world");
+    }
+
+    #[test]
+    fn clean_user_message_escapes() {
+        assert_eq!(clean_user_message("\x1b[32m"), "");
+    }
+
+    #[test]
+    fn clean_user_message_noise_prefix() {
+        assert_eq!(clean_user_message("P>|stuff"), "");
+        assert_eq!(clean_user_message("P<|stuff"), "");
+    }

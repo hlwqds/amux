@@ -1,0 +1,18 @@
+{
+  "id": "22b523c9-55d9-4be2-94ee-967b98039f55",
+  "runtime": "bash",
+  "purpose": "Check browse-related constants and verify types.rs exports",
+  "script_chars": 725,
+  "started_at": "2026-06-02T14:39:36.617Z",
+  "finished_at": "2026-06-02T14:39:36.633Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 16,
+  "stdout_bytes": 2345,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/22b523c9-55d9-4be2-94ee-967b98039f55.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/22b523c9-55d9-4be2-94ee-967b98039f55.stderr"
+}

@@ -1,0 +1,25 @@
+=== Test count ===
+33
+=== confirm_input ===
+src/app/session.rs:83:    pub(super) fn confirm_input(&mut self) -> Result<()> {
+=== start_rename ===
+src/app/session.rs:163:    pub(super) fn start_rename(&mut self) {
+src/app/session.rs:181:    pub(super) fn start_new_workspace(&mut self) {
+=== Session fields used ===
+src/app/mod.rs:228:                if let Some(pi) = self.pty_index_for_session(&session.id) {
+src/app/mod.rs:240:                let title_path = title_override_path(&session.id);
+src/app/mod.rs:245:                let title = session.title.clone();
+src/app/session.rs:47:                if let Some(existing) = self.pty_index_for_session(&session.id) {
+src/app/session.rs:52:                let path = session.workspace_path.clone();
+src/app/session.rs:53:                let id = session.id.clone();
+src/app/session.rs:54:                let title = session.title.clone();
+src/app/ui.rs:106:                        let short_id = &session.id[..8.min(session.id.len())];
+src/app/ui.rs:107:                        let pty_info = pty_states.iter().find(|(sid, _)| sid == &session.id);
+src/app/ui.rs:111:                            format!(" [{}]", session.agent.icon()),
+src/app/ui.rs:112:                            Style::default().fg(session.agent.color()),
+src/app/ui.rs:132:                                relative_time(session.last_active),
+src/app/ui.rs:144:                            Line::from(format!("     {}", session.title))
+src/app/ui.rs:303:                    Line::from(session.title.clone()).style(
+src/app/ui.rs:310:                    Line::from(format!("ID: {}", session.id))
+src/app/ui.rs:315:                    relative_time(session.last_active)
+src/app/ui.rs:317:                if self.pty_index_for_session(&session.id).is_some() {

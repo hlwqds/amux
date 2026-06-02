@@ -1,0 +1,28 @@
+src/app/browse.rs
+src/app/handler.rs
+src/app/mod.rs
+src/app/session.rs
+src/app/ui.rs
+src/config.rs
+src/discovery.rs
+src/lib.rs
+src/main.rs
+src/pty.rs
+src/types.rs
+src/util.rs
+---
+[package]
+name = "amux"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+bytes = "1"
+crossterm = "0.29"
+portable-pty = "0.8"
+ratatui = "0.30"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tui-term = "0.3.4"
+vt100 = "0.16"

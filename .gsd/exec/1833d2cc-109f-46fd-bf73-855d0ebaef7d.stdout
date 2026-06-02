@@ -1,0 +1,30 @@
+   Compiling amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+error[E0425]: cannot find value `SELECT_CURRENT` in this scope
+   --> src/app/ui.rs:482:55
+    |
+482 |                 let is_select_current = entry.name == SELECT_CURRENT;
+    |                                                       ^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this constant
+    |
+  1 + use crate::util::SELECT_CURRENT;
+    |
+
+error[E0425]: cannot find value `SELECT_VIRTUAL` in this scope
+   --> src/app/ui.rs:483:48
+    |
+483 |                 let is_virtual = entry.name == SELECT_VIRTUAL;
+    |                                                ^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this constant
+    |
+  1 + use crate::util::SELECT_VIRTUAL;
+    |
+
+error[E0425]: cannot find value `PARENT_DIR` in this scope
+   --> src/app/ui.rs:484:47
+    |
+484 |                 let is_parent = entry.name == PARENT_DIR;
+    |                                               ^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this constant

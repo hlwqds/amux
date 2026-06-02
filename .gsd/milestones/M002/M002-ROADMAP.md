@@ -10,7 +10,7 @@
 - All 33 tests pass from per-module #[cfg(test)] locations
 - cargo clippy -- -D warnings exits 0
 - cargo fmt --all -- --check exits 0
-- cargo build --release produces a working binary
+- `cargo build --release` produces a working binary
 - No new dependencies added
 
 ## Slices

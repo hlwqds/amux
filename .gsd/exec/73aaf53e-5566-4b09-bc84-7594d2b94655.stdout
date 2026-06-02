@@ -1,0 +1,25 @@
+210:pub enum InputMode {
+=== InputMode variants ===
+pub enum InputMode {
+    None,
+    SessionName,
+    SelectAgent,
+    RenameSession,
+    RenameWorkspace,
+    NewWorkspaceName,
+    BrowseDir,
+}
+=== Agent enum ===
+7:pub enum Agent {
+pub enum Agent {
+    Claude,
+    Codex,
+    Gsd,
+}
+=== TreeNode ===
+182:pub enum TreeNode {
+pub enum TreeNode {
+    Workspace(usize),
+    Session(usize, usize),
+    ActiveTab(usize),
+}

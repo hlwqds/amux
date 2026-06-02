@@ -1,0 +1,18 @@
+{
+  "id": "4b4d2bf0-4d74-4612-bf34-19b44a2fe537",
+  "runtime": "bash",
+  "purpose": "Compile after handler extraction",
+  "script_chars": 16,
+  "started_at": "2026-06-02T14:52:02.396Z",
+  "finished_at": "2026-06-02T14:52:02.518Z",
+  "exit_code": 101,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 122,
+  "stdout_bytes": 418,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/4b4d2bf0-4d74-4612-bf34-19b44a2fe537.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/4b4d2bf0-4d74-4612-bf34-19b44a2fe537.stderr"
+}

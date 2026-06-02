@@ -1,0 +1,18 @@
+{
+  "id": "f5e3ac12-17a1-41fd-94ae-ea25eebe65c3",
+  "runtime": "bash",
+  "purpose": "Check lib.rs module declarations",
+  "script_chars": 60,
+  "started_at": "2026-06-02T15:09:13.447Z",
+  "finished_at": "2026-06-02T15:09:13.458Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 11,
+  "stdout_bytes": 90,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/f5e3ac12-17a1-41fd-94ae-ea25eebe65c3.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/f5e3ac12-17a1-41fd-94ae-ea25eebe65c3.stderr"
+}

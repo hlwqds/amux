@@ -1,0 +1,18 @@
+{
+  "id": "89b06706-e668-4625-bfa2-fc22ebf4028c",
+  "runtime": "bash",
+  "purpose": "Run cargo fmt check",
+  "script_chars": 77,
+  "started_at": "2026-06-02T15:05:24.866Z",
+  "finished_at": "2026-06-02T15:05:24.953Z",
+  "exit_code": 1,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 87,
+  "stdout_bytes": 2566,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/89b06706-e668-4625-bfa2-fc22ebf4028c.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/89b06706-e668-4625-bfa2-fc22ebf4028c.stderr"
+}

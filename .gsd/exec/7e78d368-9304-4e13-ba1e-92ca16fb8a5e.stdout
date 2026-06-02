@@ -1,0 +1,160 @@
+=== centered_rect definition ===
+src/util.rs:111:pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+
+=== Types module contents (Focus, InputMode, etc.) ===
+173:pub struct Session {
+182:pub enum TreeNode {
+188:pub struct PtySlot {
+194:pub struct RunningInfo {
+204:pub enum Focus {
+210:pub enum InputMode {
+221:pub struct DirEntry {
+227:pub enum Action {
+
+=== Check which types are used by handler but not by ui ===
+--- handler calls to other App methods ---
+                            ((cur as isize + delta).rem_euclid(self.ptys.len() as isize)) as usize;
+            if let Some(idx) = self.active_pty {
+                    if let Some(slot) = self.ptys.get(idx) {
+                        if let Some(s) = self.ptys.get(next) {
+                    if self.active_pty.is_none() {
+        if self.focus == Focus::Chat {
+        if self.input_mode != InputMode::None {
+                if self.ptys.is_empty() {
+                    if self.ptys.len() > 1 {
+                        let cur = self.active_pty.unwrap_or(0);
+                    && let Some(slot) = self.ptys.get(idx)
+            return self.handle_input_key(key);
+                            .scroll_page_up(self.last_chat_area.height.saturating_sub(2) as usize);
+                self.activate_selection()?;
+                    self.active_pty = None;
+                        self.active_pty = Some(0);
+                        self.active_pty = Some(next);
+                self.delete_selected();
+                    self.focus = Focus::Chat;
+                    self.focus = Focus::Sidebar;
+                            self.last_chat_area.height.saturating_sub(2) as usize,
+                self.move_sel(-1);
+                self.move_sel(1);
+                            self.ptys.len()
+                            self.ptys[next].info.title,
+                    self.ptys.remove(idx);
+                    self.refresh_sessions();
+                self.refresh_sessions();
+                self.start_new_workspace();
+                self.start_rename();
+
+--- handler imports needed beyond what's in types ---
+                code: KeyCode::Char('D'),
+                code: KeyCode::Char('e'),
+                code: KeyCode::Char('j') | KeyCode::Down,
+                code: KeyCode::Char('k') | KeyCode::Up,
+                code: KeyCode::Char('N'),
+                code: KeyCode::Char('q') | KeyCode::Esc,
+                code: KeyCode::Char('r'),
+                code: KeyCode::Char('R'),
+                code: KeyCode::Enter,
+                code: KeyCode::Tab, ..
+    fn handle_agent_key(&mut self, key: KeyEvent) -> Result<Action> {
+    fn handle_browse_key(&mut self, key: KeyEvent) -> Result<Action> {
+    fn handle_input_key(&mut self, key: KeyEvent) -> Result<Action> {
+    fn handle_key(&mut self, key: KeyEvent) -> Result<Action> {
+    fn spawn_session(&mut self, agent: Agent) -> Result<()> {
+                if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                if key.code == KeyCode::PageDown {
+                if key.code == KeyCode::PageUp {
+                if key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT) {
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+            KeyCode::Backspace => {
+            KeyCode::Backspace | KeyCode::Char('h') => {
+            KeyCode::Char(c) => {
+            KeyCode::Char('c') | KeyCode::Char('C')
+            KeyCode::Char('g') | KeyCode::Char('G')
+            KeyCode::Char('j') | KeyCode::Down => {
+            KeyCode::Char('k') | KeyCode::Up => {
+                KeyCode::Char('q') | KeyCode::Esc => return Ok(Action::Quit),
+            KeyCode::Char('x') | KeyCode::Char('X')
+            KeyCode::Enter => {
+            KeyCode::Esc => {
+                    && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
+                KeyCode::Tab => {
+            KeyEvent {
+                        let delta = if key.code == KeyCode::Char('j') {
+                modifiers: KeyModifiers::NONE,
+                Ok(Action::Continue)
+            _ => Ok(Action::Continue),
+        Ok(Action::Continue)
+            } => Ok(Action::Quit),
+                    return Ok(Action::Continue);
+                return Ok(Action::Continue);
+            return Ok(Action::Continue);
+
+=== Check struct App visibility - is it pub? ===
+use std::{
+    env, fs,
+    io::IsTerminal,
+    path::{Path, PathBuf},
+};
+
+use anyhow::{Context, Result};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+};
+use tui_term::widget::PseudoTerminal;
+
+use crate::config::{
+    data_dir, generate_id, save_config_file, save_session_title, title_override_path,
+};
+use crate::discovery::{discover_sessions, find_session_jsonl};
+use crate::pty::{PtyHandle, PtyState};
+use crate::types::*;
+use crate::util::*;
+
+struct App {
+    workspaces: Vec<Workspace>,
+    sessions: Vec<Session>,
+    tree: Vec<TreeNode>,
+    ws_session_map: Vec<Vec<usize>>,
+
+=== Check what's exported from types.rs ===
+7:pub enum Agent {
+158:pub struct Workspace {
+168:pub struct Config {
+173:pub struct Session {
+182:pub enum TreeNode {
+188:pub struct PtySlot {
+194:pub struct RunningInfo {
+204:pub enum Focus {
+210:pub enum InputMode {
+221:pub struct DirEntry {
+227:pub enum Action {
+233:pub struct ClaudeRecord {
+240:pub struct ClaudeMessage {
+
+=== Check what PtyHandle methods are called ===
+102:            let state = slot.handle.state();
+112:            if slot.info.agent == Agent::Codex && !slot.handle.is_alive() {
+130:        self.prev_states = self.ptys.iter().map(|s| s.handle.state()).collect();
+135:            slot.handle.state()
+254:                            s.handle.reset_scroll();
+275:                        slot.handle.scroll_page_down(
+285:                    slot.handle.reset_scroll();
+286:                    slot.handle.write_input(&bytes);
+592:            slot.handle.write_input(text.as_bytes());
+1116:            .map(|s| s.handle.scrollback_offset())
+1150:            slot.handle.resize((inner.width, inner.height));
+1152:            let parser = slot.handle.screen();
+
+=== Check config imports used in app.rs ===
+use crate::config::{
+use crate::discovery::{discover_sessions, find_session_jsonl};
+use crate::pty::{PtyHandle, PtyState};
+use crate::util::*;
+        let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
+            config.workspaces = crate::discovery::discover_workspaces_from_fs();
+    crate::config::ensure_data_dir().context("failed to create data directory")?;

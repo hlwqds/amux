@@ -1,0 +1,24 @@
+=== config_roundtrip test imports needed ===
+Uses: Config (types), Workspace (types), serde_json
+=> Best fit: types.rs (tests struct serialization)
+  needs: use serde_json; (already a dep)
+
+=== workspace_serialization_virtual test ===
+Uses: Workspace (types), serde_json
+=> Best fit: types.rs (tests Workspace struct)
+  needs: use serde_json;
+
+=== discover_gsd_sessions_finds_by_workspace test ===
+Uses: encode_project_path (config), parse_gsd_session (discovery), serde_json, temp_dir
+=> Best fit: discovery.rs (primary function is discovery flow)
+  needs: use crate::config::encode_project_path; use serde_json;
+
+=== gsd_sessions_persist_after_pty_exit test ===
+Uses: Agent (types) - tests retain logic concept from app.rs
+=> Best fit: types.rs (tests Agent behavior)
+  needs: none extra
+
+=== gsd_build_new_cmd_no_session_name / gsd_build_resume_cmd_uses_sessions ===
+Uses: Agent::Gsd.build_new_cmd / build_resume_cmd (types)
+=> Best fit: types.rs (methods on Agent enum)
+  needs: use std::path::Path;

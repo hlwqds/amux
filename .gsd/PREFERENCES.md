@@ -3,4 +3,5 @@
 ```yaml
 git:
   isolation: none
+browser: false
 ```

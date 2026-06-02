@@ -22,6 +22,7 @@ struct App {
     focus: Focus,
     input_mode: InputMode,
     input_buffer: String,
+    search_query: Option<String>,
     rename_target: Option<usize>,
     rename_workspace_target: Option<usize>,
     new_workspace_name: Option<String>,
@@ -69,6 +70,7 @@ impl App {
             focus: Focus::Sidebar,
             input_mode: InputMode::None,
             input_buffer: String::new(),
+            search_query: None,
             rename_target: None,
             rename_workspace_target: None,
             new_workspace_name: None,
@@ -153,6 +155,11 @@ impl App {
     fn rebuild_tree(&mut self) {
         let mut tree = Vec::new();
         let mut ws_map = Vec::new();
+        let query = self
+            .search_query
+            .as_deref()
+            .map(str::trim)
+            .filter(|q| !q.is_empty());
 
         for (wi, _ws) in self.workspaces.iter().enumerate() {
             let sess_idxs: Vec<usize> = self
@@ -163,24 +170,76 @@ impl App {
                 .map(|(i, _)| i)
                 .collect();
 
-            tree.push(TreeNode::Workspace(wi));
-            if self.workspaces[wi].expanded {
-                for (pi, slot) in self.ptys.iter().enumerate() {
-                    if self.ws_matches_path(wi, &slot.info.workspace_path)
-                        && slot.info.session_id.is_none()
-                    {
+            if let Some(q) = query {
+                // Fuzzy-filter sessions for this workspace
+                let matching_sessions: Vec<usize> = sess_idxs
+                    .into_iter()
+                    .filter(|&si| {
+                        let session = &self.sessions[si];
+                        let short_id = &session.id[..session.id.len().min(8)];
+                        session_fuzzy_score(session.title.as_str(), short_id, q)
+                            || session_fuzzy_score(
+                                &self.workspaces[wi].name,
+                                short_id,
+                                q,
+                            )
+                    })
+                    .collect();
+
+                // Fuzzy-filter active PTYs for this workspace
+                let matching_ptys: Vec<usize> = self
+                    .ptys
+                    .iter()
+                    .enumerate()
+                    .filter(|(_pi, slot)| {
+                        self.ws_matches_path(wi, &slot.info.workspace_path)
+                            && slot.info.session_id.is_none()
+                            && session_fuzzy_score(
+                                &slot.info.title,
+                                &slot.info.title,
+                                q,
+                            )
+                    })
+                    .map(|(pi, _)| pi)
+                    .collect();
+
+                // Include workspace only if it matches itself or has matching children
+                let ws_matches = session_fuzzy_score(&self.workspaces[wi].name, "", q);
+                if ws_matches || !matching_sessions.is_empty() || !matching_ptys.is_empty() {
+                    tree.push(TreeNode::Workspace(wi));
+                    for &pi in &matching_ptys {
                         tree.push(TreeNode::ActiveTab(pi));
                     }
+                    for &si in &matching_sessions {
+                        tree.push(TreeNode::Session(wi, si));
+                    }
                 }
-                for &si in &sess_idxs {
-                    tree.push(TreeNode::Session(wi, si));
+                ws_map.push(matching_sessions);
+            } else {
+                tree.push(TreeNode::Workspace(wi));
+                if self.workspaces[wi].expanded {
+                    for (pi, slot) in self.ptys.iter().enumerate() {
+                        if self.ws_matches_path(wi, &slot.info.workspace_path)
+                            && slot.info.session_id.is_none()
+                        {
+                            tree.push(TreeNode::ActiveTab(pi));
+                        }
+                    }
+                    for &si in &sess_idxs {
+                        tree.push(TreeNode::Session(wi, si));
+                    }
                 }
+                ws_map.push(sess_idxs);
             }
-            ws_map.push(sess_idxs);
         }
 
         self.tree = tree;
         self.ws_session_map = ws_map;
+
+        // Clamp selection to valid range
+        if !self.tree.is_empty() {
+            self.move_sel(0);
+        }
     }
 
     fn pty_index_for_session(&self, session_id: &str) -> Option<usize> {
@@ -297,6 +356,14 @@ impl App {
         }
         Ok(())
     }
+}
+
+/// Returns true if any of the `haystacks` fuzzy-matches `query` using code_fuzzy_match.
+fn session_fuzzy_score(title: &str, short_id: &str, query: &str) -> bool {
+    let check = |text: &str| -> bool {
+        code_fuzzy_match::fuzzy_match(text, query).map_or(false, |score| score > 0)
+    };
+    check(title) || check(short_id)
 }
 
 // ─── Main ─────────────────────────────────────────────────

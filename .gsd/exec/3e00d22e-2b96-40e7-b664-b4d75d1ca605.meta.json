@@ -1,0 +1,18 @@
+{
+  "id": "3e00d22e-2b96-40e7-b664-b4d75d1ca605",
+  "runtime": "bash",
+  "purpose": "Compile after session.rs extraction",
+  "script_chars": 43,
+  "started_at": "2026-06-02T14:58:05.649Z",
+  "finished_at": "2026-06-02T14:58:05.865Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 216,
+  "stdout_bytes": 424,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/3e00d22e-2b96-40e7-b664-b4d75d1ca605.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/3e00d22e-2b96-40e7-b664-b4d75d1ca605.stderr"
+}

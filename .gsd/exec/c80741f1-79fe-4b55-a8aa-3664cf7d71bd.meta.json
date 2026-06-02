@@ -1,0 +1,18 @@
+{
+  "id": "c80741f1-79fe-4b55-a8aa-3664cf7d71bd",
+  "runtime": "bash",
+  "purpose": "Analyze cross-module dependencies in each test",
+  "script_chars": 3335,
+  "started_at": "2026-06-02T15:08:46.162Z",
+  "finished_at": "2026-06-02T15:08:46.188Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 26,
+  "stdout_bytes": 1278,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/c80741f1-79fe-4b55-a8aa-3664cf7d71bd.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/c80741f1-79fe-4b55-a8aa-3664cf7d71bd.stderr"
+}

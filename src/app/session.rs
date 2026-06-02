@@ -155,7 +155,7 @@ impl super::App {
                 }
                 self.input_mode = InputMode::None;
             }
-            InputMode::None | InputMode::BrowseDir => {}
+            InputMode::None | InputMode::BrowseDir | InputMode::Search => {}
         }
         Ok(())
     }

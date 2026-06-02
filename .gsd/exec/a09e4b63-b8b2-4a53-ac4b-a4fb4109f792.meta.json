@@ -1,0 +1,18 @@
+{
+  "id": "a09e4b63-b8b2-4a53-ac4b-a4fb4109f792",
+  "runtime": "bash",
+  "purpose": "Check all warnings after ui extraction",
+  "script_chars": 51,
+  "started_at": "2026-06-02T14:49:15.795Z",
+  "finished_at": "2026-06-02T14:49:15.873Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 78,
+  "stdout_bytes": 383,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/a09e4b63-b8b2-4a53-ac4b-a4fb4109f792.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/a09e4b63-b8b2-4a53-ac4b-a4fb4109f792.stderr"
+}

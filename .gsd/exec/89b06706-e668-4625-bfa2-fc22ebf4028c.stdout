@@ -1,0 +1,78 @@
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/browse.rs:133:
+             self.load_browse_entries();
+         }
+     }
+[31m-
+(B[m }
+ 
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/handler.rs:1:
+[31m-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+(B[m use anyhow::Result;
+[32m+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+(B[m 
+ use crate::types::*;
+ use crate::util::key_to_bytes;
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:4:
+     path::{Path, PathBuf},
+ };
+ 
+[31m-use anyhow::{Context, Result};
+(B[m[31m-use crossterm::event::{Event, KeyEventKind};
+(B[m[31m-use ratatui::{layout::Rect, widgets::ListState};
+(B[m use crate::config::{data_dir, save_config_file, title_override_path};
+ use crate::discovery::{discover_sessions, find_session_jsonl};
+ use crate::pty::PtyState;
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:13:
+ use crate::types::*;
+ use crate::util::*;
+[32m+use anyhow::{Context, Result};
+(B[m[32m+use crossterm::event::{Event, KeyEventKind};
+(B[m[32m+use ratatui::{layout::Rect, widgets::ListState};
+(B[m 
+ struct App {
+     workspaces: Vec<Workspace>,
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:39:
+     prev_states: Vec<PtyState>,
+ }
+ 
+[31m-mod ui;
+(B[m[32m+mod browse;
+(B[m mod handler;
+ mod session;
+[31m-mod browse;
+(B[m[32m+mod ui;
+(B[m 
+ impl App {
+     fn new() -> Self {
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/mod.rs:297:
+         }
+         Ok(())
+     }
+[31m-
+(B[m }
+ 
+ // ─── Main ─────────────────────────────────────────────────
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/session.rs:80:
+         Ok(())
+     }
+ 
+[31m-
+(B[m     pub(super) fn confirm_input(&mut self) -> Result<()> {
+         match self.input_mode {
+             InputMode::SessionName => {
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/session.rs:185:
+         self.new_workspace_name = None;
+         self.status = "Workspace name (Esc = cancel):".into();
+     }
+[31m-
+(B[m }
+ 
+Diff in /home/huanglin/code/agent-workspace-tui/src/app/ui.rs:9:
+ 
+ use crate::pty::PtyState;
+ use crate::types::*;
+[31m-use crate::util::{relative_time, centered_rect, SELECT_CURRENT, SELECT_VIRTUAL, PARENT_DIR};
+(B[m[32m+use crate::util::{PARENT_DIR, SELECT_CURRENT, SELECT_VIRTUAL, centered_rect, relative_time};
+(B[m 
+ impl super::App {
+     pub(super) fn chat_size(&self) -> (u16, u16) {

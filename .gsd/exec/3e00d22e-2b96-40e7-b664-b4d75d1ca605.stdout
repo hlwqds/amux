@@ -1,0 +1,8 @@
+error[E0624]: method `start_rename` is private
+error[E0624]: method `start_new_workspace` is private
+error[E0624]: method `confirm_input` is private
+error[E0624]: method `confirm_input` is private
+error[E0624]: method `confirm_input` is private
+error[E0624]: method `confirm_input` is private
+error[E0624]: method `confirm_input` is private
+error: could not compile `amux` (lib) due to 7 previous errors; 8 warnings emitted

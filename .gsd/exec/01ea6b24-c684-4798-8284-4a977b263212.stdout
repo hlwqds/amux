@@ -1,0 +1,26 @@
+   Compiling amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+error[E0425]: cannot find type `Rect` in this scope
+  --> src/app/mod.rs:37:21
+   |
+37 |     last_chat_area: Rect,
+   |                     ^^^^ not found in this scope
+   |
+help: consider importing this struct
+   |
+ 1 + use ratatui::layout::Rect;
+   |
+
+error[E0433]: failed to resolve: use of undeclared type `Rect`
+  --> src/app/mod.rs:84:29
+   |
+84 |             last_chat_area: Rect::default(),
+   |                             ^^^^ use of undeclared type `Rect`
+   |
+help: consider importing this struct
+   |
+ 1 + use ratatui::layout::Rect;
+   |
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `amux` (lib) due to 2 previous errors

@@ -1,0 +1,57 @@
+   Compiling amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running unittests src/lib.rs (target/debug/deps/amux-ec050f83536acf8a)
+
+running 33 tests
+test config::tests::decode_gsd_dir_name_simple ... ok
+test config::tests::encode_decode_gsd_dir_roundtrip ... ok
+test config::tests::encode_project_path_relative ... ok
+test config::tests::encode_project_path_root ... ok
+test discovery::tests::clean_user_message_escapes ... ok
+test discovery::tests::clean_user_message_normal ... ok
+test discovery::tests::clean_user_message_noise_prefix ... ok
+test config::tests::decode_gsd_dir_name_root ... ok
+test config::tests::encode_project_path_simple ... ok
+test discovery::tests::clean_user_message_strips_whitespace ... ok
+test config::tests::gsd_directory_name_encoding ... ok
+test discovery::tests::extract_text_from_array_content ... ok
+test discovery::tests::extract_text_from_array_with_non_text ... ok
+test config::tests::generate_id_is_unique ... ok
+test discovery::tests::discover_gsd_sessions_finds_by_workspace ... ok
+test discovery::tests::extract_text_from_empty_array ... ok
+test discovery::tests::extract_text_from_number ... ok
+test discovery::tests::parse_codex_session_invalid_json ... ok
+test discovery::tests::extract_text_from_string_content ... ok
+test types::tests::config_roundtrip ... ok
+test discovery::tests::parse_codex_session_valid ... ok
+test discovery::tests::parse_gsd_session_gsd_run_takes_priority ... ok
+test types::tests::gsd_build_new_cmd_no_session_name ... ok
+test types::tests::gsd_sessions_persist_after_pty_exit ... ok
+test types::tests::workspace_serialization_virtual ... ok
+test types::tests::gsd_build_resume_cmd_uses_sessions ... ok
+test util::tests::relative_time_formatting ... ok
+test types::tests::agent_traits ... ok
+test discovery::tests::parse_gsd_session_title_truncated_to_50_chars ... ok
+test discovery::tests::parse_gsd_session_empty_file ... ok
+test discovery::tests::parse_gsd_session_fallback_to_user_message ... ok
+test discovery::tests::parse_gsd_session_no_session_line ... ok
+test discovery::tests::parse_gsd_session_valid_with_gsd_run_title ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/amux-719bef4a08031420)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests amux
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+---CLIPPY---
+    Checking amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.48s
+---FMT---

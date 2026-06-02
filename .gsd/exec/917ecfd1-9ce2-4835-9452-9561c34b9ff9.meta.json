@@ -1,0 +1,18 @@
+{
+  "id": "917ecfd1-9ce2-4835-9452-9561c34b9ff9",
+  "runtime": "bash",
+  "purpose": "Extract the full test module from main.rs",
+  "script_chars": 87,
+  "started_at": "2026-06-02T15:07:48.963Z",
+  "finished_at": "2026-06-02T15:07:48.980Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 17,
+  "stdout_bytes": 15551,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/917ecfd1-9ce2-4835-9452-9561c34b9ff9.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/917ecfd1-9ce2-4835-9452-9561c34b9ff9.stderr"
+}

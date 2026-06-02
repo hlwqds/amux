@@ -1,0 +1,18 @@
+{
+  "id": "1833d2cc-109f-46fd-bf73-855d0ebaef7d",
+  "runtime": "bash",
+  "purpose": "Verify ui.rs extraction compiles",
+  "script_chars": 27,
+  "started_at": "2026-06-02T14:47:33.457Z",
+  "finished_at": "2026-06-02T14:47:33.731Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 274,
+  "stdout_bytes": 1080,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/1833d2cc-109f-46fd-bf73-855d0ebaef7d.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/1833d2cc-109f-46fd-bf73-855d0ebaef7d.stderr"
+}

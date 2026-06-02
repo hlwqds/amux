@@ -1,0 +1,18 @@
+{
+  "id": "01ea6b24-c684-4798-8284-4a977b263212",
+  "runtime": "bash",
+  "purpose": "Verify clean build after import cleanup",
+  "script_chars": 16,
+  "started_at": "2026-06-02T15:03:42.094Z",
+  "finished_at": "2026-06-02T15:03:42.367Z",
+  "exit_code": 101,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 273,
+  "stdout_bytes": 802,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/01ea6b24-c684-4798-8284-4a977b263212.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/01ea6b24-c684-4798-8284-4a977b263212.stderr"
+}

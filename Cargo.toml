@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
+code-fuzzy-match = "0.2"
 bytes = "1"
 crossterm = "0.29"
 portable-pty = "0.8"

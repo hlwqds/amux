@@ -1,0 +1,20 @@
+   Compiling amux v0.2.0 (/home/huanglin/code/agent-workspace-tui)
+warning: unused imports: `Block`, `Borders`, `Clear`, `Color`, `Constraint`, `Direction`, `Frame`, `Layout`, `Line`, `ListItem`, `List`, `Modifier`, `Paragraph`, `Span`, `Style`, and `Wrap`
+  --> src/app/mod.rs:10:5
+   |
+10 |     Frame,
+   |     ^^^^^
+11 |     layout::{Constraint, Direction, Layout, Rect},
+   |              ^^^^^^^^^^  ^^^^^^^^^  ^^^^^^
+12 |     style::{Color, Modifier, Style},
+   |             ^^^^^  ^^^^^^^^  ^^^^^
+13 |     text::{Line, Span},
+   |            ^^^^  ^^^^
+14 |     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+   |               ^^^^^  ^^^^^^^  ^^^^^  ^^^^  ^^^^^^^^             ^^^^^^^^^  ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `tui_term::widget::PseudoTerminal`
+  --> src/app/mod.rs:16:5
+   |

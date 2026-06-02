@@ -1,0 +1,18 @@
+{
+  "id": "efb02bbe-3caf-4ee9-9cfa-f5bd3101be95",
+  "runtime": "bash",
+  "purpose": "List all unused import warnings",
+  "script_chars": 50,
+  "started_at": "2026-06-02T14:59:45.798Z",
+  "finished_at": "2026-06-02T14:59:45.904Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 106,
+  "stdout_bytes": 635,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/efb02bbe-3caf-4ee9-9cfa-f5bd3101be95.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/efb02bbe-3caf-4ee9-9cfa-f5bd3101be95.stderr"
+}

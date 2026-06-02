@@ -1,0 +1,3 @@
+
+warning: `amux` (lib) generated 4 warnings (run `cargo fix --lib -p amux` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s

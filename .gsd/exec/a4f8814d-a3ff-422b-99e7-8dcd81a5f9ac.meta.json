@@ -1,0 +1,18 @@
+{
+  "id": "a4f8814d-a3ff-422b-99e7-8dcd81a5f9ac",
+  "runtime": "bash",
+  "purpose": "Compile after browse.rs extraction",
+  "script_chars": 43,
+  "started_at": "2026-06-02T14:59:35.138Z",
+  "finished_at": "2026-06-02T14:59:35.756Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 618,
+  "stdout_bytes": 0,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/a4f8814d-a3ff-422b-99e7-8dcd81a5f9ac.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/a4f8814d-a3ff-422b-99e7-8dcd81a5f9ac.stderr"
+}

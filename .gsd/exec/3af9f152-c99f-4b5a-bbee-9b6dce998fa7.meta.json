@@ -1,0 +1,18 @@
+{
+  "id": "3af9f152-c99f-4b5a-bbee-9b6dce998fa7",
+  "runtime": "bash",
+  "purpose": "Verify move app.rs → app/mod.rs compiles",
+  "script_chars": 26,
+  "started_at": "2026-06-02T14:45:21.971Z",
+  "finished_at": "2026-06-02T14:45:22.518Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 547,
+  "stdout_bytes": 139,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/3af9f152-c99f-4b5a-bbee-9b6dce998fa7.stdout",
+  "stderr_path": "/home/huanglin/code/agent-workspace-tui/.gsd/exec/3af9f152-c99f-4b5a-bbee-9b6dce998fa7.stderr"
+}

@@ -1,0 +1,20 @@
+test tests::parse_gsd_session_gsd_run_takes_priority ... ok
+test tests::parse_gsd_session_fallback_to_user_message ... ok
+test tests::parse_gsd_session_no_session_line ... ok
+test tests::parse_gsd_session_valid_with_gsd_run_title ... ok
+test tests::parse_gsd_session_empty_file ... ok
+test tests::extract_text_from_string_content ... ok
+test tests::parse_codex_session_invalid_json ... ok
+test tests::gsd_build_resume_cmd_uses_sessions ... ok
+test tests::gsd_sessions_persist_after_pty_exit ... ok
+test tests::parse_codex_session_valid ... ok
+test tests::parse_gsd_session_title_truncated_to_50_chars ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests amux
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

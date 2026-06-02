@@ -1,0 +1,149 @@
+=== Line count ===
+1558 src/app.rs
+
+=== Method line ranges (impl App + standalone fn run) ===
+1:use std::{
+7:use anyhow::{Context, Result};
+8:use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+9:use ratatui::{
+16:use tui_term::widget::PseudoTerminal;
+18:use crate::config::{
+21:use crate::discovery::{discover_sessions, find_session_jsonl};
+22:use crate::pty::{PtyHandle, PtyState};
+23:use crate::types::*;
+24:use crate::util::*;
+26:struct App {
+52:impl App {
+53:    fn new() -> Self {
+100:    fn poll_states(&mut self) {
+133:    fn pty_display_state(&self, pi: usize) -> PtyState {
+141:    fn refresh_sessions(&mut self) {
+158:    fn rebuild_tree(&mut self) {
+191:    fn pty_index_for_session(&self, session_id: &str) -> Option<usize> {
+197:    fn selected_node(&self) -> Option<&TreeNode> {
+201:    fn move_sel(&mut self, delta: isize) {
+211:    fn toggle_expand(&mut self) {
+219:    fn handle_key(&mut self, key: KeyEvent) -> Result<Action> {
+393:    fn handle_input_key(&mut self, key: KeyEvent) -> Result<Action> {
+423:    fn handle_browse_key(&mut self, key: KeyEvent) -> Result<Action> {
+447:    fn handle_agent_key(&mut self, key: KeyEvent) -> Result<Action> {
+511:    fn spawn_session(&mut self, agent: Agent) -> Result<()> {
+516:    fn spawn_with_agent(&mut self, agent: Agent, name: Option<String>) -> Result<()> {
+585:    fn handle_paste(&mut self, text: &str) -> Result<Action> {
+597:    fn confirm_input(&mut self) -> Result<()> {
+677:    fn start_rename(&mut self) {
+695:    fn start_new_workspace(&mut self) {
+702:    fn start_browse_dir(&mut self) {
+710:    fn load_browse_entries(&mut self) {
+756:    fn browse_move(&mut self, delta: isize) {
+766:    fn browse_select(&mut self) {
+822:    fn browse_up(&mut self) {
+829:    fn delete_selected(&mut self) {
+869:    fn save_config(&self) {
+878:    fn workspace_cwd(&self, wi: usize) -> PathBuf {
+889:    fn ws_matches_path(&self, wi: usize, path: &Path) -> bool {
+896:    fn activate_selection(&mut self) -> Result<()> {
+916:    fn chat_size(&self) -> (u16, u16) {
+925:    fn render(&mut self, frame: &mut Frame) {
+948:    fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
+1106:    fn render_chat(&mut self, frame: &mut Frame, area: Rect) {
+1168:    fn render_placeholder(&self) -> Vec<Line<'static>> {
+1279:    fn render_input_popup(&mut self, frame: &mut Frame, area: Rect) {
+1321:    fn render_agent_popup(&mut self, frame: &mut Frame, area: Rect) {
+1371:    fn render_browse_popup(&mut self, frame: &mut Frame, area: Rect) {
+1450:    fn render_status(&self, frame: &mut Frame, area: Rect) {
+1493:pub fn run() -> anyhow::Result<()> {
+
+=== Imports used by each method group ===
+--- UI methods use these ratatui types ---
+10:    Frame,
+11:    layout::{Constraint, Direction, Layout, Rect},
+14:    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+16:use tui_term::widget::PseudoTerminal;
+31:    tree_state: ListState,
+40:    agent_state: ListState,
+43:    browse_state: ListState,
+47:    last_chat_area: Rect,
+73:            tree_state: ListState::default(),
+82:            agent_state: ListState::default(),
+85:            browse_state: ListState::default(),
+89:            last_chat_area: Rect::default(),
+925:    fn render(&mut self, frame: &mut Frame) {
+928:        let chunks = Layout::default()
+929:            .direction(Direction::Vertical)
+930:            .constraints([Constraint::Min(4), Constraint::Length(3)])
+933:        let cols = Layout::default()
+934:            .direction(Direction::Horizontal)
+935:            .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+938:        self.render_sidebar(frame, cols[0]);
+940:        self.render_chat(frame, cols[1]);
+941:        self.render_status(frame, chunks[1]);
+944:            self.render_input_popup(frame, area);
+948:    fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
+967:        let items: Vec<ListItem> = self
+989:                    ListItem::new(vec![
+1043:                        ListItem::new(vec![
+1049:                        ListItem::new(Line::from("   \u{25cf} ?"))
+1074:                    ListItem::new(vec![
+1089:        let block = Block::default()
+
+--- Handler methods use these crossterm types ---
+8:use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+219:    fn handle_key(&mut self, key: KeyEvent) -> Result<Action> {
+226:                if key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT) {
+232:                if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
+240:                if key.modifiers.contains(KeyModifiers::CONTROL)
+241:                    && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
+245:                        let delta = if key.code == KeyCode::Char('j') {
+266:                if key.code == KeyCode::PageUp {
+273:                if key.code == KeyCode::PageDown {
+292:                KeyCode::Tab => {
+296:                KeyCode::Char('q') | KeyCode::Esc => return Ok(Action::Quit),
+304:            KeyEvent {
+305:                code: KeyCode::Char('q') | KeyCode::Esc,
+309:            KeyEvent {
+310:                code: KeyCode::Char('j') | KeyCode::Down,
+317:            KeyEvent {
+318:                code: KeyCode::Char('k') | KeyCode::Up,
+325:            KeyEvent {
+326:                code: KeyCode::Char('e'),
+333:            KeyEvent {
+
+--- What centered_rect function? ---
+1289:        let popup = centered_rect(60, 20, area);
+1322:        let popup = centered_rect(50, 30, area);
+1372:        let popup = centered_rect(70, 70, area);
+
+=== struct App field count ===
+23
+
+=== App struct fields ===
+struct App {
+    workspaces: Vec<Workspace>,
+    sessions: Vec<Session>,
+    tree: Vec<TreeNode>,
+    ws_session_map: Vec<Vec<usize>>,
+    tree_state: ListState,
+    focus: Focus,
+    input_mode: InputMode,
+    input_buffer: String,
+    rename_target: Option<usize>,
+    rename_workspace_target: Option<usize>,
+    new_workspace_name: Option<String>,
+    pending_session_name: Option<String>,
+    available_agents: Vec<Agent>,
+    agent_state: ListState,
+    browse_dir: PathBuf,
+    browse_entries: Vec<DirEntry>,
+    browse_state: ListState,
+    ptys: Vec<PtySlot>,
+    active_pty: Option<usize>,
+    status: String,
+    last_chat_area: Rect,
+    last_refresh: std::time::Instant,
+    prev_states: Vec<PtyState>,
+}
+
+=== Visibility of struct and fields ===
+26:struct App {
+1493:pub fn run() -> anyhow::Result<()> {

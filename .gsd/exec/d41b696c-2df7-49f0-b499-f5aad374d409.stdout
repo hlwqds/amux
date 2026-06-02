@@ -1,0 +1,54 @@
+=== src/config.rs ===
+12:pub fn data_dir() -> PathBuf {
+21:pub fn config_path() -> PathBuf {
+25:pub fn ensure_data_dir() -> io::Result<()> {
+37:pub fn load_config() -> Result<Config> {
+49:pub fn save_config_file(config: &Config) -> Result<()> {
+57:pub fn generate_id() -> String {
+63:pub fn encode_project_path(path: &Path) -> String {
+68:pub fn default_roots() -> Vec<PathBuf> {
+80:pub fn title_override_path(session_id: &str) -> PathBuf {
+86:pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> PathBuf {
+93:pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
+101:pub fn load_session_title(session_id: &str, workspace_path: Option<&Path>) -> Option<String> {
+=== src/discovery.rs ===
+11:pub fn discover_workspaces_from_fs() -> Vec<Workspace> {
+34:pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
+43:pub fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
+199:pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<String>)> {
+407:pub fn parse_codex_session(path: &Path) -> Option<(String, Option<String>, String)> {
+446:pub fn clean_user_message(text: &str) -> String {
+465:pub fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
+=== src/types.rs ===
+7:pub enum Agent {
+14:    pub fn cmd(&self) -> &str {
+22:    pub fn label(&self) -> &str {
+30:    pub fn icon(&self) -> &str {
+38:    pub fn color(&self) -> Color {
+46:    pub fn build_new_cmd(
+92:    pub fn build_resume_cmd(
+136:    pub fn sessions_dir(&self) -> Option<PathBuf> {
+158:pub struct Workspace {
+159:    pub id: String,
+160:    pub name: String,
+161:    pub path: Option<PathBuf>,
+162:    pub created_at: u64,
+164:    pub expanded: bool,
+168:pub struct Config {
+169:    pub workspaces: Vec<Workspace>,
+173:pub struct Session {
+174:    pub id: String,
+175:    pub workspace_path: PathBuf,
+176:    pub title: String,
+=== src/util.rs ===
+21:pub const SELECT_CURRENT: &str = "\u{2713} Select this directory";
+22:pub const SELECT_VIRTUAL: &str = "\u{25cb} Virtual (no directory)";
+23:pub const PARENT_DIR: &str = "..";
+25:pub fn now_secs() -> u64 {
+32:pub fn relative_time(secs: u64) -> String {
+42:pub fn which(cmd: &str) -> Option<PathBuf> {
+51:pub fn detect_agents() -> Vec<Agent> {
+65:pub fn key_to_bytes(key: &KeyEvent) -> Vec<u8> {
+111:pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+130:pub fn init_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
+137:pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {

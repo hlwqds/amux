@@ -215,6 +215,7 @@ pub enum InputMode {
     RenameWorkspace,
     NewWorkspaceName,
     BrowseDir,
+    Search,
 }
 
 #[derive(Clone, Debug)]
