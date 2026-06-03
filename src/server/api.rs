@@ -1,0 +1,184 @@
+use axum::extract::{Path, State};
+use axum::response::Json;
+use axum::Json as AxumJson;
+use serde::Deserialize;
+use serde_json::{json, Value};
+use std::sync::Arc;
+
+use super::AppState;
+
+fn fallback_config() -> crate::types::Config {
+    use crate::types::*;
+    Config {
+        workspaces: Vec::new(),
+        theme: Default::default(),
+        keybinds: Default::default(),
+        templates: Vec::new(),
+        automations: Vec::new(),
+        archive_days: None,
+        remote_hosts: Vec::new(),
+        plugins: Vec::new(),
+        serve_port: None,
+        serve_token: None,
+        check_command: None,
+        token_budget: None,
+        chains: Vec::new(),
+    }
+}
+
+pub async fn list_sessions(
+    State(state): State<Arc<AppState>>,
+) -> Json<Value> {
+    let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
+    let sessions = crate::discovery::discover_sessions(&config.workspaces);
+
+    // Build set of session_ids that are currently active (have a running PTY)
+    let active_session_ids: std::collections::HashSet<String> = {
+        let ptys = state.ptys.lock().await;
+        ptys.values()
+            .filter_map(|rp| {
+                if rp.handle.is_alive() {
+                    rp.session_id.clone()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    };
+
+    let list: Vec<Value> = sessions.iter().map(|s| {
+        let active = active_session_ids.contains(&s.id);
+        json!({
+            "id": s.id,
+            "title": s.title,
+            "agent": s.agent.label(),
+            "workspace": s.workspace_path.to_string_lossy(),
+            "last_active": s.last_active,
+            "tags": s.tags,
+            "active": active,
+        })
+    }).collect();
+
+    Json(json!({ "sessions": list }))
+}
+
+pub async fn list_workspaces(
+    State(_state): State<Arc<AppState>>,
+) -> Json<Value> {
+    let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
+    let list: Vec<Value> = config.workspaces.iter().map(|w| {
+        json!({
+            "name": w.name,
+            "path": w.path.as_ref().map(|p| p.display().to_string()),
+        })
+    }).collect();
+    Json(json!({ "workspaces": list }))
+}
+
+/// List all active PTY sessions registered by the TUI.
+pub async fn list_ptys(
+    State(state): State<Arc<AppState>>,
+) -> Json<Value> {
+    let ptys = state.ptys.lock().await;
+    let list: Vec<Value> = ptys.iter().map(|(id, rp)| {
+        let mut obj = json!({
+            "id": id,
+            "alive": rp.handle.is_alive(),
+            "title": rp.title,
+            "agent": rp.agent.label(),
+            "session_id": rp.session_id,
+        });
+        if let Some(stats) = &rp.process_stats {
+            obj["cpu_percent"] = json!(stats.cpu_percent);
+            obj["mem_rss_kb"] = json!(stats.mem_rss_kb);
+            obj["mem_virt_kb"] = json!(stats.mem_virt_kb);
+            obj["read_bytes"] = json!(stats.read_bytes);
+            obj["write_bytes"] = json!(stats.write_bytes);
+            obj["threads"] = json!(stats.threads);
+        }
+        obj
+    }).collect();
+    Json(json!({ "ptys": list }))
+}
+
+#[derive(Deserialize)]
+pub struct PtyInputRequest {
+    pub data: String,
+}
+
+/// Send input to a PTY by its ID.
+pub async fn pty_input(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    AxumJson(body): AxumJson<PtyInputRequest>,
+) -> Json<Value> {
+    let ptys = state.ptys.lock().await;
+    let Some(rp) = ptys.get(&id) else {
+        return Json(json!({ "error": format!("PTY '{}' not found", id) }));
+    };
+    let _ = rp.handle.write_input(body.data.as_bytes());
+    Json(json!({ "status": "ok" }))
+}
+
+#[derive(Deserialize)]
+pub struct PtyResizeRequest {
+    pub cols: u16,
+    pub rows: u16,
+}
+
+/// Resize a PTY by its ID.
+pub async fn pty_resize(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    AxumJson(body): AxumJson<PtyResizeRequest>,
+) -> Json<Value> {
+    let ptys = state.ptys.lock().await;
+    let Some(rp) = ptys.get(&id) else {
+        return Json(json!({ "error": format!("PTY '{}' not found", id) }));
+    };
+    rp.handle.resize((body.cols, body.rows));
+    Json(json!({ "status": "ok" }))
+}
+
+#[derive(Deserialize)]
+pub struct CreateSessionRequest {
+    pub agent: String,
+    pub workspace: Option<String>,
+    pub name: Option<String>,
+}
+
+pub async fn create_session(
+    AxumJson(body): AxumJson<CreateSessionRequest>,
+) -> Json<Value> {
+    // Parse agent
+    let agent = match body.agent.to_lowercase().as_str() {
+        "claude" => crate::types::Agent::Claude,
+        "codex" => crate::types::Agent::Codex,
+        "gsd" => crate::types::Agent::Gsd,
+        "omp" => crate::types::Agent::Omp,
+        _ => {
+            return Json(json!({
+                "error": format!("Unknown agent: {}. Supported: claude, codex, gsd, omp", body.agent)
+            }));
+        }
+    };
+
+    // Resolve workspace path
+    let workspace_path = body.workspace
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+    let chat_size = (80, 24);
+    let project_config = crate::config::load_project_config(&workspace_path);
+    let env = project_config.env;
+    match crate::pty::PtyHandle::spawn(agent, &workspace_path, None, body.name.as_deref(), chat_size, &env) {
+        Ok(_handle) => Json(json!({
+            "status": "started",
+            "agent": agent.label(),
+            "workspace": workspace_path.to_string_lossy(),
+        })),
+        Err(e) => Json(json!({
+            "error": format!("Failed to spawn {}: {}", agent.label(), e)
+        })),
+    }
+}

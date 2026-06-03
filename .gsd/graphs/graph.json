@@ -1,10 +1,10 @@
 {
   "nodes": [
     {
-      "id": "milestone:M003",
-      "label": "M003: Search and Filter",
+      "id": "milestone:M004",
+      "label": "M004: Session Sorting and Grouping",
       "type": "milestone",
-      "description": "Active milestone: M003",
+      "description": "Active milestone: M004",
       "confidence": "EXTRACTED",
       "sourceFile": "STATE.md"
     },
@@ -125,6 +125,13 @@
       "confidence": "EXTRACTED"
     },
     {
+      "id": "milestone:M003",
+      "label": "M003: Search and Filter",
+      "type": "milestone",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M003/M003-ROADMAP.md"
+    },
+    {
       "id": "slice:M003:S01",
       "label": "S01: Fuzzy search mode",
       "type": "slice",
@@ -193,9 +200,78 @@
       "confidence": "EXTRACTED"
     },
     {
-      "id": "milestone:M004",
-      "label": "M004",
+      "id": "slice:M004:S01",
+      "label": "S01: Sort modes and agent grouping",
+      "type": "slice",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M004/slices/S01/S01-PLAN.md"
+    },
+    {
+      "id": "task:M004:S01:T01",
+      "label": "T01: Add SortMode enum and TreeNode::AgentHeader variant",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M004:S01:T02",
+      "label": "T02: Add sort_mode field to App and implement sort logic in rebuild_tree",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M004:S01:T03",
+      "label": "T03: Add `s` keybinding to cycle sort mode",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M004:S01:T04",
+      "label": "T04: Render sort mode indicator and AgentHeader nodes in sidebar UI",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M004:S01:T05",
+      "label": "T05: Add unit tests for sort logic and AgentHeader inertness",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "milestone:M005",
+      "label": "M005: PTY Tab Bar",
       "type": "milestone",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M005/M005-ROADMAP.md"
+    },
+    {
+      "id": "slice:M005:S01",
+      "label": "S01: PTY tab bar with mouse switching",
+      "type": "slice",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M005/slices/S01/S01-PLAN.md"
+    },
+    {
+      "id": "task:M005:S01:T01",
+      "label": "T01: Enable mouse capture in terminal lifecycle",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M005:S01:T02",
+      "label": "T02: Add tab_bar_rect field, handle_mouse_click, and Event::Mouse dispatch",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M005:S01:T03",
+      "label": "T03: Render tab bar in chat area with layout split",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M005:S01:T04",
+      "label": "T04: Unit tests for tab index calculation and title truncation",
+      "type": "task",
       "confidence": "EXTRACTED"
     },
     {
@@ -573,6 +649,72 @@
       "confidence": "EXTRACTED"
     },
     {
+      "from": "milestone:M004",
+      "to": "slice:M004:S01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M004:S01",
+      "to": "task:M004:S01:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M004:S01",
+      "to": "task:M004:S01:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M004:S01",
+      "to": "task:M004:S01:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M004:S01",
+      "to": "task:M004:S01:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M004:S01",
+      "to": "task:M004:S01:T05",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M005",
+      "to": "slice:M005:S01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M005:S01",
+      "to": "task:M005:S01:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M005:S01",
+      "to": "task:M005:S01:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M005:S01",
+      "to": "task:M005:S01:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M005:S01",
+      "to": "task:M005:S01:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
       "from": "milestone:M001",
       "to": "decision:M001:1",
       "type": "relates_to",
@@ -735,5 +877,5 @@
       "confidence": "EXTRACTED"
     }
   ],
-  "builtAt": "2026-06-02T16:20:58.780Z"
+  "builtAt": "2026-06-02T17:49:29.240Z"
 }

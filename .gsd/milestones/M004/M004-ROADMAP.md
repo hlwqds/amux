@@ -15,7 +15,7 @@
 
 ## Slices
 
-- [ ] **S01: Sort modes and agent grouping** `risk:medium` `depends:[]`
+- [x] **S01: Sort modes and agent grouping** `risk:medium` `depends:[]`
   > After this: Press `s` to cycle through 5 sort modes. Sidebar header shows current mode. Agent Group mode shows agent-type sub-headers with sessions grouped under them. Sort combines with search/filter correctly. All existing tests pass + new unit tests for sort logic.
 
 ## Boundary Map

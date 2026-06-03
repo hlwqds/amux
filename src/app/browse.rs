@@ -11,8 +11,8 @@ impl super::App {
         let home = PathBuf::from(env::var("HOME").unwrap_or_else(|_| "/".into()));
         self.browse_dir = home;
         self.load_browse_entries();
-        self.input_mode = InputMode::BrowseDir;
-        self.status = "Select directory \u{00b7} Enter: open/select \u{00b7} Backspace: up \u{00b7} Esc: cancel".into();
+        self.view.input_mode = InputMode::BrowseDir;
+        self.view.status = "Select directory \u{00b7} Enter: open/select \u{00b7} Backspace: up \u{00b7} Esc: cancel".into();
     }
 
     pub(super) fn load_browse_entries(&mut self) {
@@ -32,7 +32,7 @@ impl super::App {
         if self.browse_dir.parent().is_some() {
             entries.push(DirEntry {
                 name: PARENT_DIR.into(),
-                path: self.browse_dir.parent().unwrap().to_path_buf(),
+                path: self.browse_dir.parent().unwrap_or(&self.browse_dir).to_path_buf(),
                 is_dir: true,
             });
         }
@@ -91,15 +91,14 @@ impl super::App {
                     created_at: now_secs(),
                     expanded: true,
                 };
-                self.status = format!(
-                    "Created workspace: {} \u{2192} {}",
-                    ws.name,
-                    ws.path.as_ref().unwrap().display()
-                );
-                self.workspaces.push(ws);
+                self.view.status = match ws.path.as_ref() {
+                    Some(p) => format!("Created workspace: {} \u{2192} {}", ws.name, p.display()),
+                    None => format!("Created workspace: {}", ws.name),
+                };
+                self.sessions.workspaces.push(ws);
                 self.save_config();
                 self.rebuild_tree();
-                self.input_mode = InputMode::None;
+                self.view.input_mode = InputMode::None;
             }
             SELECT_VIRTUAL => {
                 let name = self.new_workspace_name.take().unwrap_or_default();
@@ -110,11 +109,11 @@ impl super::App {
                     created_at: now_secs(),
                     expanded: true,
                 };
-                self.status = format!("Created virtual workspace: {}", ws.name);
-                self.workspaces.push(ws);
+                self.view.status = format!("Created virtual workspace: {}", ws.name);
+                self.sessions.workspaces.push(ws);
                 self.save_config();
                 self.rebuild_tree();
-                self.input_mode = InputMode::None;
+                self.view.input_mode = InputMode::None;
             }
             PARENT_DIR => {
                 self.browse_dir = entry.path;

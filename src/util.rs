@@ -59,6 +59,9 @@ pub fn detect_agents() -> Vec<Agent> {
     if which("gsd").is_some() {
         agents.push(Agent::Gsd);
     }
+    if which("omp").is_some() {
+        agents.push(Agent::Omp);
+    }
     agents
 }
 
@@ -141,6 +144,187 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -
     Ok(())
 }
 
+/// Parsed search query: optional date filter + text query.
+pub struct ParsedSearch {
+    pub text: Option<String>,
+    pub min_last_active: Option<u64>, // unix timestamp, sessions older than this are excluded
+}
+
+/// Parse a search query that may contain a date prefix like `>7d`, `>1h`, `>30m`.
+/// Returns the remaining text query and the minimum last_active timestamp.
+/// Examples: `>7d fix bug` → text="fix bug", min_last_active=7 days ago
+///           `fix bug` → text="fix bug", min_last_active=None
+///           `>1h` → text=None, min_last_active=1 hour ago
+pub fn parse_search_query(query: &str) -> ParsedSearch {
+    let now = now_secs();
+    let trimmed = query.trim();
+
+    // Try to match date prefix: >Nd, >Nh, >Nm
+    let re = date_regex();
+    if let Some(caps) = re.captures(trimmed) {
+        let full_match = caps.get(0).unwrap().as_str();
+        let amount: u64 = caps.get(1).unwrap().as_str().parse().unwrap_or(1);
+        let unit = caps.get(2).unwrap().as_str();
+
+        let cutoff = match unit {
+            "d" => now.saturating_sub(amount * 86400),
+            "h" => now.saturating_sub(amount * 3600),
+            "m" => now.saturating_sub(amount * 60),
+            _ => now,
+        };
+
+        let remaining = trimmed[full_match.len()..].trim().to_string();
+        ParsedSearch {
+            text: if remaining.is_empty() { None } else { Some(remaining) },
+            min_last_active: Some(cutoff),
+        }
+    } else {
+        ParsedSearch {
+            text: if trimmed.is_empty() { None } else { Some(trimmed.to_string()) },
+            min_last_active: None,
+        }
+    }
+}
+
+fn date_regex() -> &'static regex::Regex {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| regex::Regex::new(r"^>(\d+)([dhm])\s*").unwrap())
+}
+
+/// Copy text to the system clipboard. Uses arboard first, falls back to
+/// platform-specific CLI tools (pbcopy on macOS, xclip/wl-copy on Linux).
+pub fn clipboard_copy(text: &str) -> Result<(), String> {
+    // Try arboard first
+    if let Ok(mut cb) = arboard::Clipboard::new()
+        && cb.set_text(text).is_ok()
+    {
+        return Ok(());
+    }
+
+    // Fallback: try pbcopy (macOS)
+    if std::process::Command::new("pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .ok()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+        })
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    // Fallback: try xclip (X11)
+    if std::process::Command::new("xclip")
+        .args(["-selection", "clipboard"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .ok()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+        })
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    // Fallback: try wl-copy (Wayland)
+    if std::process::Command::new("wl-copy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .ok()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+        })
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    Err("No clipboard available (tried arboard, pbcopy, xclip, wl-copy)".into())
+}
+
+/// Extract file paths from terminal output text.
+/// Matches common patterns: `/path/to/file.ext`, `./relative/path.ext`, `src/file.rs:line`.
+/// Deduplicates and returns at most `max` paths.
+pub fn extract_file_paths(text: &str, max: usize) -> Vec<String> {
+    let mut paths: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    // Match absolute paths and ./ relative paths with file extensions
+    // Also match patterns like `file.rs:42` (file:line)
+    let re = regex_lazy();
+
+    for cap in re.find_iter(text) {
+        let path = cap.as_str();
+        // Strip trailing :line:col or :line suffix for display
+        let cleaned = path.trim_end_matches(|c: char| c.is_ascii_digit() || c == ':');
+        let cleaned = cleaned.trim_end_matches(':');
+        if seen.insert(cleaned.to_string()) {
+            paths.push(cleaned.to_string());
+            if paths.len() >= max {
+                break;
+            }
+        }
+    }
+
+    paths
+}
+
+/// Extract file paths from terminal output text, preserving optional line numbers.
+/// Returns tuples of (path, optional_line_number).
+/// Matches `src/main.rs:42` → ("src/main.rs", Some(42)),
+///         `src/main.rs`     → ("src/main.rs", None).
+/// Deduplicates by path and returns at most `max` results.
+pub fn extract_file_paths_with_lines(text: &str, max: usize) -> Vec<(String, Option<u32>)> {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        // Same as regex_lazy but captures optional :line suffix
+        regex::Regex::new(
+            r"(?:/[\w./\-]+/[\w.\-]+\.[\w\-]+|\.?(?:src|lib|test|pkg|cmd|internal|crates|apps)/[\w./\-]+\.[\w\-]+)(?::(\d+))?"
+        ).unwrap()
+    });
+
+    let mut paths: Vec<(String, Option<u32>)> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for cap in re.captures_iter(text) {
+        let full = cap.get(0).unwrap().as_str();
+        let line_num: Option<u32> = cap.get(1).and_then(|m| m.as_str().parse().ok());
+        // Strip trailing :line for the path itself
+        let path = if line_num.is_some() {
+            &full[..full.rfind(':').unwrap_or(full.len())]
+        } else {
+            full
+        };
+        if seen.insert(path.to_string()) {
+            paths.push((path.to_string(), line_num));
+            if paths.len() >= max {
+                break;
+            }
+        }
+    }
+
+    paths
+}
+
+fn regex_lazy() -> &'static regex::Regex {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Match absolute paths and ./ relative paths
+        // Require at least one path separator and a file extension
+        regex::Regex::new(
+            r"(?:/[\w./\-]+/[\w.\-]+\.[\w\-]+|\.?(?:src|lib|test|pkg|cmd|internal|crates|apps)/[\w./\-]+\.[\w\-]+)"
+        ).unwrap()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +337,76 @@ mod tests {
         assert_eq!(relative_time(now - 120), "2m ago");
         assert_eq!(relative_time(now - 7200), "2h ago");
         assert_eq!(relative_time(now - 172800), "2d ago");
+    }
+
+    #[test]
+    fn extract_paths_absolute() {
+        let text = "Modified /home/user/project/src/main.rs:42";
+        let paths = extract_file_paths(text, 5);
+        assert_eq!(paths, vec!["/home/user/project/src/main.rs"]);
+    }
+
+    #[test]
+    fn extract_paths_relative() {
+        let text = "Editing src/app/ui.rs and lib/core.py";
+        let paths = extract_file_paths(text, 5);
+        assert!(paths.contains(&"src/app/ui.rs".to_string()));
+        assert!(paths.contains(&"lib/core.py".to_string()));
+    }
+
+    #[test]
+    fn extract_paths_dedup() {
+        let text = "src/main.rs src/main.rs src/main.rs";
+        let paths = extract_file_paths(text, 5);
+        assert_eq!(paths.len(), 1);
+    }
+
+    #[test]
+    fn extract_paths_max_limit() {
+        let text = "src/a.rs src/b.rs src/c.rs src/d.rs src/e.rs src/f.rs";
+        let paths = extract_file_paths(text, 3);
+        assert_eq!(paths.len(), 3);
+    }
+
+    #[test]
+    fn extract_paths_no_match() {
+        let text = "hello world no paths here";
+        let paths = extract_file_paths(text, 5);
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn search_date_filter_days() {
+        let parsed = parse_search_query(">7d fix bug");
+        assert_eq!(parsed.text.as_deref(), Some("fix bug"));
+        assert!(parsed.min_last_active.is_some());
+    }
+
+    #[test]
+    fn search_date_filter_hours() {
+        let parsed = parse_search_query(">1h");
+        assert!(parsed.text.is_none());
+        assert!(parsed.min_last_active.is_some());
+    }
+
+    #[test]
+    fn search_date_filter_minutes() {
+        let parsed = parse_search_query(">30m deploy");
+        assert_eq!(parsed.text.as_deref(), Some("deploy"));
+        assert!(parsed.min_last_active.is_some());
+    }
+
+    #[test]
+    fn search_no_date_filter() {
+        let parsed = parse_search_query("fix bug");
+        assert_eq!(parsed.text.as_deref(), Some("fix bug"));
+        assert!(parsed.min_last_active.is_none());
+    }
+
+    #[test]
+    fn search_empty() {
+        let parsed = parse_search_query("");
+        assert!(parsed.text.is_none());
+        assert!(parsed.min_last_active.is_none());
     }
 }

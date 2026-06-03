@@ -22,6 +22,30 @@ fn main() -> anyhow::Result<()> {
         rt.block_on(amux::server::run_server(port, token))?;
         return Ok(());
     }
+    // Doctor subcommand
+    if args[1] == "doctor" {
+        let results = amux::doctor::run_doctor();
+        let mut failed = 0usize;
+        for r in &results {
+            let icon = if r.passed { "✓" } else { "✗" };
+            println!("{} {}", icon, r.name);
+            if !r.message.is_empty() {
+                println!("  {}", r.message);
+            }
+            if let Some(ref hint) = r.fix_hint {
+                println!("  Fix: {}", hint);
+            }
+            if !r.passed {
+                failed += 1;
+            }
+        }
+        if failed > 0 {
+            println!();
+            println!("{} check(s) failed.", failed);
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
 
     // Headless subcommands: run, list, status
     if let Some(result) = amux::headless::try_headless(&args) {

@@ -217,8 +217,8 @@ pub fn list(json_output: bool) -> Result<()> {
         }
         // Table header
         println!(
-            "{:<12} {:<8} {:<30} {:<20} {}",
-            "ID", "AGENT", "TITLE", "WORKSPACE", "LAST ACTIVE"
+            "{:<12} {:<8} {:<30} {:<20} LAST ACTIVE",
+            "ID", "AGENT", "TITLE", "WORKSPACE"
         );
         println!("{}", "-".repeat(90));
         for s in &sessions {

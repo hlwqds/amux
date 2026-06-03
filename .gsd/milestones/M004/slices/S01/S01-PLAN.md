@@ -62,7 +62,7 @@
   - Files: `src/app/ui.rs`
   - Verify: cargo check
 
-- [ ] **T05: Add unit tests for sort logic and AgentHeader inertness** `est:40 min`
+- [x] **T05: Add unit tests for sort logic and AgentHeader inertness** `est:40 min`
   In `src/app/mod.rs` test module:
   1. `sort_mode_cycles_through_all_variants` — verify next() visits all 5 variants and wraps.
   2. `sort_mode_default_is_time_desc` — verify Default is TimeDesc.
