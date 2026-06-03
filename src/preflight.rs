@@ -53,10 +53,9 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
                 .push("Commit or stash changes before starting".into());
         }
         Err(msg) => {
-            result.checks.push((
-                "Git status".into(),
-                CheckStatus::Fail(msg),
-            ));
+            result
+                .checks
+                .push(("Git status".into(), CheckStatus::Fail(msg)));
         }
     }
 
@@ -85,7 +84,9 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
             ));
         }
         Err(msg) => {
-            result.checks.push(("Branch".into(), CheckStatus::Fail(msg)));
+            result
+                .checks
+                .push(("Branch".into(), CheckStatus::Fail(msg)));
         }
     }
 
@@ -97,9 +98,10 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
             CheckStatus::Pass(".amux.json found".into()),
         ));
     } else {
-        result
-            .checks
-            .push(("Project config".into(), CheckStatus::Pass("No .amux.json".into())));
+        result.checks.push((
+            "Project config".into(),
+            CheckStatus::Pass("No .amux.json".into()),
+        ));
     }
 
     // 4. Cargo check — skip if not a Rust project.

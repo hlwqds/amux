@@ -1,9 +1,4 @@
-use axum::{
-    extract::Request,
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use subtle::ConstantTimeEq;
 
 /// Token-based auth middleware. If token is empty, all requests are allowed.

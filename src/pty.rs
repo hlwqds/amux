@@ -85,8 +85,7 @@ impl PtyHandle {
         let mut reader = master
             .try_clone_reader()
             .context("failed to clone PTY reader")?;
-        let last_raw_output: Arc<RwLock<Vec<u8>>> =
-            Arc::new(RwLock::new(Vec::with_capacity(8192)));
+        let last_raw_output: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new(Vec::with_capacity(8192)));
         let parser = Arc::new(RwLock::new(vt100::Parser::new(size.1, size.0, 10000)));
         let alive = Arc::new(AtomicBool::new(true));
         let last_output_at = Arc::new(AtomicU64::new(now_secs()));

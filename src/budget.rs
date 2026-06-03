@@ -57,7 +57,8 @@ pub fn check_budget(
 ) -> Option<BudgetAlert> {
     // Time boundaries
     let day_start = now_secs - (now_secs % 86400); // start of today (UTC)
-    let week_start = day_start.saturating_sub((now_secs_of_weekday(now_secs).saturating_sub(1)) * 86400);
+    let week_start =
+        day_start.saturating_sub((now_secs_of_weekday(now_secs).saturating_sub(1)) * 86400);
 
     let mut daily = WindowUsage::default();
     let mut weekly = WindowUsage::default();
@@ -189,7 +190,9 @@ mod tests {
             daily_cost: None,
             weekly_cost: None,
         };
-        let alert = check_budget(&sessions, &budget, now + 200, |_| Some(mock_usage(600, 0.0)));
+        let alert = check_budget(&sessions, &budget, now + 200, |_| {
+            Some(mock_usage(600, 0.0))
+        });
         assert!(alert.is_some());
         let alert = alert.unwrap();
         assert_eq!(alert.limit_kind, BudgetLimitKind::DailyTokens);
@@ -206,7 +209,9 @@ mod tests {
             daily_cost: Some(5.0),
             weekly_cost: None,
         };
-        let alert = check_budget(&sessions, &budget, now + 200, |_| Some(mock_usage(100, 10.0)));
+        let alert = check_budget(&sessions, &budget, now + 200, |_| {
+            Some(mock_usage(100, 10.0))
+        });
         assert!(alert.is_some());
         assert_eq!(alert.unwrap().limit_kind, BudgetLimitKind::DailyCost);
     }
@@ -221,7 +226,12 @@ mod tests {
             daily_cost: None,
             weekly_cost: None,
         };
-        assert!(check_budget(&sessions, &budget, now + 200, |_| Some(mock_usage(500, 0.0))).is_none());
+        assert!(
+            check_budget(&sessions, &budget, now + 200, |_| Some(mock_usage(
+                500, 0.0
+            )))
+            .is_none()
+        );
     }
 
     #[test]
@@ -235,7 +245,12 @@ mod tests {
             daily_cost: None,
             weekly_cost: None,
         };
-        assert!(check_budget(&sessions, &budget, now + 100, |_| Some(mock_usage(500, 0.0))).is_none());
+        assert!(
+            check_budget(&sessions, &budget, now + 100, |_| Some(mock_usage(
+                500, 0.0
+            )))
+            .is_none()
+        );
     }
 
     #[test]
@@ -257,10 +272,7 @@ mod tests {
     #[test]
     fn test_cumulative_daily_usage() {
         let now: u64 = 86400 * 10;
-        let sessions = vec![
-            mock_session("s1", now + 100),
-            mock_session("s2", now + 200),
-        ];
+        let sessions = vec![mock_session("s1", now + 100), mock_session("s2", now + 200)];
         let budget = TokenBudget {
             daily_tokens: Some(150),
             weekly_tokens: None,
@@ -268,7 +280,9 @@ mod tests {
             weekly_cost: None,
         };
         // Each session uses 100 tokens -> 200 total, exceeds 150
-        let alert = check_budget(&sessions, &budget, now + 300, |_| Some(mock_usage(100, 0.0)));
+        let alert = check_budget(&sessions, &budget, now + 300, |_| {
+            Some(mock_usage(100, 0.0))
+        });
         assert!(alert.is_some());
     }
 }

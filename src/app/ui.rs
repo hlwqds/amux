@@ -41,7 +41,9 @@ impl super::App {
 
         if self.view.input_mode == InputMode::Help {
             self.render_help_popup(frame, area);
-        } else if self.view.input_mode == InputMode::SessionPreview || self.view.input_mode == InputMode::SummaryPreview {
+        } else if self.view.input_mode == InputMode::SessionPreview
+            || self.view.input_mode == InputMode::SummaryPreview
+        {
             self.render_session_preview(frame, area);
         } else if self.view.input_mode == InputMode::Settings {
             self.render_settings_popup(frame, area);
@@ -69,7 +71,9 @@ impl super::App {
             self.render_plugin_output(frame, area);
         } else if self.view.input_mode == InputMode::Timeline {
             self.render_timeline(frame, area);
-        } else if self.view.input_mode == InputMode::ConflictWarning || self.view.input_mode == InputMode::ConflictResolve {
+        } else if self.view.input_mode == InputMode::ConflictWarning
+            || self.view.input_mode == InputMode::ConflictResolve
+        {
             self.render_conflict_resolve(frame, area);
         } else if self.view.input_mode == InputMode::AgentRecommend {
             self.render_agent_recommend(frame, area);
@@ -92,21 +96,57 @@ impl super::App {
 
     fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
         // Pre-compute pty state lookup to avoid borrowing self inside .map() closure.
-        let pty_state_map: Vec<(String, PtyState)> = self.ptys.ptys.iter().enumerate()
-            .filter_map(|(i, s)| s.info.session_id.as_ref().map(|sid| (sid.clone(), self.pty_display_state(i))))
+        let pty_state_map: Vec<(String, PtyState)> = self
+            .ptys
+            .ptys
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                s.info
+                    .session_id
+                    .as_ref()
+                    .map(|sid| (sid.clone(), self.pty_display_state(i)))
+            })
             .collect();
         // Pre-compute active tab state for ActiveTab nodes.
-        let active_tab_data: Vec<(PtyState, String, Agent, CheckStatus, DiffSummary, Option<crate::procfs::ProcessStats>)> = self.ptys.ptys.iter().enumerate()
-            .map(|(i, s)| (self.pty_display_state(i), s.info.title.clone(), s.info.agent, s.info.check_status.clone(), s.info.diff_summary.clone(), s.process_stats.clone()))
+        let active_tab_data: Vec<(
+            PtyState,
+            String,
+            Agent,
+            CheckStatus,
+            DiffSummary,
+            Option<crate::procfs::ProcessStats>,
+        )> = self
+            .ptys
+            .ptys
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                (
+                    self.pty_display_state(i),
+                    s.info.title.clone(),
+                    s.info.agent,
+                    s.info.check_status.clone(),
+                    s.info.diff_summary.clone(),
+                    s.process_stats.clone(),
+                )
+            })
             .collect();
 
-        let items: Vec<_> = self.sessions.tree
+        let items: Vec<_> = self
+            .sessions
+            .tree
             .iter()
             .map(|node| match node {
                 TreeNode::Workspace(wi) => {
                     let ws = &self.sessions.workspaces[*wi];
                     let icon = if ws.expanded { "\u{25bc}" } else { "\u{25b6}" };
-                    let count = self.sessions.ws_session_map.get(*wi).map(|v| v.len()).unwrap_or(0);
+                    let count = self
+                        .sessions
+                        .ws_session_map
+                        .get(*wi)
+                        .map(|v| v.len())
+                        .unwrap_or(0);
 
                     let (binding_icon, binding_style, subtitle) = match &ws.path {
                         Some(p) => (
@@ -140,7 +180,10 @@ impl super::App {
                 TreeNode::Session(_wi, si) => {
                     if let Some(session) = self.sessions.sessions.get(*si) {
                         let short_id = &session.id[..8.min(session.id.len())];
-                        let pty_state = pty_state_map.iter().find(|(sid, _)| sid == &session.id).map(|(_, s)| *s);
+                        let pty_state = pty_state_map
+                            .iter()
+                            .find(|(sid, _)| sid == &session.id)
+                            .map(|(_, s)| *s);
 
                         let agent_tag = Span::styled(
                             format!(" [{}]", session.agent.icon()),
@@ -206,35 +249,49 @@ impl super::App {
                             format!("     {} [{}]", session.title, session.tags.join(", "))
                         };
                         if pty_state == Some(PtyState::Completed)
-                            && let Some(pty_slot) = self.ptys.ptys.iter().find(|s| s.info.session_id.as_deref() == Some(&session.id)) {
-                                let ds = &pty_slot.info.diff_summary;
-                                if !ds.files_changed.is_empty() {
-                                    detail_line = format!("{} [+{}/-{} {}f]", detail_line, ds.insertions, ds.deletions, ds.files_changed.len());
-                                }
+                            && let Some(pty_slot) = self
+                                .ptys
+                                .ptys
+                                .iter()
+                                .find(|s| s.info.session_id.as_deref() == Some(&session.id))
+                        {
+                            let ds = &pty_slot.info.diff_summary;
+                            if !ds.files_changed.is_empty() {
+                                detail_line = format!(
+                                    "{} [+{}/-{} {}f]",
+                                    detail_line,
+                                    ds.insertions,
+                                    ds.deletions,
+                                    ds.files_changed.len()
+                                );
                             }
+                        }
                         ListItem::new(vec![
                             Line::from(spans),
-                            Line::from(detail_line)
-                                .style(Style::default().fg(Color::Gray)),
+                            Line::from(detail_line).style(Style::default().fg(Color::Gray)),
                         ])
                     } else {
                         ListItem::new(Line::from("   \u{25cf} ?"))
                     }
                 }
                 TreeNode::ActiveTab(pi) => {
-                    let (state, title, agent, check, diff_summary, proc_stats) = active_tab_data.get(*pi)
-                        .cloned()
-                        .unwrap_or((PtyState::Running, "New Session".into(), Agent::Claude, CheckStatus::Pending, DiffSummary::default(), None));
+                    let (state, title, agent, check, diff_summary, proc_stats) =
+                        active_tab_data.get(*pi).cloned().unwrap_or((
+                            PtyState::Running,
+                            "New Session".into(),
+                            Agent::Claude,
+                            CheckStatus::Pending,
+                            DiffSummary::default(),
+                            None,
+                        ));
                     let (dot_color, state_text) = match state {
                         PtyState::Running => (Color::Yellow, " [running]".into()),
-                        PtyState::Completed => {
-                            match &check {
-                                CheckStatus::Failed(e) => (Color::Red, format!(" \u{26a0} {}", e)),
-                                CheckStatus::Running => (Color::Yellow, " \u{23f3} checking...".into()),
-                                CheckStatus::Passed => (Color::Green, " \u{2714} done".into()),
-                                CheckStatus::Pending => (Color::Green, " \u{2714} done".into()),
-                            }
-                        }
+                        PtyState::Completed => match &check {
+                            CheckStatus::Failed(e) => (Color::Red, format!(" \u{26a0} {}", e)),
+                            CheckStatus::Running => (Color::Yellow, " \u{23f3} checking...".into()),
+                            CheckStatus::Passed => (Color::Green, " \u{2714} done".into()),
+                            CheckStatus::Pending => (Color::Green, " \u{2714} done".into()),
+                        },
                     };
                     let state_color = dot_color;
                     let stats_span = if let Some(ref stats) = proc_stats {
@@ -260,28 +317,32 @@ impl super::App {
                     let detail = if state == PtyState::Completed {
                         let ds = &diff_summary;
                         if ds.files_changed.is_empty() {
-                            Line::from("     no changes detected").style(Style::default().fg(Color::DarkGray))
+                            Line::from("     no changes detected")
+                                .style(Style::default().fg(Color::DarkGray))
                         } else {
-                            let info = format!("     +{}/-{} in {} file(s)", ds.insertions, ds.deletions, ds.files_changed.len());
-                            Line::from(vec![
-                                Span::styled(info, Style::default().fg(Color::DarkGray)),
-                            ])
+                            let info = format!(
+                                "     +{}/-{} in {} file(s)",
+                                ds.insertions,
+                                ds.deletions,
+                                ds.files_changed.len()
+                            );
+                            Line::from(vec![Span::styled(
+                                info,
+                                Style::default().fg(Color::DarkGray),
+                            )])
                         }
                     } else {
                         Line::from("     waiting for session file...")
                             .style(Style::default().fg(Color::DarkGray))
                     };
-                    ListItem::new(vec![
-                        Line::from(title_spans),
-                        detail,
-                    ])
+                    ListItem::new(vec![Line::from(title_spans), detail])
                 }
-                TreeNode::WorkspaceWarning(_, msg) => ListItem::new(Line::from(vec![
-                    Span::styled(
+                TreeNode::WorkspaceWarning(_, msg) => {
+                    ListItem::new(Line::from(vec![Span::styled(
                         format!("  \u{26a0} {}", msg),
                         Style::default().fg(Color::Yellow),
-                    ),
-                ])),
+                    )]))
+                }
                 TreeNode::AgentHeader(agent) => ListItem::new(Line::from(vec![Span::styled(
                     format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
                     Style::default()
@@ -290,14 +351,12 @@ impl super::App {
                 )])),
                 TreeNode::ArchivedHeader => {
                     let count = self.sessions.archived_sessions.len();
-                    ListItem::new(Line::from(vec![
-                        Span::styled(
-                            format!("  \u{25b6} Archived ({})", count),
-                            Style::default()
-                                .fg(Color::DarkGray)
-                                .add_modifier(Modifier::DIM),
-                        ),
-                    ]))
+                    ListItem::new(Line::from(vec![Span::styled(
+                        format!("  \u{25b6} Archived ({})", count),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
+                    )]))
                 }
                 TreeNode::ArchivedSession(_wi, ai) => {
                     if let Some(session) = self.sessions.archived_sessions.get(*ai) {
@@ -360,11 +419,19 @@ impl super::App {
                 )
             }
             (true, None, Some(tag)) => {
-                format!(" [search: {}] [tag: {}] [sort: {}] ", search_query, tag, sort_label)
+                format!(
+                    " [search: {}] [tag: {}] [sort: {}] ",
+                    search_query, tag, sort_label
+                )
             }
             (true, None, None) => format!(" [search: {}] [sort: {}] ", search_query, sort_label),
             (false, Some(agent), Some(tag)) => {
-                format!(" [{}] [tag: {}] Workspaces [sort: {}] ", agent.label(), tag, sort_label)
+                format!(
+                    " [{}] [tag: {}] Workspaces [sort: {}] ",
+                    agent.label(),
+                    tag,
+                    sort_label
+                )
             }
             (false, Some(agent), None) => {
                 format!(" [{}] Workspaces [sort: {}] ", agent.label(), sort_label)
@@ -439,7 +506,8 @@ impl super::App {
         };
 
         let scroll_offset = self
-            .ptys.active_pty
+            .ptys
+            .active_pty
             .and_then(|idx| self.ptys.ptys.get(idx))
             .map(|s| s.handle.scrollback_offset())
             .unwrap_or(0);
@@ -476,17 +544,18 @@ impl super::App {
             let inner = block.inner(area);
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(1), Constraint::Min(1), Constraint::Length(1)])
+                .constraints([
+                    Constraint::Length(1),
+                    Constraint::Min(1),
+                    Constraint::Length(1),
+                ])
                 .split(inner);
 
             self.view.tab_bar_rect = chunks[0];
 
             // Render tab bar
             let tab_line = self.build_tab_bar(chunks[0].width as usize);
-            frame.render_widget(
-                Paragraph::new(tab_line),
-                chunks[0],
-            );
+            frame.render_widget(Paragraph::new(tab_line), chunks[0]);
 
             // Render PTY content
             if let Some(idx) = self.ptys.active_pty
@@ -518,10 +587,7 @@ impl super::App {
                 } else {
                     // Show detected file paths with line numbers, highlight selected
                     let spans = self.build_path_bar();
-                    frame.render_widget(
-                        Paragraph::new(Line::from(spans)),
-                        chunks[2],
-                    );
+                    frame.render_widget(Paragraph::new(Line::from(spans)), chunks[2]);
                 }
             }
 
@@ -551,7 +617,6 @@ impl super::App {
             area,
         );
     }
-
 
     fn render_placeholder(&self) -> Vec<Line<'static>> {
         let mut lines: Vec<Line> = Vec::new();
@@ -604,10 +669,10 @@ impl super::App {
                     relative_time(session.last_active)
                 )));
                 if !session.tags.is_empty() {
-                    lines.push(Line::from(format!(
-                        "Tags: {}",
-                        session.tags.join(", ")
-                    )).style(Style::default().fg(Color::Magenta)));
+                    lines.push(
+                        Line::from(format!("Tags: {}", session.tags.join(", ")))
+                            .style(Style::default().fg(Color::Magenta)),
+                    );
                 }
                 if session.agent == Agent::Gsd {
                     lines.push(Line::from(""));
@@ -654,13 +719,14 @@ impl super::App {
             }
             Some(TreeNode::WorkspaceWarning(_, msg)) => {
                 lines.push(
-                    Line::from("Workspace Warning")
-                        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Line::from("Workspace Warning").style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
                 );
                 lines.push(Line::from(""));
-                lines.push(
-                    Line::from(msg.clone()).style(Style::default().fg(Color::Yellow)),
-                );
+                lines.push(Line::from(msg.clone()).style(Style::default().fg(Color::Yellow)));
             }
             Some(&TreeNode::AgentHeader(agent)) => {
                 let label = agent.label().to_string();
@@ -676,8 +742,11 @@ impl super::App {
             }
             Some(&TreeNode::ArchivedHeader) => {
                 lines.push(
-                    Line::from(format!("Archived Sessions ({})", self.sessions.archived_sessions.len()))
-                        .style(Style::default().fg(Color::DarkGray)),
+                    Line::from(format!(
+                        "Archived Sessions ({})",
+                        self.sessions.archived_sessions.len()
+                    ))
+                    .style(Style::default().fg(Color::DarkGray)),
                 );
                 lines.push(Line::from(""));
                 lines.push(
@@ -941,7 +1010,9 @@ impl super::App {
                         ("\u{23f3}", Color::Yellow)
                     } else {
                         let pt = slot.info.project_type;
-                        if pt != crate::discovery::ProjectType::Rust && pt != crate::discovery::ProjectType::Unknown {
+                        if pt != crate::discovery::ProjectType::Rust
+                            && pt != crate::discovery::ProjectType::Unknown
+                        {
                             (pt.icon(), Color::Green)
                         } else {
                             ("\u{2714}", Color::Green)
@@ -959,7 +1030,10 @@ impl super::App {
                 let active_bg = Color::Rgb(24, 36, 72);
                 spans.push(Span::styled(
                     format!(" [{}] ", agent.icon()),
-                    Style::default().fg(agent.color()).bg(active_bg).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(agent.color())
+                        .bg(active_bg)
+                        .add_modifier(Modifier::BOLD),
                 ));
                 spans.push(Span::styled(
                     format!("{} ", title),
@@ -995,7 +1069,6 @@ impl super::App {
         Line::from(spans)
     }
 
-
     /// Build the bottom path bar with highlighted selection for PTY output.
     fn build_path_bar(&self) -> Vec<Span<'static>> {
         let paths = &self.ptys.detected_paths;
@@ -1004,11 +1077,17 @@ impl super::App {
         }
 
         let mut spans: Vec<Span<'static>> = Vec::new();
-        spans.push(Span::styled(" \u{1f4c2} ", Style::default().fg(Color::DarkGray)));
+        spans.push(Span::styled(
+            " \u{1f4c2} ",
+            Style::default().fg(Color::DarkGray),
+        ));
 
         for (i, (path, line)) in paths.iter().enumerate().take(5) {
             if i > 0 {
-                spans.push(Span::styled(" \u{00b7} ", Style::default().fg(Color::DarkGray)));
+                spans.push(Span::styled(
+                    " \u{00b7} ",
+                    Style::default().fg(Color::DarkGray),
+                ));
             }
 
             let label = if let Some(l) = line {
@@ -1037,7 +1116,10 @@ impl super::App {
         }
 
         if self.ptys.selected_path_idx.is_some() {
-            spans.push(Span::styled(" [Enter=open]", Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(
+                " [Enter=open]",
+                Style::default().fg(Color::DarkGray),
+            ));
         }
 
         spans
@@ -1047,25 +1129,31 @@ impl super::App {
         let active_count = self.ptys.ptys.len();
         let pty_status = if active_count > 0 {
             let current = self
-                .ptys.active_pty
+                .ptys
+                .active_pty
                 .map(|i| {
-                    self.ptys.ptys
+                    self.ptys
+                        .ptys
                         .get(i)
                         .map(|s| s.info.title.as_str())
                         .unwrap_or("?")
                 })
                 .unwrap_or("none");
             // P2: Show idle time when agent is quiet
-            let idle_info = self.ptys.active_pty.and_then(|i| {
-                self.ptys.ptys.get(i).and_then(|slot| {
-                    let idle = slot.handle.idle_secs();
-                    if idle >= crate::pty::IDLE_THRESHOLD_SECS {
-                        Some(format!(" (quiet {}s)", idle))
-                    } else {
-                        None
-                    }
+            let idle_info = self
+                .ptys
+                .active_pty
+                .and_then(|i| {
+                    self.ptys.ptys.get(i).and_then(|slot| {
+                        let idle = slot.handle.idle_secs();
+                        if idle >= crate::pty::IDLE_THRESHOLD_SECS {
+                            Some(format!(" (quiet {}s)", idle))
+                        } else {
+                            None
+                        }
+                    })
                 })
-            }).unwrap_or_default();
+                .unwrap_or_default();
             Span::styled(
                 format!(" [{} active: {}{}]", active_count, current, idle_info),
                 Style::default().fg(Color::Green),
@@ -1080,7 +1168,10 @@ impl super::App {
             if self.popup.budget_flash_on {
                 Span::styled(
                     format!(" {} ", msg),
-                    Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::White)
+                        .bg(Color::Red)
+                        .add_modifier(Modifier::BOLD),
                 )
             } else {
                 Span::styled(
@@ -1093,14 +1184,20 @@ impl super::App {
         };
 
         let border_color = if self.popup.budget_alert.is_some() {
-            if self.popup.budget_flash_on { Color::Red } else { Color::DarkGray }
+            if self.popup.budget_flash_on {
+                Color::Red
+            } else {
+                Color::DarkGray
+            }
         } else {
             Color::DarkGray
         };
 
         let chain_span = if let Some(ref chain) = self.chains.active_chain {
             let agent_label = if chain.current_step < chain.total_steps {
-                self.chains.chains.iter()
+                self.chains
+                    .chains
+                    .iter()
                     .find(|c| c.name == chain.chain_name)
                     .and_then(|c| c.steps.get(chain.current_step))
                     .map(|s| format!(" ({})", s.agent.label()))
@@ -1109,8 +1206,15 @@ impl super::App {
                 String::new()
             };
             Span::styled(
-                format!(" Chain: {}/{}{} ", chain.current_step + 1, chain.total_steps, agent_label),
-                Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+                format!(
+                    " Chain: {}/{}{} ",
+                    chain.current_step + 1,
+                    chain.total_steps,
+                    agent_label
+                ),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
             )
         } else {
             Span::raw("")
@@ -1118,15 +1222,25 @@ impl super::App {
 
         // Total resource usage across all active PTYs
         let stats_span = {
-            let total_cpu: f64 = self.ptys.ptys.iter()
+            let total_cpu: f64 = self
+                .ptys
+                .ptys
+                .iter()
                 .filter_map(|s| s.process_stats.as_ref().map(|p| p.cpu_percent))
                 .sum();
-            let total_mem_kb: u64 = self.ptys.ptys.iter()
+            let total_mem_kb: u64 = self
+                .ptys
+                .ptys
+                .iter()
                 .filter_map(|s| s.process_stats.as_ref().map(|p| p.mem_rss_kb))
                 .sum();
             if total_cpu > 0.0 || total_mem_kb > 0 {
                 Span::styled(
-                    format!(" CPU:{:.1}% MEM:{}", total_cpu, crate::procfs::format_bytes(total_mem_kb * 1024)),
+                    format!(
+                        " CPU:{:.1}% MEM:{}",
+                        total_cpu,
+                        crate::procfs::format_bytes(total_mem_kb * 1024)
+                    ),
                     Style::default().fg(Color::Cyan),
                 )
             } else {
@@ -1160,15 +1274,17 @@ impl super::App {
     fn render_budget_warning(&self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(60, 12, area);
 
-        let msg = self.popup.budget_alert.as_deref().unwrap_or("Budget exceeded");
+        let msg = self
+            .popup
+            .budget_alert
+            .as_deref()
+            .unwrap_or("Budget exceeded");
 
         let lines = vec![
-            Line::from(vec![
-                Span::styled(
-                    "  TOKEN BUDGET ALERT",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "  TOKEN BUDGET ALERT",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
             Line::from(Span::styled(
                 format!("  {}", msg),
@@ -1209,9 +1325,12 @@ impl super::App {
         let popup_area = centered_rect(50, 25, area);
 
         let sidebar_keys = vec![
-            Line::from(vec![
-                Span::styled("  Sidebar Keybindings", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  Sidebar Keybindings",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
             Line::from("  j/k / ↑↓        Move selection"),
             Line::from("  Enter           New session / Resume / Switch"),
@@ -1233,25 +1352,36 @@ impl super::App {
             Line::from(""),
             Line::from(vec![
                 Span::styled("  Chat: ", Style::default().fg(Color::DarkGray)),
-                Span::styled("Tab=sidebar  Ctrl+J/K=switch  Ctrl+Q=kill", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "Tab=sidebar  Ctrl+J/K=switch  Ctrl+Q=kill",
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("  Scroll: ", Style::default().fg(Color::DarkGray)),
-                Span::styled("PgUp/Dn  Ctrl+B/F  Home/End", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "PgUp/Dn  Ctrl+B/F  Home/End",
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("  Paths: ", Style::default().fg(Color::DarkGray)),
-                Span::styled("o=cycle  g/Enter=open in $EDITOR", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "o=cycle  g/Enter=open in $EDITOR",
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]),
             Line::from(""),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("  Run `amux doctor` for full diagnostics", Style::default().fg(Color::Yellow)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  Run `amux doctor` for full diagnostics",
+                Style::default().fg(Color::Yellow),
+            )]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("  Press any key to close", Style::default().fg(Color::Yellow)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  Press any key to close",
+                Style::default().fg(Color::Yellow),
+            )]),
         ];
 
         frame.render_widget(Clear, popup_area);
@@ -1261,7 +1391,11 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(" Help ")
-                        .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                        .title_style(
+                            Style::default()
+                                .fg(self.view.theme.popup_border)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .border_style(Style::default().fg(self.view.theme.popup_border)),
                 )
                 .wrap(Wrap { trim: false }),
@@ -1273,13 +1407,17 @@ impl super::App {
         let popup_area = centered_rect(55, 18, area);
 
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled("  Workspaces", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "  Workspaces",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
 
         for (i, ws) in self.sessions.workspaces.iter().enumerate() {
-            let path_str = ws.path
+            let path_str = ws
+                .path
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "virtual".into());
@@ -1291,24 +1429,57 @@ impl super::App {
             lines.push(Line::from(vec![
                 Span::styled(format!(" {} ", marker), Style::default().fg(Color::Yellow)),
                 Span::styled(ws.name.clone(), Style::default().fg(Color::White)),
-                Span::styled(format!("  {}", path_str), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("  {}", path_str),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]));
         }
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
             Span::styled("  Actions: ", Style::default().fg(Color::Yellow)),
-            Span::styled("a", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "a",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("dd  "),
-            Span::styled("r", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "r",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("ename  "),
-            Span::styled("k", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "k",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("eybinds  "),
-            Span::styled("t", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "t",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("hemes  "),
-            Span::styled("b", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "b",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("udget  "),
-            Span::styled("Esc", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Esc",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" close"),
         ]));
         lines.push(Line::from(""));
@@ -1331,12 +1502,14 @@ impl super::App {
         } else {
             "Budget: not set (b to set default 100k daily)".into()
         };
-        lines.push(Line::from(vec![
-            Span::styled(format!("  {} ", budget_status), Style::default().fg(Color::DarkGray)),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled("  (targets last workspace in list)", Style::default().fg(Color::DarkGray)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("  {} ", budget_status),
+            Style::default().fg(Color::DarkGray),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            "  (targets last workspace in list)",
+            Style::default().fg(Color::DarkGray),
+        )]));
 
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
@@ -1345,7 +1518,11 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(" Settings ")
-                        .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                        .title_style(
+                            Style::default()
+                                .fg(self.view.theme.popup_border)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .border_style(Style::default().fg(self.view.theme.popup_border)),
                 )
                 .wrap(Wrap { trim: false }),
@@ -1356,30 +1533,47 @@ impl super::App {
     fn render_theme_select(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(40, 16, area);
 
-        let items: Vec<ListItem> = self.theme_list.iter().map(|t| {
-            let label = t.label();
-            let is_current = *t == self.view.theme_name;
-            let prefix = if is_current { ">> " } else { "   " };
-            let style = if is_current {
-                Style::default().fg(self.view.theme.accent).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(self.view.theme.popup_text)
-            };
-            ListItem::new(Line::from(vec![
-                Span::styled(prefix, Style::default().fg(self.view.theme.sidebar_highlight)),
-                Span::styled(label, style),
-            ]))
-        }).collect();
+        let items: Vec<ListItem> = self
+            .theme_list
+            .iter()
+            .map(|t| {
+                let label = t.label();
+                let is_current = *t == self.view.theme_name;
+                let prefix = if is_current { ">> " } else { "   " };
+                let style = if is_current {
+                    Style::default()
+                        .fg(self.view.theme.accent)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.view.theme.popup_text)
+                };
+                ListItem::new(Line::from(vec![
+                    Span::styled(
+                        prefix,
+                        Style::default().fg(self.view.theme.sidebar_highlight),
+                    ),
+                    Span::styled(label, style),
+                ]))
+            })
+            .collect();
 
         let list = List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Themes ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.theme_list_state);
@@ -1389,7 +1583,12 @@ impl super::App {
         let popup_area = centered_rect(45, 22, area);
         let kb = &self.view.keybinds;
         let mut lines: Vec<Line> = vec![
-            Line::from(Span::styled("  Current Keybindings", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "  Current Keybindings",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
         ];
         for line in kb.display_lines() {
@@ -1399,14 +1598,23 @@ impl super::App {
         let conflicts = kb.validate();
         if !conflicts.is_empty() {
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled("  ⚠ Conflicts:", Style::default().fg(Color::Red))));
+            lines.push(Line::from(Span::styled(
+                "  ⚠ Conflicts:",
+                Style::default().fg(Color::Red),
+            )));
             for (a, b) in &conflicts {
                 lines.push(Line::from(format!("    {} <-> {}", a, b)));
             }
         }
         lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled("  Edit config.json keybinds to customize", Style::default().fg(Color::DarkGray))));
-        lines.push(Line::from(Span::styled("  Press any key to close", Style::default().fg(Color::DarkGray))));
+        lines.push(Line::from(Span::styled(
+            "  Edit config.json keybinds to customize",
+            Style::default().fg(Color::DarkGray),
+        )));
+        lines.push(Line::from(Span::styled(
+            "  Press any key to close",
+            Style::default().fg(Color::DarkGray),
+        )));
 
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
@@ -1415,7 +1623,11 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(" Keybindings ")
-                        .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                        .title_style(
+                            Style::default()
+                                .fg(self.view.theme.popup_border)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .border_style(Style::default().fg(self.view.theme.popup_border)),
                 )
                 .wrap(Wrap { trim: false }),
@@ -1426,25 +1638,43 @@ impl super::App {
     fn render_template_select(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(50, 12, area);
 
-        let items: Vec<ratatui::widgets::ListItem<'static>> = self.templates.iter().map(|t| {
-            let agent_label = t.agent.label();
-            let ws = t.workspace_id.as_deref().unwrap_or("current");
-            ratatui::widgets::ListItem::new(Line::from(vec![
-                Span::styled(format!(" {} ", agent_label), Style::default().fg(t.agent.color())),
-                Span::styled(t.name.clone(), Style::default().fg(Color::White)),
-                Span::styled(format!("  ws: {}", ws), Style::default().fg(Color::DarkGray)),
-            ]))
-        }).collect();
+        let items: Vec<ratatui::widgets::ListItem<'static>> = self
+            .templates
+            .iter()
+            .map(|t| {
+                let agent_label = t.agent.label();
+                let ws = t.workspace_id.as_deref().unwrap_or("current");
+                ratatui::widgets::ListItem::new(Line::from(vec![
+                    Span::styled(
+                        format!(" {} ", agent_label),
+                        Style::default().fg(t.agent.color()),
+                    ),
+                    Span::styled(t.name.clone(), Style::default().fg(Color::White)),
+                    Span::styled(
+                        format!("  ws: {}", ws),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]))
+            })
+            .collect();
 
         let list = ratatui::widgets::List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Templates (p) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.template_state);
@@ -1453,25 +1683,37 @@ impl super::App {
     fn render_automation_select(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(50, 12, area);
 
-        let items: Vec<ratatui::widgets::ListItem<'static>> = self.automations.iter().map(|a| {
-            ratatui::widgets::ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!(" {} steps ", a.steps.len()),
-                    Style::default().fg(Color::Yellow),
-                ),
-                Span::styled(a.name.clone(), Style::default().fg(Color::White)),
-            ]))
-        }).collect();
+        let items: Vec<ratatui::widgets::ListItem<'static>> = self
+            .automations
+            .iter()
+            .map(|a| {
+                ratatui::widgets::ListItem::new(Line::from(vec![
+                    Span::styled(
+                        format!(" {} steps ", a.steps.len()),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::styled(a.name.clone(), Style::default().fg(Color::White)),
+                ]))
+            })
+            .collect();
 
         let list = ratatui::widgets::List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Automations (Ctrl+A) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.automation_state);
@@ -1480,33 +1722,48 @@ impl super::App {
     fn render_chain_select(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(50, 14, area);
 
-        let items: Vec<ratatui::widgets::ListItem<'static>> = self.chains.chains.iter().map(|c| {
-            let steps_preview: Vec<String> = c.steps.iter()
-                .map(|s| s.agent.label().to_string())
-                .collect();
-            let steps_str = steps_preview.join(" -> ");
-            ratatui::widgets::ListItem::new(vec![
-                Line::from(vec![
-                    Span::styled(
-                        format!(" {} steps ", c.steps.len()),
-                        Style::default().fg(Color::Yellow),
-                    ),
-                    Span::styled(c.name.clone(), Style::default().fg(Color::White)),
-                ]),
-                Line::from(format!("    {}", steps_str))
-                    .style(Style::default().fg(Color::DarkGray)),
-            ])
-        }).collect();
+        let items: Vec<ratatui::widgets::ListItem<'static>> = self
+            .chains
+            .chains
+            .iter()
+            .map(|c| {
+                let steps_preview: Vec<String> = c
+                    .steps
+                    .iter()
+                    .map(|s| s.agent.label().to_string())
+                    .collect();
+                let steps_str = steps_preview.join(" -> ");
+                ratatui::widgets::ListItem::new(vec![
+                    Line::from(vec![
+                        Span::styled(
+                            format!(" {} steps ", c.steps.len()),
+                            Style::default().fg(Color::Yellow),
+                        ),
+                        Span::styled(c.name.clone(), Style::default().fg(Color::White)),
+                    ]),
+                    Line::from(format!("    {}", steps_str))
+                        .style(Style::default().fg(Color::DarkGray)),
+                ])
+            })
+            .collect();
 
         let list = ratatui::widgets::List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Chains (Ctrl+E) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.chains.chain_state);
@@ -1515,25 +1772,38 @@ impl super::App {
     fn render_branch_select(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(60, 14, area);
 
-        let items: Vec<ratatui::widgets::ListItem<'static>> = self.popup.branch_points.iter().map(|bp| {
-            ratatui::widgets::ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!(" #{} ", bp.index + 1),
-                    Style::default().fg(Color::Cyan),
-                ),
-                Span::styled(bp.summary.clone(), Style::default().fg(Color::White)),
-            ]))
-        }).collect();
+        let items: Vec<ratatui::widgets::ListItem<'static>> = self
+            .popup
+            .branch_points
+            .iter()
+            .map(|bp| {
+                ratatui::widgets::ListItem::new(Line::from(vec![
+                    Span::styled(
+                        format!(" #{} ", bp.index + 1),
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(bp.summary.clone(), Style::default().fg(Color::White)),
+                ]))
+            })
+            .collect();
 
         let list = ratatui::widgets::List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Branch Points (B) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.branch_state);
@@ -1543,12 +1813,36 @@ impl super::App {
         let popup_area = centered_rect(60, 16, area);
 
         // Compute per-agent stats from sessions + ptys
-        let mut stats: Vec<AgentStats> = self.available_agents.iter().map(|&agent| {
-            let total = self.sessions.sessions.iter().filter(|s| s.agent == agent).count();
-            let active = self.ptys.ptys.iter().filter(|p| p.info.agent == agent && !p.info.completed).count();
-            let completed = self.ptys.ptys.iter().filter(|p| p.info.agent == agent && p.info.completed).count();
-            AgentStats { agent, total_sessions: total, active_sessions: active, completed_sessions: completed }
-        }).collect();
+        let mut stats: Vec<AgentStats> = self
+            .available_agents
+            .iter()
+            .map(|&agent| {
+                let total = self
+                    .sessions
+                    .sessions
+                    .iter()
+                    .filter(|s| s.agent == agent)
+                    .count();
+                let active = self
+                    .ptys
+                    .ptys
+                    .iter()
+                    .filter(|p| p.info.agent == agent && !p.info.completed)
+                    .count();
+                let completed = self
+                    .ptys
+                    .ptys
+                    .iter()
+                    .filter(|p| p.info.agent == agent && p.info.completed)
+                    .count();
+                AgentStats {
+                    agent,
+                    total_sessions: total,
+                    active_sessions: active,
+                    completed_sessions: completed,
+                }
+            })
+            .collect();
 
         // Also count sessions from agents not in available_agents
         for s in &self.sessions.sessions {
@@ -1556,7 +1850,12 @@ impl super::App {
                 if let Some(st) = stats.iter_mut().find(|st| st.agent == s.agent) {
                     st.total_sessions += 1;
                 } else {
-                    stats.push(AgentStats { agent: s.agent, total_sessions: 1, active_sessions: 0, completed_sessions: 0 });
+                    stats.push(AgentStats {
+                        agent: s.agent,
+                        total_sessions: 1,
+                        active_sessions: 0,
+                        completed_sessions: 0,
+                    });
                 }
             }
         }
@@ -1567,33 +1866,68 @@ impl super::App {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![
             Span::styled(" Total Sessions: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", total_all), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{}", total_all),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("   Active: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", active_all), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{}", active_all),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" Agent            Sessions   Active   Done", Style::default().fg(Color::DarkGray)),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(" ─────────────────────────────────────────", Style::default().fg(Color::DarkGray)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            " Agent            Sessions   Active   Done",
+            Style::default().fg(Color::DarkGray),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            " ─────────────────────────────────────────",
+            Style::default().fg(Color::DarkGray),
+        )]));
 
         for st in &stats {
-            if st.total_sessions == 0 && st.active_sessions == 0 { continue; }
+            if st.total_sessions == 0 && st.active_sessions == 0 {
+                continue;
+            }
             let label = st.agent.label();
             lines.push(Line::from(vec![
-                Span::styled(format!(" {:<16} ", label), Style::default().fg(st.agent.color())),
-                Span::styled(format!("{:>3}        ", st.total_sessions), Style::default().fg(Color::White)),
-                Span::styled(format!("{:>2}       ", st.active_sessions), Style::default().fg(if st.active_sessions > 0 { Color::Green } else { Color::DarkGray })),
-                Span::styled(format!("{:>2}", st.completed_sessions), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!(" {:<16} ", label),
+                    Style::default().fg(st.agent.color()),
+                ),
+                Span::styled(
+                    format!("{:>3}        ", st.total_sessions),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("{:>2}       ", st.active_sessions),
+                    Style::default().fg(if st.active_sessions > 0 {
+                        Color::Green
+                    } else {
+                        Color::DarkGray
+                    }),
+                ),
+                Span::styled(
+                    format!("{:>2}", st.completed_sessions),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]));
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(format!(" Workspaces: {}   Tabs: {}", self.sessions.workspaces.len(), self.ptys.ptys.len()), Style::default().fg(Color::DarkGray)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!(
+                " Workspaces: {}   Tabs: {}",
+                self.sessions.workspaces.len(),
+                self.ptys.ptys.len()
+            ),
+            Style::default().fg(Color::DarkGray),
+        )]));
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(Clear, popup_area);
@@ -1602,7 +1936,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Activity Stats (Ctrl+S) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -1615,7 +1953,8 @@ impl super::App {
         let popup_area = centered_rect(65, 20, area);
 
         // Aggregate token usage per agent across all sessions
-        let mut agent_tokens: std::collections::HashMap<Agent, (u64, u64, u64, f64)> = std::collections::HashMap::new();
+        let mut agent_tokens: std::collections::HashMap<Agent, (u64, u64, u64, f64)> =
+            std::collections::HashMap::new();
 
         for session in &self.sessions.sessions {
             if let Some(jsonl) = find_session_jsonl(session)
@@ -1635,53 +1974,81 @@ impl super::App {
         let total_cost: f64 = agent_tokens.values().map(|v| v.3).sum();
 
         let fmt_tokens = |n: u64| -> String {
-            if n >= 1_000_000 { format!("{:.1}M", n as f64 / 1_000_000.0) }
-            else if n >= 1_000 { format!("{:.1}K", n as f64 / 1_000.0) }
-            else { format!("{}", n) }
+            if n >= 1_000_000 {
+                format!("{:.1}M", n as f64 / 1_000_000.0)
+            } else if n >= 1_000 {
+                format!("{:.1}K", n as f64 / 1_000.0)
+            } else {
+                format!("{}", n)
+            }
         };
 
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![
             Span::styled(" Total Tokens: ", Style::default().fg(Color::Gray)),
-            Span::styled(fmt_tokens(total_all), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                fmt_tokens(total_all),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("  In: ", Style::default().fg(Color::Gray)),
             Span::styled(fmt_tokens(total_input), Style::default().fg(Color::Cyan)),
             Span::styled("  Out: ", Style::default().fg(Color::Gray)),
             Span::styled(fmt_tokens(total_output), Style::default().fg(Color::Yellow)),
         ]));
         if total_cost > 0.0 {
-            lines.push(Line::from(vec![
-                Span::styled(format!(" Total Cost: ${:.4}", total_cost), Style::default().fg(Color::Green)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!(" Total Cost: ${:.4}", total_cost),
+                Style::default().fg(Color::Green),
+            )]));
         }
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" Agent          Input        Output       Total", Style::default().fg(Color::DarkGray)),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(" ───────────────────────────────────────────────", Style::default().fg(Color::DarkGray)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            " Agent          Input        Output       Total",
+            Style::default().fg(Color::DarkGray),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            " ───────────────────────────────────────────────",
+            Style::default().fg(Color::DarkGray),
+        )]));
 
         let mut agents: Vec<_> = agent_tokens.iter().collect();
-        agents.sort_by(|a, b| b.1 .2.cmp(&a.1 .2));
+        agents.sort_by(|a, b| b.1.2.cmp(&a.1.2));
         for (agent, (inp, out, total, cost)) in agents {
             let mut spans = vec![
-                Span::styled(format!(" {:<13}  ", agent.label()), Style::default().fg(agent.color())),
-                Span::styled(format!("{:>9}    ", fmt_tokens(*inp)), Style::default().fg(Color::Cyan)),
-                Span::styled(format!("{:>9}    ", fmt_tokens(*out)), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{:>9}", fmt_tokens(*total)), Style::default().fg(Color::White)),
+                Span::styled(
+                    format!(" {:<13}  ", agent.label()),
+                    Style::default().fg(agent.color()),
+                ),
+                Span::styled(
+                    format!("{:>9}    ", fmt_tokens(*inp)),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{:>9}    ", fmt_tokens(*out)),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{:>9}", fmt_tokens(*total)),
+                    Style::default().fg(Color::White),
+                ),
             ];
             if *cost > 0.0 {
-                spans.push(Span::styled(format!("  ${:.3}", cost), Style::default().fg(Color::Green)));
+                spans.push(Span::styled(
+                    format!("  ${:.3}", cost),
+                    Style::default().fg(Color::Green),
+                ));
             }
             lines.push(Line::from(spans));
         }
 
         if agent_tokens.is_empty() {
             lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled(" No token data found in sessions.", Style::default().fg(Color::DarkGray)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                " No token data found in sessions.",
+                Style::default().fg(Color::DarkGray),
+            )]));
         }
 
         let paragraph = Paragraph::new(lines);
@@ -1691,31 +2058,42 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Token Usage (Ctrl+T) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
         );
     }
 
-
     fn render_diff_view(&self, frame: &mut Frame, area: Rect) {
         use crate::discovery::DiffKind;
 
         let popup_area = centered_rect(75, 24, area);
 
-        let lines: Vec<Line<'static>> = self.popup.diff_lines.iter().map(|dl| {
-            let (prefix, color) = match dl.kind {
-                DiffKind::Context => (" ", Color::DarkGray),
-                DiffKind::LeftOnly => ("-", Color::Red),
-                DiffKind::RightOnly => ("+", Color::Green),
-            };
-            let truncated: String = dl.content.chars().take(100).collect();
-            Line::from(vec![
-                Span::styled(prefix, Style::default().fg(color).add_modifier(Modifier::BOLD)),
-                Span::styled(truncated, Style::default().fg(color)),
-            ])
-        }).collect();
+        let lines: Vec<Line<'static>> = self
+            .popup
+            .diff_lines
+            .iter()
+            .map(|dl| {
+                let (prefix, color) = match dl.kind {
+                    DiffKind::Context => (" ", Color::DarkGray),
+                    DiffKind::LeftOnly => ("-", Color::Red),
+                    DiffKind::RightOnly => ("+", Color::Green),
+                };
+                let truncated: String = dl.content.chars().take(100).collect();
+                Line::from(vec![
+                    Span::styled(
+                        prefix,
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(truncated, Style::default().fg(color)),
+                ])
+            })
+            .collect();
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(Clear, popup_area);
@@ -1724,7 +2102,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Session Diff (- left, + right) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -1734,21 +2116,25 @@ impl super::App {
     fn render_remote_view(&self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(70, 20, area);
 
-        let lines: Vec<Line<'static>> = self.remote_sessions.iter().map(|(name, agent)| {
-            let color = match agent.as_str() {
-                "Claude" => Color::Magenta,
-                "Codex" => Color::Green,
-                "GSD" => Color::Cyan,
-                "OMP" => Color::Blue,
-                "Error" => Color::Red,
-                "Info" => Color::Yellow,
-                _ => Color::DarkGray,
-            };
-            Line::from(vec![
-                Span::styled(format!(" {} ", agent), Style::default().fg(color)),
-                Span::styled(name.clone(), Style::default().fg(Color::White)),
-            ])
-        }).collect();
+        let lines: Vec<Line<'static>> = self
+            .remote_sessions
+            .iter()
+            .map(|(name, agent)| {
+                let color = match agent.as_str() {
+                    "Claude" => Color::Magenta,
+                    "Codex" => Color::Green,
+                    "GSD" => Color::Cyan,
+                    "OMP" => Color::Blue,
+                    "Error" => Color::Red,
+                    "Info" => Color::Yellow,
+                    _ => Color::DarkGray,
+                };
+                Line::from(vec![
+                    Span::styled(format!(" {} ", agent), Style::default().fg(color)),
+                    Span::styled(name.clone(), Style::default().fg(Color::White)),
+                ])
+            })
+            .collect();
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(Clear, popup_area);
@@ -1757,39 +2143,60 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Remote Sessions (Ctrl+R) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
         );
     }
 
-
     fn render_plugin_list(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(50, 14, area);
 
-        let items: Vec<ratatui::widgets::ListItem<'static>> = self.plugins.iter().map(|p| {
-            let key_label = p.key.map(|k| format!(" ({})", k)).unwrap_or_default();
-            let hook_label = if p.hooks.is_empty() {
-                String::new()
-            } else {
-                format!(" [{}]", p.hooks.join(","))
-            };
-            ratatui::widgets::ListItem::new(Line::from(vec![
-                Span::styled(format!(" {}{}{}", p.name, key_label, hook_label), Style::default().fg(Color::White)),
-                Span::styled(format!("  — {}", &p.command[..p.command.len().min(40)]), Style::default().fg(Color::DarkGray)),
-            ]))
-        }).collect();
+        let items: Vec<ratatui::widgets::ListItem<'static>> = self
+            .plugins
+            .iter()
+            .map(|p| {
+                let key_label = p.key.map(|k| format!(" ({})", k)).unwrap_or_default();
+                let hook_label = if p.hooks.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{}]", p.hooks.join(","))
+                };
+                ratatui::widgets::ListItem::new(Line::from(vec![
+                    Span::styled(
+                        format!(" {}{}{}", p.name, key_label, hook_label),
+                        Style::default().fg(Color::White),
+                    ),
+                    Span::styled(
+                        format!("  — {}", &p.command[..p.command.len().min(40)]),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]))
+            })
+            .collect();
 
         let list = ratatui::widgets::List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Plugins (Ctrl+P) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         frame.render_widget(Clear, popup_area);
         frame.render_stateful_widget(list, popup_area, &mut self.plugin_state);
@@ -1801,7 +2208,11 @@ impl super::App {
             let b = Block::default()
                 .borders(Borders::ALL)
                 .title(" Plugin Output (Esc/q=close, j/k=scroll) ")
-                .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                .title_style(
+                    Style::default()
+                        .fg(self.view.theme.popup_border)
+                        .add_modifier(Modifier::BOLD),
+                )
                 .border_style(Style::default().fg(self.view.theme.popup_border));
             b.inner(popup_area)
         };
@@ -1811,14 +2222,19 @@ impl super::App {
         let max_scroll = total.saturating_sub(visible_height);
         let scroll = self.plugin_scroll.min(max_scroll);
 
-        let lines: Vec<Line<'static>> = self.plugin_output.iter()
+        let lines: Vec<Line<'static>> = self
+            .plugin_output
+            .iter()
             .skip(scroll)
             .take(visible_height)
             .map(|line| {
                 if line.starts_with("$ ") {
-                    Line::from(vec![
-                        Span::styled(line.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                    ])
+                    Line::from(vec![Span::styled(
+                        line.clone(),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    )])
                 } else if line.contains("\x1b[") {
                     // ANSI-colored output: parse into spans
                     ansi_to_spans(line)
@@ -1826,13 +2242,17 @@ impl super::App {
                     // Check for JSON action lines and highlight them
                     let trimmed = line.trim();
                     if trimmed.starts_with('{') && trimmed.contains("\"action\"") {
-                        Line::from(vec![
-                            Span::styled(line.clone(), Style::default().fg(Color::Yellow).add_modifier(Modifier::ITALIC)),
-                        ])
+                        Line::from(vec![Span::styled(
+                            line.clone(),
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::ITALIC),
+                        )])
                     } else {
-                        Line::from(vec![
-                            Span::styled(line.clone(), Style::default().fg(Color::White)),
-                        ])
+                        Line::from(vec![Span::styled(
+                            line.clone(),
+                            Style::default().fg(Color::White),
+                        )])
                     }
                 }
             })
@@ -1849,7 +2269,11 @@ impl super::App {
                         scroll + 1,
                         total
                     ))
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -1861,23 +2285,48 @@ impl super::App {
         let popup_area = centered_rect(70, 22, area);
         let now = crate::util::now_secs();
 
-        let lines: Vec<Line<'static>> = self.timeline_events.iter().rev().take(30).rev().map(|ev| {
-            let agent_color = match ev.agent.as_str() {
-                "Claude" => Color::Magenta,
-                "OMP" => Color::Blue,
-                "Codex" => Color::Yellow,
-                "GSD" => Color::Green,
-                _ => Color::DarkGray,
-            };
-            let type_icon = if ev.event_type == "user" { "▸" } else { "◂" };
-            let time = if ev.timestamp > now { "now".into() } else { relative_time(now - ev.timestamp) };
-            Line::from(vec![
-                Span::styled(format!(" {} ", time), Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("{} ", ev.agent), Style::default().fg(agent_color)),
-                Span::styled(type_icon, Style::default().fg(if ev.event_type == "user" { Color::Cyan } else { Color::Yellow })),
-                Span::styled(format!(" {}", ev.summary), Style::default().fg(Color::White)),
-            ])
-        }).collect();
+        let lines: Vec<Line<'static>> = self
+            .timeline_events
+            .iter()
+            .rev()
+            .take(30)
+            .rev()
+            .map(|ev| {
+                let agent_color = match ev.agent.as_str() {
+                    "Claude" => Color::Magenta,
+                    "OMP" => Color::Blue,
+                    "Codex" => Color::Yellow,
+                    "GSD" => Color::Green,
+                    _ => Color::DarkGray,
+                };
+                let type_icon = if ev.event_type == "user" {
+                    "▸"
+                } else {
+                    "◂"
+                };
+                let time = if ev.timestamp > now {
+                    "now".into()
+                } else {
+                    relative_time(now - ev.timestamp)
+                };
+                Line::from(vec![
+                    Span::styled(format!(" {} ", time), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("{} ", ev.agent), Style::default().fg(agent_color)),
+                    Span::styled(
+                        type_icon,
+                        Style::default().fg(if ev.event_type == "user" {
+                            Color::Cyan
+                        } else {
+                            Color::Yellow
+                        }),
+                    ),
+                    Span::styled(
+                        format!(" {}", ev.summary),
+                        Style::default().fg(Color::White),
+                    ),
+                ])
+            })
+            .collect();
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(Clear, popup_area);
@@ -1886,7 +2335,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Timeline (Ctrl+G) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -1897,9 +2350,10 @@ impl super::App {
         let height = (self.popup.conflict_warnings.len() + 7).min(20) as u16;
         let popup_area = centered_rect(65, height, area);
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled("  \u{26a0} File Conflict Detected", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "  \u{26a0} File Conflict Detected",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
         for w in &self.popup.conflict_warnings {
             lines.push(Line::from(vec![
@@ -1911,12 +2365,25 @@ impl super::App {
         let git_ok = crate::worktree::git_available();
         if git_ok {
             lines.push(Line::from(vec![
-                Span::styled("  [I] ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::styled("Isolate into git worktrees", Style::default().fg(Color::White)),
+                Span::styled(
+                    "  [I] ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Isolate into git worktrees",
+                    Style::default().fg(Color::White),
+                ),
             ]));
         }
         lines.push(Line::from(vec![
-            Span::styled("  [D] ", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  [D] ",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("Dismiss", Style::default().fg(Color::DarkGray)),
         ]));
         if !git_ok {
@@ -1942,9 +2409,12 @@ impl super::App {
     fn render_agent_recommend(&self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(60, 16, area);
         let mut lines: Vec<Line<'static>> = vec![
-            Line::from(vec![
-                Span::styled("  Agent Recommendations", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  Agent Recommendations",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
             Line::from(Span::styled(
                 "  Ranked by quality (avg rating × sessions):",
@@ -1955,9 +2425,9 @@ impl super::App {
 
         for (i, m) in self.agent_recommendations.iter().enumerate() {
             let medal = match i {
-                0 => "\u{1f947}",  // 🥇
-                1 => "\u{1f948}",  // 🥈
-                2 => "\u{1f949}",  // 🥉
+                0 => "\u{1f947}", // 🥇
+                1 => "\u{1f948}", // 🥈
+                2 => "\u{1f949}", // 🥉
                 _ => "  ",
             };
             let agent_color = match m.agent.as_str() {
@@ -1968,15 +2438,29 @@ impl super::App {
                 _ => Color::White,
             };
             let rating_str = if m.rated_sessions > 0 {
-                format!("avg {:.1} \u{2605} ({} rated)", m.avg_rating, m.rated_sessions)
+                format!(
+                    "avg {:.1} \u{2605} ({} rated)",
+                    m.avg_rating, m.rated_sessions
+                )
             } else {
                 "no ratings".to_string()
             };
             lines.push(Line::from(vec![
                 Span::styled(format!(" {} ", medal), Style::default()),
-                Span::styled(format!("{:<8}", m.agent), Style::default().fg(agent_color).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("  {} sessions", m.total_sessions), Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("  {}", rating_str), Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    format!("{:<8}", m.agent),
+                    Style::default()
+                        .fg(agent_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("  {} sessions", m.total_sessions),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!("  {}", rating_str),
+                    Style::default().fg(Color::Yellow),
+                ),
             ]));
         }
 
@@ -1993,7 +2477,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Recommendations (Ctrl+W) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -2003,9 +2491,12 @@ impl super::App {
     fn render_cross_search(&self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(70, 22, area);
         let mut lines: Vec<Line<'static>> = vec![
-            Line::from(vec![
-                Span::styled("  Cross-Session Search", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  Cross-Session Search",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
         ];
 
@@ -2018,9 +2509,20 @@ impl super::App {
                 _ => Color::White,
             };
             lines.push(Line::from(vec![
-                Span::styled(format!("  {} ", result.agent), Style::default().fg(agent_color).add_modifier(Modifier::BOLD)),
-                Span::styled(result.session_title.clone(), Style::default().fg(Color::White)),
-                Span::styled(format!(" ({} matches)", result.matches.len()), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("  {} ", result.agent),
+                    Style::default()
+                        .fg(agent_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    result.session_title.clone(),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!(" ({} matches)", result.matches.len()),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]));
             for m in result.matches.iter().take(2) {
                 lines.push(Line::from(vec![
@@ -2029,7 +2531,9 @@ impl super::App {
                 ]));
             }
             lines.push(Line::from(""));
-            if lines.len() > 25 { break; }
+            if lines.len() > 25 {
+                break;
+            }
         }
 
         lines.push(Line::from(Span::styled(
@@ -2044,7 +2548,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Search Results (Ctrl+F) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -2054,9 +2562,12 @@ impl super::App {
     fn render_semantic_search(&mut self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(70, 24, area);
         let mut lines: Vec<Line<'static>> = vec![
-            Line::from(vec![
-                Span::styled("  BM25 Semantic Search", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "  BM25 Semantic Search",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
         ];
 
@@ -2083,7 +2594,10 @@ impl super::App {
                 let short_id = &session_id[..8.min(session_id.len())];
 
                 // Find session title
-                let title = self.sessions.sessions.iter()
+                let title = self
+                    .sessions
+                    .sessions
+                    .iter()
                     .find(|s| s.id == *session_id)
                     .map(|s| s.title.as_str())
                     .unwrap_or("(unknown)");
@@ -2091,14 +2605,26 @@ impl super::App {
                 let pct = (score * 100.0).round() as u8;
                 let prefix = if is_sel { " > " } else { "   " };
                 let style = if is_sel {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::White)
                 };
 
                 lines.push(Line::from(vec![
-                    Span::styled(prefix, Style::default().fg(if is_sel { Color::Yellow } else { Color::DarkGray })),
-                    Span::styled(format!("{} ", short_id), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        prefix,
+                        Style::default().fg(if is_sel {
+                            Color::Yellow
+                        } else {
+                            Color::DarkGray
+                        }),
+                    ),
+                    Span::styled(
+                        format!("{} ", short_id),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                     Span::styled(truncate_str(title, 45), style),
                     Span::styled(format!("  {}%", pct), Style::default().fg(Color::DarkGray)),
                 ]));
@@ -2118,7 +2644,11 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(" Semantic Search (Shift+S) ")
-                    .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                    .title_style(
+                        Style::default()
+                            .fg(self.view.theme.popup_border)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .border_style(Style::default().fg(self.view.theme.popup_border)),
             ),
             popup_area,
@@ -2132,29 +2662,39 @@ impl super::App {
         let is_summary = self.popup.preview_show_summary;
         let is_auto = self.view.input_mode == InputMode::SummaryPreview;
         if self.popup.knowledge_view {
-            lines.push(Line::from(vec![
-                Span::styled("  Knowledge Base", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  Knowledge Base",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            )]));
         } else if is_summary {
-            lines.push(Line::from(vec![
-                Span::styled("  Session Summary", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  Session Summary",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]));
         } else {
-            lines.push(Line::from(vec![
-                Span::styled("  Session Content Preview", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  Session Content Preview",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]));
         }
         lines.push(Line::from(""));
         // Show tags if available
         if let Some(ref sid) = self.popup.preview_session_id
             && let Some(session) = self.sessions.sessions.iter().find(|s| s.id == *sid)
-                && !session.tags.is_empty() {
-                    lines.push(Line::from(vec![
-                        Span::styled("  Tags: ", Style::default().fg(Color::DarkGray)),
-                        Span::styled(session.tags.join(", "), Style::default().fg(Color::Magenta)),
-                    ]));
-                    lines.push(Line::from(""));
-                }
+            && !session.tags.is_empty()
+        {
+            lines.push(Line::from(vec![
+                Span::styled("  Tags: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(session.tags.join(", "), Style::default().fg(Color::Magenta)),
+            ]));
+            lines.push(Line::from(""));
+        }
         if is_summary {
             // Render summary with simple markdown formatting
             if self.popup.preview_lines.is_empty() {
@@ -2169,23 +2709,33 @@ impl super::App {
                         continue;
                     }
                     if in_code_block {
-                        lines.push(Line::from(vec![
-                            Span::styled(format!("  {}", text), Style::default().fg(Color::DarkGray)),
-                        ]));
+                        lines.push(Line::from(vec![Span::styled(
+                            format!("  {}", text),
+                            Style::default().fg(Color::DarkGray),
+                        )]));
                     } else if let Some(stripped) = text.strip_prefix("# ") {
-                        lines.push(Line::from(vec![
-                            Span::styled(format!("  {}", stripped), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                        ]));
+                        lines.push(Line::from(vec![Span::styled(
+                            format!("  {}", stripped),
+                            Style::default()
+                                .fg(Color::Cyan)
+                                .add_modifier(Modifier::BOLD),
+                        )]));
                         lines.push(Line::from(""));
                     } else if let Some(stripped) = text.strip_prefix("## ") {
-                        lines.push(Line::from(vec![
-                            Span::styled(format!("  {}", stripped), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                        ]));
+                        lines.push(Line::from(vec![Span::styled(
+                            format!("  {}", stripped),
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        )]));
                         lines.push(Line::from(""));
                     } else if let Some(stripped) = text.strip_prefix("### ") {
-                        lines.push(Line::from(vec![
-                            Span::styled(format!("  {}", stripped), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                        ]));
+                        lines.push(Line::from(vec![Span::styled(
+                            format!("  {}", stripped),
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
+                        )]));
                     } else if let Some(stripped) = text.strip_prefix("- ") {
                         lines.push(Line::from(vec![
                             Span::styled("    • ", Style::default().fg(Color::White)),
@@ -2210,7 +2760,10 @@ impl super::App {
                         ("Bot", Color::Green)
                     };
                     lines.push(Line::from(vec![
-                        Span::styled(format!("  {} ", label), Style::default().fg(color).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            format!("  {} ", label),
+                            Style::default().fg(color).add_modifier(Modifier::BOLD),
+                        ),
                         Span::styled(entry.text.clone(), Style::default().fg(Color::White)),
                     ]));
                     lines.push(Line::from(""));
@@ -2219,21 +2772,25 @@ impl super::App {
         }
         lines.push(Line::from(""));
         if is_auto {
-            lines.push(Line::from(vec![
-                Span::styled("  Press any key to dismiss", Style::default().fg(Color::Yellow)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  Press any key to dismiss",
+                Style::default().fg(Color::Yellow),
+            )]));
         } else if self.popup.knowledge_view {
-            lines.push(Line::from(vec![
-                Span::styled("  k=back  c=clear  any key=close", Style::default().fg(Color::Yellow)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  k=back  c=clear  any key=close",
+                Style::default().fg(Color::Yellow),
+            )]));
         } else if is_summary {
-            lines.push(Line::from(vec![
-                Span::styled("  s=content  b=rollback  k=knowledge  any key=close", Style::default().fg(Color::Yellow)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  s=content  b=rollback  k=knowledge  any key=close",
+                Style::default().fg(Color::Yellow),
+            )]));
         } else {
-            lines.push(Line::from(vec![
-                Span::styled("  s=summary  b=rollback  k=knowledge  any key=close", Style::default().fg(Color::Yellow)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  s=summary  b=rollback  k=knowledge  any key=close",
+                Style::default().fg(Color::Yellow),
+            )]));
         }
         let title = if self.popup.knowledge_view {
             " Knowledge "
@@ -2249,7 +2806,11 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(title)
-                        .title_style(Style::default().fg(self.view.theme.popup_border).add_modifier(Modifier::BOLD))
+                        .title_style(
+                            Style::default()
+                                .fg(self.view.theme.popup_border)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .border_style(Style::default().fg(self.view.theme.popup_border)),
                 )
                 .wrap(Wrap { trim: true }),
@@ -2261,12 +2822,12 @@ impl super::App {
         let popup_area = centered_rect(65, 50, area);
         let mut lines: Vec<Line<'_>> = Vec::new();
 
-        lines.push(Line::from(vec![
-            Span::styled(
-                "  \u{1f6ec} Pre-flight Check",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            ),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "  \u{1f6ec} Pre-flight Check",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
 
         if let Some(result) = &self.popup.preflight_result {
@@ -2278,7 +2839,10 @@ impl super::App {
                 };
                 lines.push(Line::from(vec![
                     Span::styled(format!("  {} ", icon), Style::default().fg(color)),
-                    Span::styled(format!("{:16}", format!("{}:", label)), Style::default().fg(Color::White)),
+                    Span::styled(
+                        format!("{:16}", format!("{}:", label)),
+                        Style::default().fg(Color::White),
+                    ),
                     Span::styled(msg.clone(), Style::default().fg(color)),
                 ]));
             }
@@ -2287,7 +2851,9 @@ impl super::App {
                 lines.push(Line::from(""));
                 lines.push(Line::from(Span::styled(
                     "  Suggestions:",
-                    Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
                 )));
                 for s in &result.suggestions {
                     lines.push(Line::from(vec![
@@ -2300,11 +2866,27 @@ impl super::App {
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
-            Span::styled("  Enter/p", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  Enter/p",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("=proceed  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("f", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled("=fix (stash+recheck)  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "f",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "=fix (stash+recheck)  ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(
+                "Esc",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
             Span::styled("=cancel", Style::default().fg(Color::DarkGray)),
         ]));
 
@@ -2315,7 +2897,11 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(" Pre-flight ")
-                        .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+                        .title_style(
+                            Style::default()
+                                .fg(Color::Cyan)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .border_style(Style::default().fg(Color::Cyan)),
                 )
                 .wrap(Wrap { trim: true }),
@@ -2327,9 +2913,10 @@ impl super::App {
         let popup_area = centered_rect(60, 20, area);
         let mut lines: Vec<Line<'_>> = Vec::new();
 
-        lines.push(Line::from(vec![
-            Span::styled("  \u{26a0} Rollback Confirmation", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "  \u{26a0} Rollback Confirmation",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
 
         if let Some(commit) = &self.popup.rollback_snapshot {
@@ -2344,10 +2931,13 @@ impl super::App {
         if self.popup.rollback_files.is_empty() {
             lines.push(Line::from("  No file changes detected."));
         } else {
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {} file(s) will be reverted:", self.popup.rollback_files.len()),
-                    Style::default().fg(Color::White)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!(
+                    "  {} file(s) will be reverted:",
+                    self.popup.rollback_files.len()
+                ),
+                Style::default().fg(Color::White),
+            )]));
             lines.push(Line::from(""));
             let max_show = 12;
             for (i, file) in self.popup.rollback_files.iter().enumerate() {
@@ -2365,9 +2955,17 @@ impl super::App {
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
-            Span::styled("  y", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  y",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("=confirm rollback  ", Style::default().fg(Color::Yellow)),
-            Span::styled("n", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "n",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
             Span::styled("=cancel", Style::default().fg(Color::Yellow)),
         ]));
 
@@ -2394,11 +2992,7 @@ pub(super) fn tab_index_from_x(local_x: u16, tab_width: usize, num_tabs: usize) 
         return None;
     }
     let idx = (local_x as usize) / tab_width;
-    if idx < num_tabs {
-        Some(idx)
-    } else {
-        None
-    }
+    if idx < num_tabs { Some(idx) } else { None }
 }
 
 /// Truncate a title to `max_len` characters, appending "..." if truncated.
@@ -2420,8 +3014,15 @@ fn truncate_title(title: &str, max_len: usize) -> String {
 }
 
 fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len { return s.to_string(); }
-    let end = s.char_indices().take_while(|(i, c)| *i + c.len_utf8() <= max_len).last().map(|(i, c)| i + c.len_utf8()).unwrap_or(0);
+    if s.len() <= max_len {
+        return s.to_string();
+    }
+    let end = s
+        .char_indices()
+        .take_while(|(i, c)| *i + c.len_utf8() <= max_len)
+        .last()
+        .map(|(i, c)| i + c.len_utf8())
+        .unwrap_or(0);
     format!("{}...", &s[..end])
 }
 
@@ -2623,7 +3224,10 @@ mod tab_bar_tests {
         let mut app = crate::app::tests::test_app(vec![], vec![]);
         let line = app.build_tab_bar(80);
         // An empty Line has no spans
-        assert!(line.spans.is_empty(), "tab bar should be empty when no PTYs active");
+        assert!(
+            line.spans.is_empty(),
+            "tab bar should be empty when no PTYs active"
+        );
     }
 
     #[test]
@@ -2639,6 +3243,9 @@ mod tab_bar_tests {
         let mut app = crate::app::tests::test_app(vec![], vec![]);
         app.view.tab_bar_rect = Rect::new(0, 0, 80, 1);
         app.handle_mouse_click(40, 0);
-        assert_eq!(app.ptys.active_pty, None, "no active_pty when no PTYs exist");
+        assert_eq!(
+            app.ptys.active_pty, None,
+            "no active_pty when no PTYs exist"
+        );
     }
 }

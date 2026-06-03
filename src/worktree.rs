@@ -144,7 +144,13 @@ pub fn branch_name(title: &str, pty_idx: usize, counter: u64) -> String {
     let sanitized: String = title
         .to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect::<String>()
         .trim_matches('-')
         .to_string();

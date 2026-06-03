@@ -3,7 +3,6 @@
 use std::env;
 use std::fs;
 
-
 use crate::config;
 use crate::types::Agent;
 use crate::util::which;
@@ -25,7 +24,10 @@ const INSTALL_HINTS: &[(&str, &str)] = &[
 ];
 
 fn install_hint(cmd: &str) -> Option<&'static str> {
-    INSTALL_HINTS.iter().find(|(c, _)| *c == cmd).map(|(_, h)| *h)
+    INSTALL_HINTS
+        .iter()
+        .find(|(c, _)| *c == cmd)
+        .map(|(_, h)| *h)
 }
 
 /// Run all diagnostic checks and return results.
@@ -75,7 +77,10 @@ pub fn run_quick_doctor() -> Option<String> {
         return None;
     }
 
-    Some(format!("⚠ {} — run `amux doctor` for details", warnings.join(", ")))
+    Some(format!(
+        "⚠ {} — run `amux doctor` for details",
+        warnings.join(", ")
+    ))
 }
 
 fn check_git(results: &mut Vec<CheckResult>) {
@@ -179,9 +184,7 @@ fn check_sessions_dir(results: &mut Vec<CheckResult>) {
         return;
     }
 
-    let count = fs::read_dir(&dir)
-        .map(|rd| rd.count())
-        .unwrap_or(0);
+    let count = fs::read_dir(&dir).map(|rd| rd.count()).unwrap_or(0);
 
     results.push(CheckResult {
         name: "sessions directory".into(),
@@ -227,9 +230,7 @@ fn check_config(results: &mut Vec<CheckResult>) {
 }
 
 fn check_editor(results: &mut Vec<CheckResult>) {
-    let editor = env::var("EDITOR")
-        .or_else(|_| env::var("VISUAL"))
-        .ok();
+    let editor = env::var("EDITOR").or_else(|_| env::var("VISUAL")).ok();
 
     match editor {
         Some(ed) => {
@@ -259,7 +260,11 @@ mod tests {
     fn doctor_runs_all_checks() {
         let results = run_doctor();
         // At minimum: git + 4 agents + data_dir + sessions_dir + config + editor = 9
-        assert!(results.len() >= 9, "expected >= 9 checks, got {}", results.len());
+        assert!(
+            results.len() >= 9,
+            "expected >= 9 checks, got {}",
+            results.len()
+        );
     }
 
     #[test]

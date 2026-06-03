@@ -1,8 +1,8 @@
+use axum::Json as AxumJson;
 use axum::extract::{Path, State};
 use axum::response::Json;
-use axum::Json as AxumJson;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use super::AppState;
@@ -26,9 +26,7 @@ fn fallback_config() -> crate::types::Config {
     }
 }
 
-pub async fn list_sessions(
-    State(state): State<Arc<AppState>>,
-) -> Json<Value> {
+pub async fn list_sessions(State(state): State<Arc<AppState>>) -> Json<Value> {
     let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
     let sessions = crate::discovery::discover_sessions(&config.workspaces);
 
@@ -46,58 +44,64 @@ pub async fn list_sessions(
             .collect()
     };
 
-    let list: Vec<Value> = sessions.iter().map(|s| {
-        let active = active_session_ids.contains(&s.id);
-        json!({
-            "id": s.id,
-            "title": s.title,
-            "agent": s.agent.label(),
-            "workspace": s.workspace_path.to_string_lossy(),
-            "last_active": s.last_active,
-            "tags": s.tags,
-            "active": active,
+    let list: Vec<Value> = sessions
+        .iter()
+        .map(|s| {
+            let active = active_session_ids.contains(&s.id);
+            json!({
+                "id": s.id,
+                "title": s.title,
+                "agent": s.agent.label(),
+                "workspace": s.workspace_path.to_string_lossy(),
+                "last_active": s.last_active,
+                "tags": s.tags,
+                "active": active,
+            })
         })
-    }).collect();
+        .collect();
 
     Json(json!({ "sessions": list }))
 }
 
-pub async fn list_workspaces(
-    State(_state): State<Arc<AppState>>,
-) -> Json<Value> {
+pub async fn list_workspaces(State(_state): State<Arc<AppState>>) -> Json<Value> {
     let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
-    let list: Vec<Value> = config.workspaces.iter().map(|w| {
-        json!({
-            "name": w.name,
-            "path": w.path.as_ref().map(|p| p.display().to_string()),
+    let list: Vec<Value> = config
+        .workspaces
+        .iter()
+        .map(|w| {
+            json!({
+                "name": w.name,
+                "path": w.path.as_ref().map(|p| p.display().to_string()),
+            })
         })
-    }).collect();
+        .collect();
     Json(json!({ "workspaces": list }))
 }
 
 /// List all active PTY sessions registered by the TUI.
-pub async fn list_ptys(
-    State(state): State<Arc<AppState>>,
-) -> Json<Value> {
+pub async fn list_ptys(State(state): State<Arc<AppState>>) -> Json<Value> {
     let ptys = state.ptys.lock().await;
-    let list: Vec<Value> = ptys.iter().map(|(id, rp)| {
-        let mut obj = json!({
-            "id": id,
-            "alive": rp.handle.is_alive(),
-            "title": rp.title,
-            "agent": rp.agent.label(),
-            "session_id": rp.session_id,
-        });
-        if let Some(stats) = &rp.process_stats {
-            obj["cpu_percent"] = json!(stats.cpu_percent);
-            obj["mem_rss_kb"] = json!(stats.mem_rss_kb);
-            obj["mem_virt_kb"] = json!(stats.mem_virt_kb);
-            obj["read_bytes"] = json!(stats.read_bytes);
-            obj["write_bytes"] = json!(stats.write_bytes);
-            obj["threads"] = json!(stats.threads);
-        }
-        obj
-    }).collect();
+    let list: Vec<Value> = ptys
+        .iter()
+        .map(|(id, rp)| {
+            let mut obj = json!({
+                "id": id,
+                "alive": rp.handle.is_alive(),
+                "title": rp.title,
+                "agent": rp.agent.label(),
+                "session_id": rp.session_id,
+            });
+            if let Some(stats) = &rp.process_stats {
+                obj["cpu_percent"] = json!(stats.cpu_percent);
+                obj["mem_rss_kb"] = json!(stats.mem_rss_kb);
+                obj["mem_virt_kb"] = json!(stats.mem_virt_kb);
+                obj["read_bytes"] = json!(stats.read_bytes);
+                obj["write_bytes"] = json!(stats.write_bytes);
+                obj["threads"] = json!(stats.threads);
+            }
+            obj
+        })
+        .collect();
     Json(json!({ "ptys": list }))
 }
 
@@ -147,9 +151,7 @@ pub struct CreateSessionRequest {
     pub name: Option<String>,
 }
 
-pub async fn create_session(
-    AxumJson(body): AxumJson<CreateSessionRequest>,
-) -> Json<Value> {
+pub async fn create_session(AxumJson(body): AxumJson<CreateSessionRequest>) -> Json<Value> {
     // Parse agent
     let agent = match body.agent.to_lowercase().as_str() {
         "claude" => crate::types::Agent::Claude,
@@ -164,14 +166,22 @@ pub async fn create_session(
     };
 
     // Resolve workspace path
-    let workspace_path = body.workspace
+    let workspace_path = body
+        .workspace
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
     let chat_size = (80, 24);
     let project_config = crate::config::load_project_config(&workspace_path);
     let env = project_config.env;
-    match crate::pty::PtyHandle::spawn(agent, &workspace_path, None, body.name.as_deref(), chat_size, &env) {
+    match crate::pty::PtyHandle::spawn(
+        agent,
+        &workspace_path,
+        None,
+        body.name.as_deref(),
+        chat_size,
+        &env,
+    ) {
         Ok(_handle) => Json(json!({
             "status": "started",
             "agent": agent.label(),

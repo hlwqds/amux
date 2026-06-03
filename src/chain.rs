@@ -52,8 +52,14 @@ mod tests {
         let chain = SessionChain {
             name: "review-chain".into(),
             steps: vec![
-                ChainStep { agent: Agent::Claude, prompt: "Implement X".into() },
-                ChainStep { agent: Agent::Codex, prompt: "Review:\n{prev_output}".into() },
+                ChainStep {
+                    agent: Agent::Claude,
+                    prompt: "Implement X".into(),
+                },
+                ChainStep {
+                    agent: Agent::Codex,
+                    prompt: "Review:\n{prev_output}".into(),
+                },
             ],
         };
         let json = serde_json::to_string(&chain).unwrap();

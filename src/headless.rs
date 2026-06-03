@@ -7,11 +7,11 @@
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use portable_pty::PtySystem;
 
 use crate::config;
@@ -126,12 +126,14 @@ pub fn run(agent: Agent, prompt: &str, workspace: &Path, timeout_secs: Option<u6
     // Timeout watchdog (if requested)
     let timeout_handle = deadline.map(|dl| {
         let timed_out = timed_out_clone.clone();
-        std::thread::spawn(move || loop {
-            if Instant::now() >= dl {
-                timed_out.store(true, Ordering::Relaxed);
-                return;
+        std::thread::spawn(move || {
+            loop {
+                if Instant::now() >= dl {
+                    timed_out.store(true, Ordering::Relaxed);
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(250));
             }
-            std::thread::sleep(Duration::from_millis(250));
         })
     });
 

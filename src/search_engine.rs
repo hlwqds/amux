@@ -342,11 +342,11 @@ mod tests {
     #[test]
     fn test_avg_dl_computation() {
         let mut index = SearchIndex::new();
-        index.add_document("doc1", "a b c");     // 3 tokens
-        index.add_document("doc2", "x y");        // 2 tokens
-        assert_eq!(index.avg_dl, 2.5);            // (3 + 2) / 2
+        index.add_document("doc1", "a b c"); // 3 tokens
+        index.add_document("doc2", "x y"); // 2 tokens
+        assert_eq!(index.avg_dl, 2.5); // (3 + 2) / 2
 
         index.remove_document("doc1");
-        assert_eq!(index.avg_dl, 2.0);            // 2 / 1
+        assert_eq!(index.avg_dl, 2.0); // 2 / 1
     }
 }

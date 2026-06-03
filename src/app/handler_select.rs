@@ -55,7 +55,10 @@ impl super::App {
                     themes.extend(customs);
                 }
                 // Select current theme in list
-                let sel = themes.iter().position(|t| t == &self.view.theme_name).unwrap_or(0);
+                let sel = themes
+                    .iter()
+                    .position(|t| t == &self.view.theme_name)
+                    .unwrap_or(0);
                 self.theme_list = themes;
                 self.theme_list_state.select(Some(sel));
                 self.view.input_mode = InputMode::ThemeSelect;
@@ -75,7 +78,9 @@ impl super::App {
                         daily_cost: None,
                         weekly_cost: None,
                     });
-                    self.view.status = "Token budget set: 100k daily tokens. Edit config.json to customize.".into();
+                    self.view.status =
+                        "Token budget set: 100k daily tokens. Edit config.json to customize."
+                            .into();
                 }
                 self.save_config();
             }
@@ -95,7 +100,8 @@ impl super::App {
                 let len = self.theme_list.len();
                 if len > 0 {
                     let cur = self.theme_list_state.selected().unwrap_or(0);
-                    self.theme_list_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.theme_list_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -107,12 +113,13 @@ impl super::App {
             }
             KeyCode::Enter => {
                 if let Some(idx) = self.theme_list_state.selected()
-                    && let Some(name) = self.theme_list.get(idx).cloned() {
-                        self.view.theme_name = name;
-                        self.view.theme = self.view.theme_name.theme();
-                        self.view.status = format!("Theme: {}", self.view.theme_name.label());
-                        self.save_config();
-                    }
+                    && let Some(name) = self.theme_list.get(idx).cloned()
+                {
+                    self.view.theme_name = name;
+                    self.view.theme = self.view.theme_name.theme();
+                    self.view.status = format!("Theme: {}", self.view.theme_name.label());
+                    self.save_config();
+                }
                 self.view.input_mode = InputMode::None;
                 self.theme_list.clear();
             }
@@ -131,7 +138,8 @@ impl super::App {
                 let len = self.templates.len();
                 if len > 0 {
                     let cur = self.template_state.selected().unwrap_or(0);
-                    self.template_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.template_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -146,7 +154,9 @@ impl super::App {
                     && idx < self.templates.len()
                 {
                     let tmpl = self.templates[idx].clone();
-                    let ws_idx = tmpl.workspace_id.as_ref()
+                    let ws_idx = tmpl
+                        .workspace_id
+                        .as_ref()
                         .and_then(|id| self.sessions.workspaces.iter().position(|ws| ws.id == *id))
                         .or_else(|| {
                             self.selected_node().and_then(|n| match n {
@@ -188,7 +198,9 @@ impl super::App {
                 let len = self.chains.chains.len();
                 if len > 0 {
                     let cur = self.chains.chain_state.selected().unwrap_or(0);
-                    self.chains.chain_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.chains
+                        .chain_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -210,7 +222,9 @@ impl super::App {
                     }
 
                     // Find workspace path from current selection
-                    let ws_path = self.selected_node().and_then(|n| self.node_workspace_path(n));
+                    let ws_path = self
+                        .selected_node()
+                        .and_then(|n| self.node_workspace_path(n));
                     let workspace_path = match ws_path {
                         Some(p) => p,
                         None => {
@@ -238,12 +252,18 @@ impl super::App {
                     let prompt = first_step.prompt;
 
                     // Find workspace index
-                    let wi = self.sessions.workspaces.iter().position(|ws| {
-                        ws.path.as_deref() == Some(workspace_path.as_path())
-                    });
+                    let wi = self
+                        .sessions
+                        .workspaces
+                        .iter()
+                        .position(|ws| ws.path.as_deref() == Some(workspace_path.as_path()));
 
                     if let Some(wi) = wi {
-                        let tree_idx = self.sessions.tree.iter().position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
+                        let tree_idx = self
+                            .sessions
+                            .tree
+                            .iter()
+                            .position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
                         if let Some(ti) = tree_idx {
                             self.sessions.tree_state.select(Some(ti));
                         }
@@ -251,7 +271,12 @@ impl super::App {
                         let name = Some(format!("{}-step1", chain_name));
                         let env = self.project_env(&workspace_path);
                         let pty = crate::pty::PtyHandle::spawn(
-                            agent, &workspace_path, None, name.as_deref(), chat_size, &env,
+                            agent,
+                            &workspace_path,
+                            None,
+                            name.as_deref(),
+                            chat_size,
+                            &env,
                         );
 
                         match pty {
@@ -290,7 +315,8 @@ impl super::App {
                                     let fire_at_ms = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .unwrap_or_default()
-                                        .as_millis() as u64
+                                        .as_millis()
+                                        as u64
                                         + 1500;
                                     let pending = PendingInput {
                                         fire_at_ms,
@@ -301,7 +327,9 @@ impl super::App {
 
                                 self.view.status = format!(
                                     "Chain '{}': Step 1/{} — {}",
-                                    chain_name, total_steps, agent.label()
+                                    chain_name,
+                                    total_steps,
+                                    agent.label()
                                 );
                             }
                             Err(e) => {
@@ -331,7 +359,8 @@ impl super::App {
                 let len = self.automations.len();
                 if len > 0 {
                     let cur = self.automation_state.selected().unwrap_or(0);
-                    self.automation_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.automation_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -347,7 +376,11 @@ impl super::App {
                 {
                     let auto = &self.automations[idx];
                     if let Some(pi) = self.ptys.active_pty {
-                        let ws_path = self.ptys.ptys.get(pi).map(|s| s.info.workspace_path.clone());
+                        let ws_path = self
+                            .ptys
+                            .ptys
+                            .get(pi)
+                            .map(|s| s.info.workspace_path.clone());
                         let now_ms = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
@@ -355,7 +388,8 @@ impl super::App {
                         let mut offset_ms = 0u64;
                         for step in &auto.steps {
                             offset_ms += step.delay_ms;
-                            let text = ws_path.as_ref()
+                            let text = ws_path
+                                .as_ref()
                                 .map(|p| crate::template::expand_template_vars(&step.text, p))
                                 .unwrap_or_else(|| step.text.clone());
                             self.ptys.pending_inputs.push(PendingInput {
@@ -363,7 +397,11 @@ impl super::App {
                                 text,
                             });
                         }
-                        self.view.status = format!("Queued automation: {} ({} steps)", auto.name, auto.steps.len());
+                        self.view.status = format!(
+                            "Queued automation: {} ({} steps)",
+                            auto.name,
+                            auto.steps.len()
+                        );
                     } else {
                         self.view.status = "No active PTY. Open a session first.".into();
                     }
@@ -410,7 +448,8 @@ impl super::App {
                 let len = self.popup.branch_points.len();
                 if len > 0 {
                     let cur = self.branch_state.selected().unwrap_or(0);
-                    self.branch_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.branch_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -440,7 +479,8 @@ impl super::App {
                                 let now_ms = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
-                                    .as_millis() as u64;
+                                    .as_millis()
+                                    as u64;
                                 self.ptys.pending_inputs.push(PendingInput {
                                     fire_at_ms: now_ms + 3000,
                                     text: ctx,
@@ -477,7 +517,8 @@ impl super::App {
                 let len = self.plugins.len();
                 if len > 0 {
                     let cur = self.plugin_state.selected().unwrap_or(0);
-                    self.plugin_state.select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
+                    self.plugin_state
+                        .select(Some(if cur == 0 { len - 1 } else { cur - 1 }));
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -493,7 +534,8 @@ impl super::App {
                 {
                     let plugin = self.plugins[idx].clone();
                     // Build command with workspace/session context
-                    let ws_path = self.selected_node()
+                    let ws_path = self
+                        .selected_node()
                         .and_then(|n| match n {
                             TreeNode::Workspace(wi) => self.sessions.workspaces[*wi].path.clone(),
                             TreeNode::Session(wi, _) => self.sessions.workspaces[*wi].path.clone(),
@@ -501,7 +543,8 @@ impl super::App {
                         })
                         .unwrap_or_default();
                     let ws_str = ws_path.to_string_lossy().to_string();
-                    let cmd = plugin.command
+                    let cmd = plugin
+                        .command
                         .replace("{workspace}", &ws_str)
                         .replace("{session_id}", "current");
 
@@ -514,7 +557,9 @@ impl super::App {
                         Ok(out) => {
                             let stdout = String::from_utf8_lossy(&out.stdout).to_string();
                             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                            let combined: String = stdout.lines().chain(stderr.lines())
+                            let combined: String = stdout
+                                .lines()
+                                .chain(stderr.lines())
                                 .map(|l| format!("{}\n", l))
                                 .collect();
                             self.plugin_output = vec![format!("$ {}", plugin.name)];
@@ -667,20 +712,26 @@ impl super::App {
                             .and_then(Agent::from_label)
                             .or_else(|| self.available_agents.first().copied());
                         if let Some(agent) = agent
-                            && let Err(e) = self.spawn_with_agent(agent, None) {
-                                self.view.status = format!("Plugin {} create_session failed: {}", plugin_name, e);
-                            }
+                            && let Err(e) = self.spawn_with_agent(agent, None)
+                        {
+                            self.view.status =
+                                format!("Plugin {} create_session failed: {}", plugin_name, e);
+                        }
                     }
                     PluginAction::SwitchWorkspace { id } => {
                         if let Some(id) = id {
                             let target = self.sessions.workspaces.iter().position(|w| {
-                                w.path.as_ref()
+                                w.path
+                                    .as_ref()
                                     .map(|p| p.to_string_lossy().ends_with(&id))
                                     .unwrap_or(false)
                                     || w.name == id
                             });
                             if let Some(wi) = target {
-                                let tree_idx = self.sessions.tree.iter().position(|n| matches!(n, TreeNode::Workspace(i) if *i == wi));
+                                let tree_idx =
+                                    self.sessions.tree.iter().position(
+                                        |n| matches!(n, TreeNode::Workspace(i) if *i == wi),
+                                    );
                                 if let Some(idx) = tree_idx {
                                     self.sessions.tree_state.select(Some(idx));
                                 }
@@ -688,7 +739,10 @@ impl super::App {
                         }
                     }
                     PluginAction::Notify { message } => {
-                        self.send_desktop_notification(&format!("Plugin: {}", plugin_name), &message);
+                        self.send_desktop_notification(
+                            &format!("Plugin: {}", plugin_name),
+                            &message,
+                        );
                         self.view.status = message;
                     }
                 }

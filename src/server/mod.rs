@@ -79,7 +79,10 @@ fn make_router(state: Arc<AppState>, token: &str) -> Router {
     let token_for_mw = token.to_string();
     Router::new()
         .route("/", get(index_handler))
-        .route("/api/sessions", get(api::list_sessions).post(api::create_session))
+        .route(
+            "/api/sessions",
+            get(api::list_sessions).post(api::create_session),
+        )
         .route("/api/workspaces", get(api::list_workspaces))
         .route("/api/ptys", get(api::list_ptys))
         .route("/api/pty/{id}/input", post(api::pty_input))

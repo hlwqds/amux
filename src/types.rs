@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-fn default_true() -> bool { true }
-
+fn default_true() -> bool {
+    true
+}
 
 /// Per-project configuration loaded from `.amux.json` in the workspace root.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -106,7 +107,7 @@ impl Agent {
             Agent::Codex => Color::Green,
             Agent::Gsd => Color::Magenta,
             Agent::Omp => Color::Blue,
-    }
+        }
     }
 
     /// Return an actionable install hint if the agent binary is not found.
@@ -249,10 +250,11 @@ impl Agent {
                 if dir.exists() { Some(dir) } else { None }
             }
             Agent::Omp => {
-                let dir = PathBuf::from(
-                    std::env::var("PI_CODING_AGENT_DIR")
-                        .unwrap_or_else(|_| format!("{}/.omp/agent", std::env::var("HOME").unwrap_or_default()))
-                ).join("sessions");
+                let dir =
+                    PathBuf::from(std::env::var("PI_CODING_AGENT_DIR").unwrap_or_else(|_| {
+                        format!("{}/.omp/agent", std::env::var("HOME").unwrap_or_default())
+                    }))
+                    .join("sessions");
                 if dir.exists() { Some(dir) } else { None }
             }
         }
@@ -417,7 +419,6 @@ pub struct PtySlot {
     pub process_stats: Option<crate::procfs::ProcessStats>,
 }
 
-
 /// Git state recorded when a session completes.
 #[derive(Clone, Debug, Default)]
 pub struct GitInfo {
@@ -435,7 +436,6 @@ pub struct DiffSummary {
     pub summary_line: Option<String>,
 }
 
-
 /// Result of post-completion check (cargo test/clippy).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CheckStatus {
@@ -444,9 +444,6 @@ pub enum CheckStatus {
     Passed,
     Failed(String),
 }
-
-
-
 
 #[derive(Clone, Debug)]
 pub struct RunningInfo {
@@ -545,7 +542,6 @@ pub enum Focus {
 // is the simplest representation that handles all 36 cases correctly.
 // ─────────────────────────────────────────────
 
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum InputMode {
     #[default]
@@ -626,16 +622,36 @@ pub struct KeyBinding {
 
 impl KeyBinding {
     pub fn key(key: &str) -> Self {
-        KeyBinding { key: key.into(), ctrl: false, shift: false, alt: false }
+        KeyBinding {
+            key: key.into(),
+            ctrl: false,
+            shift: false,
+            alt: false,
+        }
     }
     pub fn ctrl(key: &str) -> Self {
-        KeyBinding { key: key.into(), ctrl: true, shift: false, alt: false }
+        KeyBinding {
+            key: key.into(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+        }
     }
     pub fn shift(key: &str) -> Self {
-        KeyBinding { key: key.into(), ctrl: false, shift: true, alt: false }
+        KeyBinding {
+            key: key.into(),
+            ctrl: false,
+            shift: true,
+            alt: false,
+        }
     }
     pub fn alt(key: &str) -> Self {
-        KeyBinding { key: key.into(), ctrl: false, shift: false, alt: true }
+        KeyBinding {
+            key: key.into(),
+            ctrl: false,
+            shift: false,
+            alt: true,
+        }
     }
 
     /// Check if a KeyEvent matches this binding.
@@ -661,9 +677,15 @@ impl KeyBinding {
     }
     pub fn display(&self) -> String {
         let mut s = String::new();
-        if self.ctrl { s.push_str("Ctrl+"); }
-        if self.alt { s.push_str("Alt+"); }
-        if self.shift { s.push_str("Shift+"); }
+        if self.ctrl {
+            s.push_str("Ctrl+");
+        }
+        if self.alt {
+            s.push_str("Alt+");
+        }
+        if self.shift {
+            s.push_str("Shift+");
+        }
         s.push_str(&self.key);
         s
     }
@@ -733,23 +755,57 @@ impl Default for Keybinds {
 }
 
 impl Keybinds {
-    fn default_move_up() -> KeyBinding { KeyBinding::alt("j") }
-    fn default_move_down() -> KeyBinding { KeyBinding::alt("k") }
-    fn default_expand() -> KeyBinding { KeyBinding::alt("e") }
-    fn default_refresh() -> KeyBinding { KeyBinding::alt("r") }
-    fn default_rename() -> KeyBinding { KeyBinding::alt("m") }
-    fn default_new_workspace() -> KeyBinding { KeyBinding::alt("w") }
-    fn default_delete() -> KeyBinding { KeyBinding::alt("d") }
-    fn default_new_session() -> KeyBinding { KeyBinding::alt("n") }
-    fn default_search() -> KeyBinding { KeyBinding::alt("/") }
-    fn default_help() -> KeyBinding { KeyBinding::alt("h") }
-    fn default_settings() -> KeyBinding { KeyBinding::alt("s") }
-    fn default_theme() -> KeyBinding { KeyBinding::alt("t") }
-    fn default_export() -> KeyBinding { KeyBinding::alt("x") }
-    fn default_copy() -> KeyBinding { KeyBinding::alt("y") }
-    fn default_preview() -> KeyBinding { KeyBinding::alt("v") }
-    fn default_tag_filter() -> KeyBinding { KeyBinding::alt("f") }
-    fn default_quit() -> KeyBinding { KeyBinding::alt("q") }
+    fn default_move_up() -> KeyBinding {
+        KeyBinding::alt("j")
+    }
+    fn default_move_down() -> KeyBinding {
+        KeyBinding::alt("k")
+    }
+    fn default_expand() -> KeyBinding {
+        KeyBinding::alt("e")
+    }
+    fn default_refresh() -> KeyBinding {
+        KeyBinding::alt("r")
+    }
+    fn default_rename() -> KeyBinding {
+        KeyBinding::alt("m")
+    }
+    fn default_new_workspace() -> KeyBinding {
+        KeyBinding::alt("w")
+    }
+    fn default_delete() -> KeyBinding {
+        KeyBinding::alt("d")
+    }
+    fn default_new_session() -> KeyBinding {
+        KeyBinding::alt("n")
+    }
+    fn default_search() -> KeyBinding {
+        KeyBinding::alt("/")
+    }
+    fn default_help() -> KeyBinding {
+        KeyBinding::alt("h")
+    }
+    fn default_settings() -> KeyBinding {
+        KeyBinding::alt("s")
+    }
+    fn default_theme() -> KeyBinding {
+        KeyBinding::alt("t")
+    }
+    fn default_export() -> KeyBinding {
+        KeyBinding::alt("x")
+    }
+    fn default_copy() -> KeyBinding {
+        KeyBinding::alt("y")
+    }
+    fn default_preview() -> KeyBinding {
+        KeyBinding::alt("v")
+    }
+    fn default_tag_filter() -> KeyBinding {
+        KeyBinding::alt("f")
+    }
+    fn default_quit() -> KeyBinding {
+        KeyBinding::alt("q")
+    }
     /// Detect keybind conflicts. Returns a list of (action_a, action_b) pairs
     /// that share the same key binding.
     pub fn validate(&self) -> Vec<(&'static str, &'static str)> {
@@ -777,7 +833,11 @@ impl Keybinds {
             for j in (i + 1)..bindings.len() {
                 let (name_a, kb_a) = bindings[i];
                 let (name_b, kb_b) = bindings[j];
-                if kb_a.key == kb_b.key && kb_a.ctrl == kb_b.ctrl && kb_a.shift == kb_b.shift && kb_a.alt == kb_b.alt {
+                if kb_a.key == kb_b.key
+                    && kb_a.ctrl == kb_b.ctrl
+                    && kb_a.shift == kb_b.shift
+                    && kb_a.alt == kb_b.alt
+                {
                     conflicts.push((name_a, name_b));
                 }
             }
@@ -982,7 +1042,6 @@ mod tests {
         // and must return a valid builder (tested by compilation + the agent_traits test)
         let _ = cmd;
     }
-
 
     #[test]
     fn gsd_build_resume_cmd_uses_sessions() {

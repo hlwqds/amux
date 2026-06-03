@@ -1,4 +1,7 @@
-use axum::extract::{Path, State, WebSocketUpgrade, ws::{Message, WebSocket}};
+use axum::extract::{
+    Path, State, WebSocketUpgrade,
+    ws::{Message, WebSocket},
+};
 use std::sync::Arc;
 
 use super::AppState;
@@ -21,10 +24,12 @@ async fn handle_pty_ws(
     pty_handle: Option<Arc<crate::pty::PtyHandle>>,
 ) {
     let Some(handle) = pty_handle else {
-        let _ = socket.send(Message::Text(format!(
-            "amux: PTY '{}' not found. Is the TUI running with this session?",
-            pty_id
-        ))).await;
+        let _ = socket
+            .send(Message::Text(format!(
+                "amux: PTY '{}' not found. Is the TUI running with this session?",
+                pty_id
+            )))
+            .await;
         return;
     };
 

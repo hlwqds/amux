@@ -40,7 +40,8 @@ impl super::App {
                     self.view.status = "Tag filter cleared.".into();
                 } else {
                     self.view.tag_filter = Some(self.input_buffer.trim().to_string());
-                    self.view.status = format!("Tag filter: {}", self.view.tag_filter.as_ref().unwrap());
+                    self.view.status =
+                        format!("Tag filter: {}", self.view.tag_filter.as_ref().unwrap());
                 }
                 self.view.input_mode = InputMode::None;
                 self.input_buffer.clear();
@@ -128,7 +129,8 @@ impl super::App {
                 // Next match
                 if !self.ptys.scroll_search_results.is_empty() {
                     let total = self.ptys.scroll_search_results.len();
-                    self.ptys.scroll_search_result_idx = (self.ptys.scroll_search_result_idx + 1) % total;
+                    self.ptys.scroll_search_result_idx =
+                        (self.ptys.scroll_search_result_idx + 1) % total;
                     self.jump_to_search_match();
                 }
             }
@@ -136,7 +138,8 @@ impl super::App {
                 // Previous match
                 if !self.ptys.scroll_search_results.is_empty() {
                     let total = self.ptys.scroll_search_results.len();
-                    self.ptys.scroll_search_result_idx = (self.ptys.scroll_search_result_idx + total - 1) % total;
+                    self.ptys.scroll_search_result_idx =
+                        (self.ptys.scroll_search_result_idx + total - 1) % total;
                     self.jump_to_search_match();
                 }
             }
@@ -179,7 +182,10 @@ impl super::App {
         } else if count == 0 {
             self.view.status = format!("/{query} — no matches");
         } else {
-            self.view.status = format!("/{query} — {count} match{} (Enter=jump, n/N=cycle)", if count > 1 { "es" } else { "" });
+            self.view.status = format!(
+                "/{query} — {count} match{} (Enter=jump, n/N=cycle)",
+                if count > 1 { "es" } else { "" }
+            );
         }
     }
 
@@ -193,7 +199,11 @@ impl super::App {
             Some(s) => s,
             None => return,
         };
-        let match_row = match self.ptys.scroll_search_results.get(self.ptys.scroll_search_result_idx) {
+        let match_row = match self
+            .ptys
+            .scroll_search_results
+            .get(self.ptys.scroll_search_result_idx)
+        {
             Some(&r) => r,
             None => return,
         };
@@ -251,13 +261,19 @@ impl super::App {
                 KeyCode::Char('j') | KeyCode::Down => {
                     let len = self.search_results.len();
                     if len > 0 {
-                        let i = self.search_result_state.selected().map_or(0, |i| (i + 1).min(len - 1));
+                        let i = self
+                            .search_result_state
+                            .selected()
+                            .map_or(0, |i| (i + 1).min(len - 1));
                         self.search_result_state.select(Some(i));
                     }
                     return Ok(Action::Continue);
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    let i = self.search_result_state.selected().map_or(0, |s| s.saturating_sub(1));
+                    let i = self
+                        .search_result_state
+                        .selected()
+                        .map_or(0, |s| s.saturating_sub(1));
                     self.search_result_state.select(Some(i));
                     return Ok(Action::Continue);
                 }

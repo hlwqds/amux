@@ -9,11 +9,15 @@ fn main() -> anyhow::Result<()> {
 
     // Serve subcommand
     if args[1] == "serve" {
-        let port = args.iter().position(|a| a == "--port")
+        let port = args
+            .iter()
+            .position(|a| a == "--port")
             .and_then(|i| args.get(i + 1))
             .and_then(|s| s.parse::<u16>().ok())
             .unwrap_or(8080);
-        let token = args.iter().position(|a| a == "--token")
+        let token = args
+            .iter()
+            .position(|a| a == "--token")
             .and_then(|i| args.get(i + 1))
             .cloned()
             .unwrap_or_default();

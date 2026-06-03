@@ -4,7 +4,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::config::{data_dir, encode_project_path, load_session_title, load_session_meta};
+use crate::config::{data_dir, encode_project_path, load_session_meta, load_session_title};
 use crate::types::{Agent, ClaudeRecord, Session, Workspace};
 use crate::util::now_secs;
 
@@ -21,11 +21,21 @@ pub enum ProjectType {
 impl ProjectType {
     /// Detect project type from marker files in the given directory.
     pub fn detect(path: &Path) -> Self {
-        if path.join("Cargo.toml").exists() { return Self::Rust; }
-        if path.join("package.json").exists() { return Self::Node; }
-        if path.join("pyproject.toml").exists() || path.join("setup.py").exists() { return Self::Python; }
-        if path.join("go.mod").exists() { return Self::Go; }
-        if path.join("Makefile").exists() { return Self::Make; }
+        if path.join("Cargo.toml").exists() {
+            return Self::Rust;
+        }
+        if path.join("package.json").exists() {
+            return Self::Node;
+        }
+        if path.join("pyproject.toml").exists() || path.join("setup.py").exists() {
+            return Self::Python;
+        }
+        if path.join("go.mod").exists() {
+            return Self::Go;
+        }
+        if path.join("Makefile").exists() {
+            return Self::Make;
+        }
         Self::Unknown
     }
     /// Return the check commands for this project type.
@@ -46,7 +56,7 @@ impl ProjectType {
     /// A short unicode icon for the project type.
     pub fn icon(&self) -> &'static str {
         match self {
-            Self::Rust => "\u{e7a8}",    // 
+            Self::Rust => "\u{e7a8}",    //
             Self::Node => "\u{2b21}",    // ⬡
             Self::Python => "\u{1f40d}", // 🐍
             Self::Go => "\u{1f535}",     // 🔵
@@ -104,7 +114,10 @@ pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
 
 /// Discover sessions with mtime-based caching. Skips re-parsing files whose mtime
 /// hasn't changed since the last scan. Updates `cache` in place.
-pub fn discover_sessions_cached(workspaces: &[Workspace], cache: &mut SessionCache) -> Vec<Session> {
+pub fn discover_sessions_cached(
+    workspaces: &[Workspace],
+    cache: &mut SessionCache,
+) -> Vec<Session> {
     let mut jsonl_files: Vec<PathBuf> = Vec::new();
     collect_claude_jsonl(workspaces, &mut jsonl_files);
     collect_codex_jsonl(workspaces, &mut jsonl_files);
@@ -116,9 +129,7 @@ pub fn discover_sessions_cached(workspaces: &[Workspace], cache: &mut SessionCac
     let mut sessions: Vec<Session> = Vec::with_capacity(jsonl_files.len());
 
     for path in &jsonl_files {
-        let mtime = fs::metadata(path)
-            .ok()
-            .and_then(|m| m.modified().ok());
+        let mtime = fs::metadata(path).ok().and_then(|m| m.modified().ok());
 
         if let Some(mt) = mtime
             && let Some((cached_mt, cached_session)) = cache.get(path)
@@ -223,9 +234,7 @@ fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
                                     if name_str == exact.as_str() {
                                         return Some(file.path());
                                     }
-                                    if name_str.ends_with(&suffix)
-                                        && name_str.ends_with(".jsonl")
-                                    {
+                                    if name_str.ends_with(&suffix) && name_str.ends_with(".jsonl") {
                                         return Some(file.path());
                                     }
                                 }
@@ -398,7 +407,6 @@ fn walk_omp_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
     walk_gsd_jsonl(root, session_id)
 }
 
-
 /// Collect all Claude JSONL file paths from workspace project directories.
 fn collect_claude_jsonl(workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     let projects_dir = match Agent::Claude.sessions_dir() {
@@ -432,13 +440,19 @@ fn collect_codex_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     };
     if let Ok(years) = fs::read_dir(&sessions_root) {
         for year in years.flatten() {
-            if !year.path().is_dir() { continue; }
+            if !year.path().is_dir() {
+                continue;
+            }
             if let Ok(months) = fs::read_dir(year.path()) {
                 for month in months.flatten() {
-                    if !month.path().is_dir() { continue; }
+                    if !month.path().is_dir() {
+                        continue;
+                    }
                     if let Ok(days) = fs::read_dir(month.path()) {
                         for day in days.flatten() {
-                            if !day.path().is_dir() { continue; }
+                            if !day.path().is_dir() {
+                                continue;
+                            }
                             if let Ok(files) = fs::read_dir(day.path()) {
                                 for file in files.flatten() {
                                     let path = file.path();
@@ -463,7 +477,9 @@ fn collect_gsd_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     };
     if let Ok(subdirs) = fs::read_dir(&sessions_root) {
         for subdir in subdirs.flatten() {
-            if !subdir.path().is_dir() { continue; }
+            if !subdir.path().is_dir() {
+                continue;
+            }
             if let Ok(files) = fs::read_dir(subdir.path()) {
                 for file in files.flatten() {
                     let path = file.path();
@@ -484,7 +500,9 @@ fn collect_omp_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     };
     if let Ok(subdirs) = fs::read_dir(&sessions_root) {
         for subdir in subdirs.flatten() {
-            if !subdir.path().is_dir() { continue; }
+            if !subdir.path().is_dir() {
+                continue;
+            }
             if let Ok(files) = fs::read_dir(subdir.path()) {
                 for file in files.flatten() {
                     let path = file.path();
@@ -521,26 +539,37 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
     let is_omp = omp_dir.as_ref().is_some_and(|d| path.starts_with(d));
     let is_codex = codex_dir.as_ref().is_some_and(|d| path.starts_with(d));
 
-    let last_active = fs::metadata(path).ok()
+    let last_active = fs::metadata(path)
+        .ok()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
     if is_claude {
-        let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("?").to_string();
+        let id = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("?")
+            .to_string();
         // Determine workspace from the path structure: projects_dir / encoded / id.jsonl
-        let ws_path = claude_dir.as_ref().and_then(|projects_dir| {
-            path.parent().and_then(|parent| {
-                parent.parent().and_then(|_| {
-                    // Reconstruct ws_path by checking all workspaces
-                    ws_paths.iter().find(|ws| {
-                        let encoded = encode_project_path(ws);
-                        *parent == projects_dir.join(encoded)
-                    }).cloned()
+        let ws_path = claude_dir
+            .as_ref()
+            .and_then(|projects_dir| {
+                path.parent().and_then(|parent| {
+                    parent.parent().and_then(|_| {
+                        // Reconstruct ws_path by checking all workspaces
+                        ws_paths
+                            .iter()
+                            .find(|ws| {
+                                let encoded = encode_project_path(ws);
+                                *parent == projects_dir.join(encoded)
+                            })
+                            .cloned()
+                    })
                 })
             })
-        }).unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
+            .unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
 
         let title = load_session_title(&id, Some(&ws_path))
             .or_else(|| extract_claude_title(path))
@@ -890,7 +919,7 @@ pub fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
 /// Preview entry: a role + truncated text.
 #[derive(Clone, Debug)]
 pub struct PreviewLine {
-    pub role: String,  // "user" or "assistant"
+    pub role: String, // "user" or "assistant"
     pub text: String,
 }
 
@@ -914,17 +943,31 @@ pub fn preview_session_content(path: &Path, max_pairs: usize) -> Option<Vec<Prev
         let (role, text) = if r#type == "user" {
             ("user".to_string(), extract_claude_message_text(&record))
         } else if r#type == "assistant" {
-            ("assistant".to_string(), extract_claude_message_text(&record))
+            (
+                "assistant".to_string(),
+                extract_claude_message_text(&record),
+            )
         } else if r#type == "message" {
             // GSD/OMP v3 format
             let msg = record.get("message")?;
-            let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let role = msg
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let content = msg.get("content");
-            let text = content.and_then(|c| extract_text_from_content(c.clone())).unwrap_or_default();
+            let text = content
+                .and_then(|c| extract_text_from_content(c.clone()))
+                .unwrap_or_default();
             (role, text)
         } else if r#type == "user_message" {
             // Codex format
-            let text = record.get("payload").and_then(|p| p.get("text")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let text = record
+                .get("payload")
+                .and_then(|p| p.get("text"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             ("user".to_string(), text)
         } else {
             continue;
@@ -933,7 +976,11 @@ pub fn preview_session_content(path: &Path, max_pairs: usize) -> Option<Vec<Prev
         if !text.is_empty() {
             // Truncate to ~120 chars
             let truncated: String = text.chars().take(120).collect();
-            let suffix = if text.chars().count() > 120 { "..." } else { "" };
+            let suffix = if text.chars().count() > 120 {
+                "..."
+            } else {
+                ""
+            };
             messages.push(PreviewLine {
                 role,
                 text: format!("{}{}", truncated, suffix),
@@ -967,10 +1014,7 @@ pub fn export_session_to_markdown(
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("# {}", session_title));
     lines.push(String::new());
-    lines.push(format!(
-        "Exported: {}",
-        chrono_now_or_fallback()
-    ));
+    lines.push(format!("Exported: {}", chrono_now_or_fallback()));
     lines.push(String::new());
     lines.push("---".to_string());
     lines.push(String::new());
@@ -986,18 +1030,32 @@ pub fn export_session_to_markdown(
         let (role, text) = if r#type == "user" {
             ("User".to_string(), extract_claude_message_text(&record))
         } else if r#type == "assistant" {
-            ("Assistant".to_string(), extract_claude_message_text(&record))
+            (
+                "Assistant".to_string(),
+                extract_claude_message_text(&record),
+            )
         } else if r#type == "message" {
             let msg = match record.get("message") {
                 Some(m) => m,
                 None => continue,
             };
-            let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let role = msg
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let content = msg.get("content");
-            let text = content.and_then(|c| extract_text_from_content(c.clone())).unwrap_or_default();
+            let text = content
+                .and_then(|c| extract_text_from_content(c.clone()))
+                .unwrap_or_default();
             (role, text)
         } else if r#type == "user_message" {
-            let text = record.get("payload").and_then(|p| p.get("text")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let text = record
+                .get("payload")
+                .and_then(|p| p.get("text"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             ("user".to_string(), text)
         } else {
             continue;
@@ -1051,7 +1109,10 @@ fn chrono_now_or_fallback() -> String {
     let day_of_year = days % 365;
     let month = (day_of_year / 30) + 1;
     let day = (day_of_year % 30) + 1;
-    format!("{}-{:02}-{:02} {:02}:{:02}", year, month, day, hours, minutes)
+    format!(
+        "{}-{:02}-{:02} {:02}:{:02}",
+        year, month, day, hours, minutes
+    )
 }
 
 /// A single conversation turn for branch point selection.
@@ -1084,12 +1145,14 @@ pub fn extract_branch_points(path: &Path) -> Option<Vec<BranchPoint>> {
         } else if r#type == "message" {
             let msg = record.get("message")?;
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            let text = msg.get("content")
+            let text = msg
+                .get("content")
                 .and_then(|c| extract_text_from_content(c.clone()))
                 .unwrap_or_default();
             (text, role == "user")
         } else if r#type == "user_message" {
-            let text = record.get("payload")
+            let text = record
+                .get("payload")
                 .and_then(|p| p.get("text"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
@@ -1099,12 +1162,15 @@ pub fn extract_branch_points(path: &Path) -> Option<Vec<BranchPoint>> {
             continue;
         };
 
-        if !is_user { continue; }
+        if !is_user {
+            continue;
+        }
 
-        if text.is_empty() { continue; }
+        if text.is_empty() {
+            continue;
+        }
 
-        let summary: String = text.lines().next().unwrap_or("")
-            .chars().take(80).collect();
+        let summary: String = text.lines().next().unwrap_or("").chars().take(80).collect();
         points.push(BranchPoint {
             index: user_count,
             summary,
@@ -1116,8 +1182,6 @@ pub fn extract_branch_points(path: &Path) -> Option<Vec<BranchPoint>> {
 
     Some(points)
 }
-
-
 
 /// Build a context prompt from all user messages up to (and including) the given branch point index.
 /// Returns a formatted string that can be used as the initial prompt for a new session.
@@ -1136,12 +1200,14 @@ pub fn extract_branch_context(path: &Path, branch_index: usize) -> Option<String
         } else if r#type == "message" {
             let msg = record.get("message")?;
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            let text = msg.get("content")
+            let text = msg
+                .get("content")
                 .and_then(|c| extract_text_from_content(c.clone()))
                 .unwrap_or_default();
             (text, role == "user")
         } else if r#type == "user_message" {
-            let text = record.get("payload")
+            let text = record
+                .get("payload")
                 .and_then(|p| p.get("text"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
@@ -1151,7 +1217,9 @@ pub fn extract_branch_context(path: &Path, branch_index: usize) -> Option<String
             continue;
         };
 
-        if text.is_empty() { continue; }
+        if text.is_empty() {
+            continue;
+        }
 
         if is_user {
             user_msgs.push(text);
@@ -1161,7 +1229,9 @@ pub fn extract_branch_context(path: &Path, branch_index: usize) -> Option<String
         }
     }
 
-    if user_msgs.is_empty() { return None; }
+    if user_msgs.is_empty() {
+        return None;
+    }
 
     let mut ctx = String::from("[Session Branch Context]\nPrevious conversation context:\n\n");
     for (i, msg) in user_msgs.iter().enumerate() {
@@ -1186,12 +1256,15 @@ pub fn extract_first_user_message(path: &Path) -> Option<String> {
         } else if r#type == "message" {
             let msg = record.get("message")?;
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            if role != "user" { continue; }
+            if role != "user" {
+                continue;
+            }
             msg.get("content")
                 .and_then(|c| extract_text_from_content(c.clone()))
                 .unwrap_or_default()
         } else if r#type == "user_message" {
-            record.get("payload")
+            record
+                .get("payload")
                 .and_then(|p| p.get("text"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
@@ -1245,17 +1318,28 @@ pub fn extract_token_usage(path: &Path) -> Option<TokenUsage> {
                 let total = u.get("totalTokens").and_then(|v| v.as_u64()).unwrap_or(0);
                 if total > usage.total_tokens {
                     usage.total_tokens = total;
-                    usage.input_tokens = u.get("input").and_then(|v| v.as_u64()).unwrap_or(usage.input_tokens);
-                    usage.output_tokens = u.get("output").and_then(|v| v.as_u64()).unwrap_or(usage.output_tokens);
+                    usage.input_tokens = u
+                        .get("input")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(usage.input_tokens);
+                    usage.output_tokens = u
+                        .get("output")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(usage.output_tokens);
                 }
-                if let Some(cost) = u.get("cost").and_then(|c| c.get("total")).and_then(|v| v.as_f64()) {
+                if let Some(cost) = u
+                    .get("cost")
+                    .and_then(|c| c.get("total"))
+                    .and_then(|v| v.as_f64())
+                {
                     usage.cost += cost;
                 }
             }
         }
         // Codex format: type=event_msg, payload.type=token_count
         else if r#type == "event_msg" {
-            let payload_type = record.get("payload")
+            let payload_type = record
+                .get("payload")
                 .and_then(|p| p.get("type"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
@@ -1263,11 +1347,20 @@ pub fn extract_token_usage(path: &Path) -> Option<TokenUsage> {
                 && let Some(info) = record.get("payload").and_then(|p| p.get("info"))
                 && let Some(total_usage) = info.get("total_token_usage")
             {
-                let total = total_usage.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                let total = total_usage
+                    .get("total_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
                 if total > usage.total_tokens {
                     usage.total_tokens = total;
-                    usage.input_tokens = total_usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    usage.output_tokens = total_usage.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    usage.input_tokens = total_usage
+                        .get("input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    usage.output_tokens = total_usage
+                        .get("output_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
                 }
             }
         }
@@ -1294,7 +1387,9 @@ pub fn extract_session_output(path: &Path) -> Option<String> {
         } else if r#type == "message" {
             let msg = record.get("message")?;
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            if role != "assistant" { continue; }
+            if role != "assistant" {
+                continue;
+            }
             msg.get("content")
                 .and_then(|c| extract_text_from_content(c.clone()))
                 .unwrap_or_default()
@@ -1303,12 +1398,16 @@ pub fn extract_session_output(path: &Path) -> Option<String> {
         };
 
         if !text.is_empty() {
-            if !output.is_empty() { output.push('\n'); }
+            if !output.is_empty() {
+                output.push('\n');
+            }
             output.push_str(&text);
         }
     }
 
-    if output.is_empty() { return None; }
+    if output.is_empty() {
+        return None;
+    }
     Some(output)
 }
 
@@ -1407,7 +1506,10 @@ pub fn discover_remote_sessions(host: &crate::types::RemoteHost) -> Vec<(String,
 
     // Use custom agent_paths if configured, otherwise use defaults.
     let scan_dirs: Vec<String> = if host.agent_paths.is_empty() {
-        DEFAULT_REMOTE_SCAN_PATHS.iter().map(|s| (*s).to_string()).collect()
+        DEFAULT_REMOTE_SCAN_PATHS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect()
     } else {
         host.agent_paths.clone()
     };
@@ -1423,16 +1525,25 @@ pub fn discover_remote_sessions(host: &crate::types::RemoteHost) -> Vec<(String,
         scan_dirs.join(" ")
     );
 
-    let port_str = host.port.map(|p| p.to_string()).unwrap_or_else(|| "22".to_string());
+    let port_str = host
+        .port
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "22".to_string());
 
     let output = match std::process::Command::new("ssh")
         .args([
-            "-p", &port_str,
-            "-o", "ConnectTimeout=5",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "BatchMode=yes",
-            "-o", "ServerAliveInterval=5",
-            "-o", "ServerAliveCountMax=2",
+            "-p",
+            &port_str,
+            "-o",
+            "ConnectTimeout=5",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ServerAliveInterval=5",
+            "-o",
+            "ServerAliveCountMax=2",
         ])
         .arg(&ssh_target)
         .arg(&find_cmd)
@@ -1570,7 +1681,9 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
 
     for session in sessions {
         let jsonl_path = find_session_jsonl(session);
-        let Some(jsonl_path) = jsonl_path else { continue };
+        let Some(jsonl_path) = jsonl_path else {
+            continue;
+        };
         let content = match std::fs::read_to_string(&jsonl_path) {
             Ok(c) => c,
             Err(_) => continue,
@@ -1588,33 +1701,53 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
 
             let (event_type, summary, ts) = if r#type == "user" {
                 let text = extract_claude_message_text(&record);
-                let ts = record.get("timestamp").and_then(|v| v.as_f64()).unwrap_or(0.0) as u64;
+                let ts = record
+                    .get("timestamp")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else if r#type == "assistant" {
                 let text = extract_claude_message_text(&record);
-                let ts = record.get("timestamp").and_then(|v| v.as_f64()).unwrap_or(0.0) as u64;
-                ("assistant".into(), text.chars().take(80).collect::<String>(), ts)
+                let ts = record
+                    .get("timestamp")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
+                (
+                    "assistant".into(),
+                    text.chars().take(80).collect::<String>(),
+                    ts,
+                )
             } else if r#type == "message" {
                 let msg = match record.get("message") {
                     Some(m) => m,
                     None => continue,
                 };
                 let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-                let text = msg.get("content")
+                let text = msg
+                    .get("content")
                     .and_then(|c| extract_text_from_content(c.clone()))
                     .unwrap_or_default();
-                let ts = record.get("timestamp")
+                let ts = record
+                    .get("timestamp")
                     .or_else(|| record.get("createdAt"))
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0) as u64;
-                (role.to_string(), text.chars().take(80).collect::<String>(), ts)
+                (
+                    role.to_string(),
+                    text.chars().take(80).collect::<String>(),
+                    ts,
+                )
             } else if r#type == "user_message" {
-                let text = record.get("payload")
+                let text = record
+                    .get("payload")
                     .and_then(|p| p.get("text"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-                let ts = record.get("timestamp").and_then(|v| v.as_f64()).unwrap_or(0.0) as u64;
+                let ts = record
+                    .get("timestamp")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else {
                 continue;
@@ -1670,26 +1803,43 @@ pub fn compute_agent_recommendations(sessions: &[crate::types::Session]) -> Vec<
         }
     }
 
-    let mut metrics: Vec<AgentMetrics> = counts.into_iter().map(|(agent, total)| {
-        let (rating_sum, rated_count) = ratings.get(&agent).copied().unwrap_or((0.0, 0));
-        let avg_rating = if rated_count > 0 { rating_sum / rated_count as f64 } else { 0.0 };
-        AgentMetrics {
-            agent,
-            total_sessions: total,
-            completed_sessions: total,
-            avg_duration_secs: 0.0,
-            success_rate: 1.0,
-            avg_rating,
-            rated_sessions: rated_count,
-        }
-    }).collect();
+    let mut metrics: Vec<AgentMetrics> = counts
+        .into_iter()
+        .map(|(agent, total)| {
+            let (rating_sum, rated_count) = ratings.get(&agent).copied().unwrap_or((0.0, 0));
+            let avg_rating = if rated_count > 0 {
+                rating_sum / rated_count as f64
+            } else {
+                0.0
+            };
+            AgentMetrics {
+                agent,
+                total_sessions: total,
+                completed_sessions: total,
+                avg_duration_secs: 0.0,
+                success_rate: 1.0,
+                avg_rating,
+                rated_sessions: rated_count,
+            }
+        })
+        .collect();
 
     // Sort by weighted score: avg_rating * total_sessions (sessions with ratings ranked higher)
     // For agents without ratings, fall back to total_sessions only
     metrics.sort_by(|a, b| {
-        let score_a = if a.rated_sessions > 0 { a.avg_rating * a.total_sessions as f64 } else { a.total_sessions as f64 };
-        let score_b = if b.rated_sessions > 0 { b.avg_rating * b.total_sessions as f64 } else { b.total_sessions as f64 };
-        score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+        let score_a = if a.rated_sessions > 0 {
+            a.avg_rating * a.total_sessions as f64
+        } else {
+            a.total_sessions as f64
+        };
+        let score_b = if b.rated_sessions > 0 {
+            b.avg_rating * b.total_sessions as f64
+        } else {
+            b.total_sessions as f64
+        };
+        score_b
+            .partial_cmp(&score_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     metrics
 }
@@ -1716,16 +1866,33 @@ pub fn generate_session_summary(session: &crate::types::Session) -> Option<Strin
             let text = if r#type == "user" {
                 extract_claude_message_text(&record)
             } else {
-                record.get("payload").and_then(|p| p.get("text")).and_then(|v| v.as_str()).unwrap_or("").to_string()
+                record
+                    .get("payload")
+                    .and_then(|p| p.get("text"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
             };
             if !text.is_empty() {
-                let first_line = text.lines().next().unwrap_or("").chars().take(100).collect::<String>();
+                let first_line = text
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(100)
+                    .collect::<String>();
                 user_msgs.push(first_line);
             }
         } else if r#type == "assistant" {
             let text = extract_claude_message_text(&record);
             if !text.is_empty() {
-                let first_line = text.lines().next().unwrap_or("").chars().take(100).collect::<String>();
+                let first_line = text
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(100)
+                    .collect::<String>();
                 assistant_msgs.push(first_line);
                 // Extract file paths from assistant output
                 for cap in path_re.captures_iter(&text) {
@@ -1741,11 +1908,20 @@ pub fn generate_session_summary(session: &crate::types::Session) -> Option<Strin
                 None => continue,
             };
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            let text = msg.get("content")
+            let text = msg
+                .get("content")
                 .and_then(|c| extract_text_from_content(c.clone()))
                 .unwrap_or_default();
-            if text.is_empty() { continue; }
-            let first_line = text.lines().next().unwrap_or("").chars().take(100).collect::<String>();
+            if text.is_empty() {
+                continue;
+            }
+            let first_line = text
+                .lines()
+                .next()
+                .unwrap_or("")
+                .chars()
+                .take(100)
+                .collect::<String>();
             if role == "user" {
                 user_msgs.push(first_line);
             } else if role == "assistant" {
@@ -1801,7 +1977,10 @@ pub struct CrossSearchResult {
 }
 
 /// Full-text search across all session JSONL files.
-pub fn cross_session_search(sessions: &[crate::types::Session], query: &str) -> Vec<CrossSearchResult> {
+pub fn cross_session_search(
+    sessions: &[crate::types::Session],
+    query: &str,
+) -> Vec<CrossSearchResult> {
     let query_lower = query.to_lowercase();
     let mut results: Vec<CrossSearchResult> = Vec::new();
 
@@ -1828,7 +2007,9 @@ pub fn cross_session_search(sessions: &[crate::types::Session], query: &str) -> 
                         matches.push(clean);
                     }
                 }
-                if matches.len() >= 5 { break; }
+                if matches.len() >= 5 {
+                    break;
+                }
             }
         }
 

@@ -164,34 +164,126 @@ impl ThemeFile {
     /// Apply this theme file on top of a base theme, overriding only specified fields.
     fn apply_to(&self, base: Theme) -> Theme {
         Theme {
-            sidebar_bg: self.sidebar_bg.as_deref().and_then(parse_color).unwrap_or(base.sidebar_bg),
-            sidebar_title: self.sidebar_title.as_deref().and_then(parse_color).unwrap_or(base.sidebar_title),
-            sidebar_text: self.sidebar_text.as_deref().and_then(parse_color).unwrap_or(base.sidebar_text),
-            sidebar_dim: self.sidebar_dim.as_deref().and_then(parse_color).unwrap_or(base.sidebar_dim),
-            sidebar_highlight: self.sidebar_highlight.as_deref().and_then(parse_color).unwrap_or(base.sidebar_highlight),
-            sidebar_selected: self.sidebar_selected.as_deref().and_then(parse_color).unwrap_or(base.sidebar_selected),
+            sidebar_bg: self
+                .sidebar_bg
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_bg),
+            sidebar_title: self
+                .sidebar_title
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_title),
+            sidebar_text: self
+                .sidebar_text
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_text),
+            sidebar_dim: self
+                .sidebar_dim
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_dim),
+            sidebar_highlight: self
+                .sidebar_highlight
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_highlight),
+            sidebar_selected: self
+                .sidebar_selected
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.sidebar_selected),
 
-            chat_border: self.chat_border.as_deref().and_then(parse_color).unwrap_or(base.chat_border),
-            chat_title: self.chat_title.as_deref().and_then(parse_color).unwrap_or(base.chat_title),
+            chat_border: self
+                .chat_border
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.chat_border),
+            chat_title: self
+                .chat_title
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.chat_title),
 
-            agent_claude: self.agent_claude.as_deref().and_then(parse_color).unwrap_or(base.agent_claude),
-            agent_codex: self.agent_codex.as_deref().and_then(parse_color).unwrap_or(base.agent_codex),
-            agent_gsd: self.agent_gsd.as_deref().and_then(parse_color).unwrap_or(base.agent_gsd),
-            agent_omp: self.agent_omp.as_deref().and_then(parse_color).unwrap_or(base.agent_omp),
+            agent_claude: self
+                .agent_claude
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.agent_claude),
+            agent_codex: self
+                .agent_codex
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.agent_codex),
+            agent_gsd: self
+                .agent_gsd
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.agent_gsd),
+            agent_omp: self
+                .agent_omp
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.agent_omp),
 
-            status_running: self.status_running.as_deref().and_then(parse_color).unwrap_or(base.status_running),
-            status_done: self.status_done.as_deref().and_then(parse_color).unwrap_or(base.status_done),
-            status_error: self.status_error.as_deref().and_then(parse_color).unwrap_or(base.status_error),
+            status_running: self
+                .status_running
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_running),
+            status_done: self
+                .status_done
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_done),
+            status_error: self
+                .status_error
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_error),
 
-            popup_border: self.popup_border.as_deref().and_then(parse_color).unwrap_or(base.popup_border),
-            popup_title: self.popup_title.as_deref().and_then(parse_color).unwrap_or(base.popup_title),
-            popup_text: self.popup_text.as_deref().and_then(parse_color).unwrap_or(base.popup_text),
-            popup_hint: self.popup_hint.as_deref().and_then(parse_color).unwrap_or(base.popup_hint),
+            popup_border: self
+                .popup_border
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.popup_border),
+            popup_title: self
+                .popup_title
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.popup_title),
+            popup_text: self
+                .popup_text
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.popup_text),
+            popup_hint: self
+                .popup_hint
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.popup_hint),
 
-            accent: self.accent.as_deref().and_then(parse_color).unwrap_or(base.accent),
-            dim: self.dim.as_deref().and_then(parse_color).unwrap_or(base.dim),
-            bold_text: self.bold_text.as_deref().and_then(parse_color).unwrap_or(base.bold_text),
-            input_cursor: self.input_cursor.as_deref().and_then(parse_color).unwrap_or(base.input_cursor),
+            accent: self
+                .accent
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.accent),
+            dim: self
+                .dim
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.dim),
+            bold_text: self
+                .bold_text
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.bold_text),
+            input_cursor: self
+                .input_cursor
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.input_cursor),
         }
     }
 }
@@ -329,7 +421,10 @@ mod tests {
     #[test]
     fn test_parse_rgb_format() {
         assert_eq!(parse_color("Rgb(0,255,255)"), Some(Color::Rgb(0, 255, 255)));
-        assert_eq!(parse_color("Rgb(128, 64, 32)"), Some(Color::Rgb(128, 64, 32)));
+        assert_eq!(
+            parse_color("Rgb(128, 64, 32)"),
+            Some(Color::Rgb(128, 64, 32))
+        );
     }
 
     #[test]

@@ -4,12 +4,12 @@ use std::time::Instant;
 /// Resource usage stats for a single process, read from /proc/{pid}.
 #[derive(Clone, Debug, Default)]
 pub struct ProcessStats {
-    pub cpu_user: u64,       // user ticks
-    pub cpu_system: u64,     // system ticks
-    pub mem_rss_kb: u64,     // resident set size in KB
-    pub mem_virt_kb: u64,    // virtual size in KB
-    pub read_bytes: u64,     // IO read bytes
-    pub write_bytes: u64,    // IO write bytes
+    pub cpu_user: u64,    // user ticks
+    pub cpu_system: u64,  // system ticks
+    pub mem_rss_kb: u64,  // resident set size in KB
+    pub mem_virt_kb: u64, // virtual size in KB
+    pub read_bytes: u64,  // IO read bytes
+    pub write_bytes: u64, // IO write bytes
     pub threads: u64,
     pub uptime_secs: u64,
     // Computed fields
@@ -105,7 +105,11 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
     // Read /proc/uptime for system uptime
     let uptime_secs = std::fs::read_to_string("/proc/uptime")
         .ok()
-        .and_then(|s| s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()))
+        .and_then(|s| {
+            s.split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<f64>().ok())
+        })
         .unwrap_or(0.0);
 
     let process_uptime = if uptime_secs > 0.0 {
@@ -195,7 +199,10 @@ mod tests {
         assert_eq!(format_bytes(1024 * 1024), "1MB");
         assert_eq!(format_bytes(1024 * 1024 * 512), "512MB");
         assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0GB");
-        assert_eq!(format_bytes(1024 * 1024 * 1024 * 3 + 1024 * 1024 * 500), "3.5GB");
+        assert_eq!(
+            format_bytes(1024 * 1024 * 1024 * 3 + 1024 * 1024 * 500),
+            "3.5GB"
+        );
     }
 
     #[test]
@@ -217,7 +224,8 @@ mod tests {
     fn test_parse_proc_stat_mock() {
         // Mock /proc/PID/stat content: pid (command with spaces) S ...fields...
         // After last ')', fields start at state
-        let line = "12345 (some command) S 1 2 3 4 5 6 7 8 9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25";
+        let line =
+            "12345 (some command) S 1 2 3 4 5 6 7 8 9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25";
         let close_paren = line.rfind(')').unwrap();
         assert_eq!(close_paren, 19);
         let after = &line[close_paren + 1..];
@@ -227,7 +235,7 @@ mod tests {
         assert_eq!(fields[0], "S");
         // In this mock, fields are "S 1 2 3 4 5 6 7 8 9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25"
         // index:        0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
-        assert_eq!(fields[11], "11");  // utime mock value
-        assert_eq!(fields[12], "13");  // stime mock value
+        assert_eq!(fields[11], "11"); // utime mock value
+        assert_eq!(fields[12], "13"); // stime mock value
     }
 }

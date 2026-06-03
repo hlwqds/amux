@@ -98,9 +98,7 @@ pub fn save_config_file(config: &Config) -> Result<()> {
     #[cfg(unix)]
     {
         let fd = lock_file;
-        let result = unsafe {
-            libc::flock(fd.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB)
-        };
+        let result = unsafe { libc::flock(fd.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
         if result == -1 {
             // Couldn't acquire lock — another instance holds it. Wait briefly and retry.
             let _ = unsafe { libc::flock(fd.as_raw_fd(), libc::LOCK_EX) };
@@ -166,7 +164,13 @@ pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
     save_session_meta(session_id, title, &tags, rating, note.as_deref())
 }
 
-pub fn save_session_meta(session_id: &str, title: &str, tags: &[String], rating: Option<u8>, note: Option<&str>) -> io::Result<()> {
+pub fn save_session_meta(
+    session_id: &str,
+    title: &str,
+    tags: &[String],
+    rating: Option<u8>,
+    note: Option<&str>,
+) -> io::Result<()> {
     let path = title_override_path(session_id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -197,7 +201,13 @@ pub fn save_session_rating(session_id: &str, rating: u8) -> io::Result<()> {
         Some(m) => (m.title, m.tags, m.note),
         None => (session_id.to_string(), Vec::new(), None),
     };
-    save_session_meta(session_id, &title, &tags, Some(rating.clamp(1, 5)), note.as_deref())
+    save_session_meta(
+        session_id,
+        &title,
+        &tags,
+        Some(rating.clamp(1, 5)),
+        note.as_deref(),
+    )
 }
 
 /// Save only the note for a session, preserving existing title/tags/rating.
@@ -240,8 +250,13 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
         if !trimmed.is_empty() {
             // Try JSON format first
             if let Ok(obj) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or(trimmed).to_string();
-                let tags = obj.get("tags")
+                let title = obj
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(trimmed)
+                    .to_string();
+                let tags = obj
+                    .get("tags")
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
@@ -249,9 +264,20 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
                             .collect()
                     })
                     .unwrap_or_default();
-                let rating = obj.get("rating").and_then(|v| v.as_u64()).and_then(|r| if (1..=5).contains(&r) { Some(r as u8) } else { None });
+                let rating = obj.get("rating").and_then(|v| v.as_u64()).and_then(|r| {
+                    if (1..=5).contains(&r) {
+                        Some(r as u8)
+                    } else {
+                        None
+                    }
+                });
                 let note = obj.get("note").and_then(|v| v.as_str()).map(String::from);
-                return Some(SessionMeta { title, tags, rating, note });
+                return Some(SessionMeta {
+                    title,
+                    tags,
+                    rating,
+                    note,
+                });
             }
             // Fallback: plain text (backward compat)
             return Some(SessionMeta {
@@ -269,7 +295,12 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
         if let Ok(title) = fs::read_to_string(&legacy) {
             let title = title.trim().to_string();
             if !title.is_empty() {
-                return Some(SessionMeta { title, tags: Vec::new(), rating: None, note: None });
+                return Some(SessionMeta {
+                    title,
+                    tags: Vec::new(),
+                    rating: None,
+                    note: None,
+                });
             }
         }
     }
@@ -365,7 +396,8 @@ mod tests {
         std::fs::write(
             dir.join(".amux.json"),
             r#"{"default_agent":"claude","env":[["FOO","bar"]]}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let config = super::load_project_config(&dir);
         assert_eq!(config.default_agent, Some("claude".to_string()));
         assert_eq!(config.env, vec![("FOO".into(), "bar".into())]);

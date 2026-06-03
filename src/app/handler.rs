@@ -19,9 +19,13 @@ impl super::App {
                     return Ok(Action::Continue);
                 }
                 // Alt+key: amux operations (intercept before forwarding to PTY)
-                if key.modifiers.contains(KeyModifiers::ALT) && !key.modifiers.contains(KeyModifiers::CONTROL) {
+                if key.modifiers.contains(KeyModifiers::ALT)
+                    && !key.modifiers.contains(KeyModifiers::CONTROL)
+                {
                     let kb = &self.view.keybinds;
-                    if kb.quit.matches_event(&key) { return Ok(Action::Quit); }
+                    if kb.quit.matches_event(&key) {
+                        return Ok(Action::Quit);
+                    }
                     if kb.move_up.matches_event(&key) || key.code == KeyCode::Up {
                         if self.ptys.ptys.len() > 1 {
                             let cur = self.ptys.active_pty.unwrap_or(0);
@@ -150,8 +154,9 @@ impl super::App {
                         } else {
                             -1
                         };
-                        let next =
-                            ((cur as isize + delta).rem_euclid(self.ptys.ptys.len() as isize)) as usize;
+                        let next = ((cur as isize + delta)
+                            .rem_euclid(self.ptys.ptys.len() as isize))
+                            as usize;
                         self.ptys.active_pty = Some(next);
                         if let Some(s) = self.ptys.ptys.get(next) {
                             s.handle.reset_scroll();
@@ -172,22 +177,26 @@ impl super::App {
                 {
                     if self.ptys.ptys.len() > 1 {
                         let cur = self.ptys.active_pty.unwrap_or(0);
-                        let delta: isize = if key.code == KeyCode::Char('J') { 1 } else { -1 };
-                        let new_pos = (cur as isize + delta).rem_euclid(self.ptys.ptys.len() as isize) as usize;
+                        let delta: isize = if key.code == KeyCode::Char('J') {
+                            1
+                        } else {
+                            -1
+                        };
+                        let new_pos = (cur as isize + delta)
+                            .rem_euclid(self.ptys.ptys.len() as isize)
+                            as usize;
                         self.ptys.ptys.swap(cur, new_pos);
                         self.ptys.active_pty = Some(new_pos);
-                        self.view.status = format!(
-                            "Moved tab to position {}",
-                            new_pos + 1
-                        );
+                        self.view.status = format!("Moved tab to position {}", new_pos + 1);
                     }
                     return Ok(Action::Continue);
                 }
                 // Scrollback: Page Up/Down
                 if key.code == KeyCode::PageUp {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle
-                            .scroll_page_up(self.view.last_chat_area.height.saturating_sub(2) as usize);
+                        slot.handle.scroll_page_up(
+                            self.view.last_chat_area.height.saturating_sub(2) as usize,
+                        );
                     }
                     return Ok(Action::Continue);
                 }
@@ -203,14 +212,18 @@ impl super::App {
                 // Ctrl+B: page up (vi backward)
                 if key.code == KeyCode::Char('b') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_up(self.view.last_chat_area.height.saturating_sub(2) as usize);
+                        slot.handle.scroll_page_up(
+                            self.view.last_chat_area.height.saturating_sub(2) as usize,
+                        );
                     }
                     return Ok(Action::Continue);
                 }
                 // Ctrl+F: page down (vi forward)
                 if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_down(self.view.last_chat_area.height.saturating_sub(2) as usize);
+                        slot.handle.scroll_page_down(
+                            self.view.last_chat_area.height.saturating_sub(2) as usize,
+                        );
                     }
                     return Ok(Action::Continue);
                 }
@@ -235,22 +248,24 @@ impl super::App {
                     return Ok(Action::Continue);
                 }
                 // P2: `y` copies visible screen when scrolled up
-                if key.code == KeyCode::Char('y') && key.modifiers.is_empty()
-                    && let Some(slot) = self.ptys.ptys.get(idx) {
-                        let offset = slot.handle.scrollback_offset();
-                        if offset > 0 {
-                            // Copy visible screen content
-                            let parser = slot.handle.screen();
-                            let guard = parser.read();
-                            let text = guard.screen().contents();
-                            drop(guard);
-                            match crate::util::clipboard_copy(&text) {
-                                Ok(()) => self.view.status = "Screen copied to clipboard".into(),
-                                Err(e) => self.view.status = format!("Clipboard error: {e}"),
-                            }
-                            return Ok(Action::Continue);
+                if key.code == KeyCode::Char('y')
+                    && key.modifiers.is_empty()
+                    && let Some(slot) = self.ptys.ptys.get(idx)
+                {
+                    let offset = slot.handle.scrollback_offset();
+                    if offset > 0 {
+                        // Copy visible screen content
+                        let parser = slot.handle.screen();
+                        let guard = parser.read();
+                        let text = guard.screen().contents();
+                        drop(guard);
+                        match crate::util::clipboard_copy(&text) {
+                            Ok(()) => self.view.status = "Screen copied to clipboard".into(),
+                            Err(e) => self.view.status = format!("Clipboard error: {e}"),
                         }
+                        return Ok(Action::Continue);
                     }
+                }
                 // P19: 'o' cycles through detected file paths in PTY output
                 if key.code == KeyCode::Char('o') && key.modifiers.is_empty() {
                     self.detect_paths_from_screen();
@@ -259,7 +274,8 @@ impl super::App {
                 }
                 // P19: 'g' opens the selected file in editor (vi-style goto)
                 if key.code == KeyCode::Char('g') && key.modifiers.is_empty() {
-                    if self.ptys.selected_path_idx.is_some() || !self.ptys.detected_paths.is_empty() {
+                    if self.ptys.selected_path_idx.is_some() || !self.ptys.detected_paths.is_empty()
+                    {
                         if self.ptys.selected_path_idx.is_none() {
                             self.ptys.selected_path_idx = Some(0);
                         }
@@ -284,7 +300,7 @@ impl super::App {
                 if self.ptys.selected_path_idx.is_some() {
                     self.ptys.selected_path_idx = None;
                 }
-                 let bytes = key_to_bytes(&key);
+                let bytes = key_to_bytes(&key);
                 if !bytes.is_empty()
                     && let Some(slot) = self.ptys.ptys.get(idx)
                 {
@@ -304,7 +320,6 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-
 
         // P1: Use keybinds lookup instead of hardcoded key matching.
         // Only keys NOT in Keybinds (digits, Space, Ctrl+key combos for
@@ -357,10 +372,22 @@ impl super::App {
             // Digit keys for agent filters remain hardcoded (not configurable)
             if let KeyCode::Char(c) = key.code {
                 match c {
-                    '1' => { self.toggle_agent_filter(Agent::Claude); return Ok(Action::Continue); }
-                    '2' => { self.toggle_agent_filter(Agent::Codex); return Ok(Action::Continue); }
-                    '3' => { self.toggle_agent_filter(Agent::Gsd); return Ok(Action::Continue); }
-                    '4' => { self.toggle_agent_filter(Agent::Omp); return Ok(Action::Continue); }
+                    '1' => {
+                        self.toggle_agent_filter(Agent::Claude);
+                        return Ok(Action::Continue);
+                    }
+                    '2' => {
+                        self.toggle_agent_filter(Agent::Codex);
+                        return Ok(Action::Continue);
+                    }
+                    '3' => {
+                        self.toggle_agent_filter(Agent::Gsd);
+                        return Ok(Action::Continue);
+                    }
+                    '4' => {
+                        self.toggle_agent_filter(Agent::Omp);
+                        return Ok(Action::Continue);
+                    }
                     _ => {}
                 }
             }
@@ -413,7 +440,8 @@ impl super::App {
         }
         if kb.settings.matches_event(&key) {
             self.view.input_mode = InputMode::Settings;
-            self.view.status = "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
+            self.view.status =
+                "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
             return Ok(Action::Continue);
         }
         if kb.theme.matches_event(&key) {
@@ -504,7 +532,10 @@ impl super::App {
             self.sessions.show_archived = !self.sessions.show_archived;
             self.rebuild_tree();
             self.view.status = if self.sessions.show_archived {
-                format!("Showing {} archived session(s)", self.sessions.archived_sessions.len())
+                format!(
+                    "Showing {} archived session(s)",
+                    self.sessions.archived_sessions.len()
+                )
             } else {
                 "Archived sessions hidden".into()
             };
@@ -513,7 +544,8 @@ impl super::App {
         // Ctrl+R: Remote view
         if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
             if self.remote_hosts.is_empty() {
-                self.view.status = "No remote hosts configured. Add to config.json remote_hosts.".into();
+                self.view.status =
+                    "No remote hosts configured. Add to config.json remote_hosts.".into();
             } else {
                 self.remote_sessions.clear();
                 for host in &self.remote_hosts.clone() {
@@ -524,7 +556,10 @@ impl super::App {
                     self.view.status = "No remote sessions found.".into();
                 } else {
                     self.view.input_mode = InputMode::RemoteView;
-                    self.view.status = format!("Remote Sessions ({} found, any key to close)", self.remote_sessions.len());
+                    self.view.status = format!(
+                        "Remote Sessions ({} found, any key to close)",
+                        self.remote_sessions.len()
+                    );
                 }
             }
             return Ok(Action::Continue);
@@ -538,7 +573,10 @@ impl super::App {
             } else {
                 self.timeline_events = timeline;
                 self.view.input_mode = InputMode::Timeline;
-                self.view.status = format!("Timeline ({} events, any key to close)", self.timeline_events.len());
+                self.view.status = format!(
+                    "Timeline ({} events, any key to close)",
+                    self.timeline_events.len()
+                );
             }
             return Ok(Action::Continue);
         }
@@ -558,16 +596,21 @@ impl super::App {
         // Ctrl+F: Cross-session search
         if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
             if self.input_buffer.is_empty() {
-                self.view.status = "Type a search query first (/), then Ctrl+F to search all sessions.".into();
+                self.view.status =
+                    "Type a search query first (/), then Ctrl+F to search all sessions.".into();
             } else {
                 use crate::discovery::cross_session_search;
                 let results = cross_session_search(&self.sessions.sessions, &self.input_buffer);
                 if results.is_empty() {
-                    self.view.status = format!("No results for '{}' across sessions.", self.input_buffer);
+                    self.view.status =
+                        format!("No results for '{}' across sessions.", self.input_buffer);
                 } else {
                     self.cross_search_results = results;
                     self.view.input_mode = InputMode::CrossSearch;
-                    self.view.status = format!("Cross-session search ({} sessions, any key to close)", self.cross_search_results.len());
+                    self.view.status = format!(
+                        "Cross-session search ({} sessions, any key to close)",
+                        self.cross_search_results.len()
+                    );
                 }
             }
             return Ok(Action::Continue);
@@ -687,20 +730,23 @@ impl super::App {
                 KeyCode::Char('b') => {
                     // Start rollback: find the snapshot commit for the previewed session
                     if let Some(ref sid) = self.popup.preview_session_id {
-                        let snapshot = crate::config::load_snapshot_meta(sid)
-                            .or_else(|| {
-                                // Also check running PTY for snapshot
-                                self.ptys.ptys.iter().find_map(|s| {
-                                    if s.info.session_id.as_deref() == Some(sid) {
-                                        s.info.snapshot_commit.clone()
-                                    } else {
-                                        None
-                                    }
-                                })
-                            });
+                        let snapshot = crate::config::load_snapshot_meta(sid).or_else(|| {
+                            // Also check running PTY for snapshot
+                            self.ptys.ptys.iter().find_map(|s| {
+                                if s.info.session_id.as_deref() == Some(sid) {
+                                    s.info.snapshot_commit.clone()
+                                } else {
+                                    None
+                                }
+                            })
+                        });
                         if let Some(ref commit) = snapshot {
                             // Find the workspace path
-                            let ws_path = self.sessions.sessions.iter().find(|s| s.id == *sid)
+                            let ws_path = self
+                                .sessions
+                                .sessions
+                                .iter()
+                                .find(|s| s.id == *sid)
                                 .map(|s| s.workspace_path.clone());
                             if let Some(ref wp) = ws_path {
                                 // Get files that differ between HEAD and snapshot
@@ -726,7 +772,8 @@ impl super::App {
                                 return Ok(Action::Continue);
                             }
                         }
-                        self.view.status = "No snapshot found for this session (cannot rollback).".into();
+                        self.view.status =
+                            "No snapshot found for this session (cannot rollback).".into();
                     }
                 }
                 KeyCode::Char('k') => {
@@ -788,14 +835,18 @@ impl super::App {
         if self.view.input_mode == InputMode::RollbackConfirm {
             match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    if let (Some(commit), Some(wp)) = (&self.popup.rollback_snapshot, &self.popup.rollback_workspace) {
+                    if let (Some(commit), Some(wp)) = (
+                        &self.popup.rollback_snapshot,
+                        &self.popup.rollback_workspace,
+                    ) {
                         let result = std::process::Command::new("git")
                             .args(["reset", "--hard", commit])
                             .current_dir(wp)
                             .output();
                         match result {
                             Ok(o) if o.status.success() => {
-                                self.view.status = format!("Rolled back to {}", &commit[..8.min(commit.len())]);
+                                self.view.status =
+                                    format!("Rolled back to {}", &commit[..8.min(commit.len())]);
                             }
                             Ok(o) => {
                                 let err = String::from_utf8_lossy(&o.stderr);
@@ -843,7 +894,10 @@ impl super::App {
                 KeyCode::Char('f') => {
                     // Fix: git stash if suggested, then re-check.
                     if let Some(ws) = &self.popup.preflight_workspace {
-                        let has_stash_suggestion = self.popup.preflight_result.as_ref()
+                        let has_stash_suggestion = self
+                            .popup
+                            .preflight_result
+                            .as_ref()
                             .map(|r| r.suggestions.iter().any(|s| s.contains("stash")))
                             .unwrap_or(false);
                         if has_stash_suggestion {
@@ -946,7 +1000,12 @@ impl super::App {
             return;
         };
         // Close the tab (same logic as D on ActiveTab)
-        let title = self.ptys.ptys.get(tab_index).map(|s| s.info.title.clone()).unwrap_or_default();
+        let title = self
+            .ptys
+            .ptys
+            .get(tab_index)
+            .map(|s| s.info.title.clone())
+            .unwrap_or_default();
         if let Some(slot) = self.ptys.ptys.get(tab_index) {
             self.unregister_pty(&slot.id);
         }

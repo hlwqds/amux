@@ -32,7 +32,11 @@ impl super::App {
         if self.browse_dir.parent().is_some() {
             entries.push(DirEntry {
                 name: PARENT_DIR.into(),
-                path: self.browse_dir.parent().unwrap_or(&self.browse_dir).to_path_buf(),
+                path: self
+                    .browse_dir
+                    .parent()
+                    .unwrap_or(&self.browse_dir)
+                    .to_path_buf(),
                 is_dir: true,
             });
         }

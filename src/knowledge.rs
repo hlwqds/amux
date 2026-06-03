@@ -57,17 +57,50 @@ pub fn merge_from_session(knowledge: &mut WorkspaceKnowledge, summary: &str) {
 
     // Extract tech names
     static TECH_NAMES: &[&str] = &[
-        "rust", "typescript", "javascript", "python", "go", "java", "ruby",
-        "react", "svelte", "vue", "angular", "nextjs", "next.js",
-        "tokio", "axum", "actix", "warp", "hyper",
-        "serde", "clap", "anyhow", "tracing",
-        "django", "flask", "fastapi", "express", "koa",
-        "postgres", "mysql", "sqlite", "redis", "mongodb",
-        "docker", "kubernetes", "terraform",
+        "rust",
+        "typescript",
+        "javascript",
+        "python",
+        "go",
+        "java",
+        "ruby",
+        "react",
+        "svelte",
+        "vue",
+        "angular",
+        "nextjs",
+        "next.js",
+        "tokio",
+        "axum",
+        "actix",
+        "warp",
+        "hyper",
+        "serde",
+        "clap",
+        "anyhow",
+        "tracing",
+        "django",
+        "flask",
+        "fastapi",
+        "express",
+        "koa",
+        "postgres",
+        "mysql",
+        "sqlite",
+        "redis",
+        "mongodb",
+        "docker",
+        "kubernetes",
+        "terraform",
     ];
     let lower = summary.to_lowercase();
     for &tech in TECH_NAMES {
-        if lower.contains(tech) && !knowledge.tech_stack.iter().any(|t| t.eq_ignore_ascii_case(tech)) {
+        if lower.contains(tech)
+            && !knowledge
+                .tech_stack
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(tech))
+        {
             knowledge.tech_stack.push(tech.to_string());
         }
     }
@@ -129,7 +162,10 @@ pub fn generate_injection_prompt(knowledge: &WorkspaceKnowledge) -> String {
         parts.push(format!("Tech stack: {}", knowledge.tech_stack.join(", ")));
     }
     if !knowledge.known_issues.is_empty() {
-        parts.push(format!("Known issues: {}", knowledge.known_issues.join("; ")));
+        parts.push(format!(
+            "Known issues: {}",
+            knowledge.known_issues.join("; ")
+        ));
     }
 
     parts.join("\n")
@@ -139,7 +175,9 @@ pub fn generate_injection_prompt(knowledge: &WorkspaceKnowledge) -> String {
 fn extract_paths_from_line(paths: &mut Vec<String>, line: &str) {
     // Match patterns like src/foo.rs, lib/bar.ts, etc.
     for word in line.split_whitespace() {
-        let cleaned = word.trim_matches(|c: char| c == '`' || c == ',' || c == ';' || c == ':' || c == '(' || c == ')');
+        let cleaned = word.trim_matches(|c: char| {
+            c == '`' || c == ',' || c == ';' || c == ':' || c == '(' || c == ')'
+        });
         if looks_like_path(cleaned) && !paths.contains(&cleaned.to_string()) {
             paths.push(cleaned.to_string());
         }
@@ -291,7 +329,10 @@ mod tests {
     #[test]
     fn merge_extracts_issues() {
         let mut k = WorkspaceKnowledge::default();
-        merge_from_session(&mut k, "Found bug: race condition in writer\nIssue: memory leak in cache");
+        merge_from_session(
+            &mut k,
+            "Found bug: race condition in writer\nIssue: memory leak in cache",
+        );
         assert!(k.known_issues.iter().any(|i| i.contains("race condition")));
         assert!(k.known_issues.iter().any(|i| i.contains("memory leak")));
     }
@@ -299,7 +340,10 @@ mod tests {
     #[test]
     fn merge_extracts_architecture() {
         let mut k = WorkspaceKnowledge::default();
-        merge_from_session(&mut k, "The architecture follows a layered pattern with middleware");
+        merge_from_session(
+            &mut k,
+            "The architecture follows a layered pattern with middleware",
+        );
         assert!(k.architecture.contains("layered pattern"));
     }
 

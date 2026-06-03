@@ -6,7 +6,10 @@ use std::{
 };
 
 use crate::config::{data_dir, save_config_file, title_override_path};
-use crate::discovery::{discover_sessions, discover_sessions_cached, extract_branch_points, extract_first_user_message, find_session_jsonl, preview_session_content, PreviewLine, SessionCache};
+use crate::discovery::{
+    PreviewLine, SessionCache, discover_sessions, discover_sessions_cached, extract_branch_points,
+    extract_first_user_message, find_session_jsonl, preview_session_content,
+};
 use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::*;
@@ -146,7 +149,6 @@ impl Default for AppView {
     }
 }
 
-
 struct App {
     view: AppView,
     ptys: PtyManager,
@@ -184,7 +186,9 @@ struct App {
     agent_recommendations: Vec<crate::discovery::AgentMetrics>,
     cross_search_results: Vec<crate::discovery::CrossSearchResult>,
     /// Shared PTY state for the built-in HTTP server.
-    shared_ptys: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>>,
+    shared_ptys: std::sync::Arc<
+        tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>,
+    >,
     /// Handle to the background axum server task.
     server_handle: Option<tokio::task::JoinHandle<()>>,
     /// Server port (for status display).
@@ -250,7 +254,9 @@ impl Default for App {
             timeline_events: Vec::new(),
             agent_recommendations: Vec::new(),
             cross_search_results: Vec::new(),
-            shared_ptys: std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+            shared_ptys: std::sync::Arc::new(tokio::sync::Mutex::new(
+                std::collections::HashMap::new(),
+            )),
             server_handle: None,
             serve_port: 0,
             check_command: None,
@@ -275,7 +281,12 @@ mod handler_select;
 mod session;
 mod ui;
 impl App {
-    fn new(shared_ptys: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>>, serve_port: u16) -> Self {
+    fn new(
+        shared_ptys: std::sync::Arc<
+            tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>,
+        >,
+        serve_port: u16,
+    ) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
             workspaces: Vec::new(),
             theme: crate::theme::ThemeName::Dark,
@@ -308,7 +319,8 @@ impl App {
             view: AppView {
                 focus: Focus::Sidebar,
                 input_mode: InputMode::None,
-                status: "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws q:quit".into(),
+                status: "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws q:quit"
+                    .into(),
                 sort_mode: SortMode::default(),
                 agent_filter: None,
                 tag_filter: None,
@@ -393,7 +405,10 @@ impl App {
             for (a, b) in &conflicts {
                 eprintln!("warning: keybind conflict: {} <-> {}", a, b);
             }
-            app.view.status = format!("⚠ {} keybind conflict(s) detected — check logs", conflicts.len());
+            app.view.status = format!(
+                "⚠ {} keybind conflict(s) detected — check logs",
+                conflicts.len()
+            );
         }
         // Quick environment diagnostics on first launch
         if (app.view.status.starts_with('E') || app.view.status.starts_with("Enter"))
@@ -479,13 +494,18 @@ impl App {
         let mut any_screen_changed = false;
         // Pre-extract chain data so we don't borrow self inside iter_mut
         let pre_chain = self.chains.active_chain.clone();
-        let pre_session_map: std::collections::HashMap<String, PathBuf> = if !self.ptys.ptys.is_empty() && self.chains.active_chain.is_some() {
-            self.sessions.sessions.iter()
-                .filter_map(|s| crate::discovery::find_session_jsonl(s).map(|p| (s.id.clone(), p)))
-                .collect()
-        } else {
-            std::collections::HashMap::new()
-        };
+        let pre_session_map: std::collections::HashMap<String, PathBuf> =
+            if !self.ptys.ptys.is_empty() && self.chains.active_chain.is_some() {
+                self.sessions
+                    .sessions
+                    .iter()
+                    .filter_map(|s| {
+                        crate::discovery::find_session_jsonl(s).map(|p| (s.id.clone(), p))
+                    })
+                    .collect()
+            } else {
+                std::collections::HashMap::new()
+            };
         for (i, slot) in self.ptys.ptys.iter_mut().enumerate() {
             let state = slot.handle.state();
             if state == PtyState::Running {
@@ -512,8 +532,13 @@ impl App {
                             .unwrap_or_default()
                             .as_secs_f64();
                         let frame = serde_json::json!([ts, "o", content]);
-                        let _ = std::fs::OpenOptions::new().create(true).append(true).open(&path)
-                            .and_then(|mut f| std::io::Write::write_all(&mut f, format!("{}\n", frame).as_bytes()));
+                        let _ = std::fs::OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open(&path)
+                            .and_then(|mut f| {
+                                std::io::Write::write_all(&mut f, format!("{}\n", frame).as_bytes())
+                            });
                     }
                     slot.last_recording_at = std::time::Instant::now();
                 }
@@ -521,7 +546,12 @@ impl App {
                 slot.info.completed = true;
                 any_screen_changed = true;
                 if self.ptys.prev_states.get(i) == Some(&PtyState::Running) {
-                    notification = Some(format!("✔ {} completed ({}/{})", slot.info.title, i + 1, pty_count));
+                    notification = Some(format!(
+                        "✔ {} completed ({}/{})",
+                        slot.info.title,
+                        i + 1,
+                        pty_count
+                    ));
                     // Save recording metadata
                     let rec_dir = crate::config::data_dir().join("recordings");
                     let id = slot.info.session_id.as_deref().unwrap_or("unknown");
@@ -533,8 +563,12 @@ impl App {
                             "title": slot.info.title,
                             "env": { "TERM": "xterm-256color" }
                         });
-                        let header_path = rec_dir.join(format!("{}.meta.json", &id[..id.len().min(16)]));
-                        let _ = std::fs::write(&header_path, serde_json::to_string_pretty(&header).unwrap_or_default());
+                        let header_path =
+                            rec_dir.join(format!("{}.meta.json", &id[..id.len().min(16)]));
+                        let _ = std::fs::write(
+                            &header_path,
+                            serde_json::to_string_pretty(&header).unwrap_or_default(),
+                        );
                     }
                     // Desktop notification deferred to after the loop
                     // Record git state + diff summary (merged git calls)
@@ -544,23 +578,42 @@ impl App {
                         let commit = git_cmd(ws, &["rev-parse", "--short", "HEAD"]).ok();
                         // One --stat call for both git_info.diff_stat and diff_summary.summary_line
                         let stat_output = git_cmd(ws, &["diff", "--stat"]).ok();
-                        let diff_stat = stat_output.as_ref()
-                            .and_then(|s| if s.is_empty() { None } else { s.lines().last().map(|l| l.to_string()) });
-                        let summary_line = stat_output
-                            .and_then(|s| if s.is_empty() { None } else { s.lines().last().map(|l| l.to_string()) });
+                        let diff_stat = stat_output.as_ref().and_then(|s| {
+                            if s.is_empty() {
+                                None
+                            } else {
+                                s.lines().last().map(|l| l.to_string())
+                            }
+                        });
+                        let summary_line = stat_output.and_then(|s| {
+                            if s.is_empty() {
+                                None
+                            } else {
+                                s.lines().last().map(|l| l.to_string())
+                            }
+                        });
                         // One --numstat call for both files_changed and insertions/deletions
                         let numstat_output = git_cmd(ws, &["diff", "--numstat"]).ok();
                         let (files, ins, del) = numstat_output
                             .map(|s| {
-                                let (files, total_ins, total_del) = s.lines()
+                                let (files, total_ins, total_del) = s
+                                    .lines()
                                     .filter(|l| !l.is_empty())
                                     .fold((Vec::new(), 0u32, 0u32), |(mut f, a, b), l| {
                                         let parts: Vec<&str> = l.split('\t').collect();
                                         if parts.len() >= 3 {
                                             f.push(parts[2].to_string());
-                                            (f, a + parts[0].parse::<u32>().unwrap_or(0), b + parts[1].parse::<u32>().unwrap_or(0))
+                                            (
+                                                f,
+                                                a + parts[0].parse::<u32>().unwrap_or(0),
+                                                b + parts[1].parse::<u32>().unwrap_or(0),
+                                            )
                                         } else if parts.len() >= 2 {
-                                            (f, a + parts[0].parse::<u32>().unwrap_or(0), b + parts[1].parse::<u32>().unwrap_or(0))
+                                            (
+                                                f,
+                                                a + parts[0].parse::<u32>().unwrap_or(0),
+                                                b + parts[1].parse::<u32>().unwrap_or(0),
+                                            )
                                         } else {
                                             (f, a, b)
                                         }
@@ -568,7 +621,11 @@ impl App {
                                 (files, total_ins, total_del)
                             })
                             .unwrap_or_default();
-                        slot.info.git_info = GitInfo { branch, commit, diff_stat };
+                        slot.info.git_info = GitInfo {
+                            branch,
+                            commit,
+                            diff_stat,
+                        };
                         slot.info.diff_summary = DiffSummary {
                             files_changed: files,
                             insertions: ins,
@@ -586,7 +643,8 @@ impl App {
                     if let Some(ref session_id) = slot.info.session_id {
                         // Only auto-rate if no manual rating exists yet
                         let has_rating = crate::config::load_session_meta(session_id, None)
-                            .and_then(|m| m.rating).is_some();
+                            .and_then(|m| m.rating)
+                            .is_some();
                         if !has_rating {
                             let mut auto_rating: u8 = 3; // Base: 3 stars
                             // Will apply check_status and diff adjustments after check completes
@@ -600,7 +658,8 @@ impl App {
                     }
                     // Auto-generate session summary
                     if let Some(ref session_id) = slot.info.session_id
-                        && let Some(session) = self.sessions.sessions.iter().find(|s| &s.id == session_id)
+                        && let Some(session) =
+                            self.sessions.sessions.iter().find(|s| &s.id == session_id)
                         && let Some(summary) = crate::discovery::generate_session_summary(session)
                     {
                         let summary_dir = crate::config::data_dir().join("summaries");
@@ -611,10 +670,18 @@ impl App {
                         // Auto-popup summary preview
                         self.popup.preview_show_summary = true;
                         self.popup.preview_session_id = Some(session_id.clone());
-                        self.popup.preview_lines = summary.lines().map(|l| PreviewLine {
-                            role: if l.starts_with('#') { "heading" } else { "text" }.to_string(),
-                            text: l.to_string(),
-                        }).collect();
+                        self.popup.preview_lines = summary
+                            .lines()
+                            .map(|l| PreviewLine {
+                                role: if l.starts_with('#') {
+                                    "heading"
+                                } else {
+                                    "text"
+                                }
+                                .to_string(),
+                                text: l.to_string(),
+                            })
+                            .collect();
                         self.view.input_mode = InputMode::SummaryPreview;
                     }
                     // Merge session knowledge into workspace knowledge base
@@ -622,7 +689,9 @@ impl App {
                         let ws = &slot.info.workspace_path;
                         let summary_text = if let Some(ref session_id) = slot.info.session_id {
                             let short_id = &session_id[..session_id.len().min(16)];
-                            let summary_path = crate::config::data_dir().join("summaries").join(format!("{}.md", short_id));
+                            let summary_path = crate::config::data_dir()
+                                .join("summaries")
+                                .join(format!("{}.md", short_id));
                             std::fs::read_to_string(&summary_path).unwrap_or_default()
                         } else {
                             String::new()
@@ -639,11 +708,18 @@ impl App {
                         let title = slot.info.title.clone();
                         for plugin in &self.plugins {
                             if plugin.hooks.iter().any(|h| h == "on_complete") {
-                                let mut cmd = plugin.command
-                                    .replace("{workspace}", &slot.info.workspace_path.to_string_lossy())
+                                let mut cmd = plugin
+                                    .command
+                                    .replace(
+                                        "{workspace}",
+                                        &slot.info.workspace_path.to_string_lossy(),
+                                    )
                                     .replace("{session_id}", &session_id)
                                     .replace("{title}", &title);
-                                cmd.push_str(&format!(" --event on_complete --session_id {}", session_id));
+                                cmd.push_str(&format!(
+                                    " --event on_complete --session_id {}",
+                                    session_id
+                                ));
                                 let _ = std::process::Command::new("sh")
                                     .arg("-c")
                                     .arg(&cmd)
@@ -656,7 +732,10 @@ impl App {
                         && slot.info.completed
                     {
                         if pc.current_step + 1 < pc.total_steps {
-                            let prev_output = slot.info.session_id.as_ref()
+                            let prev_output = slot
+                                .info
+                                .session_id
+                                .as_ref()
                                 .and_then(|sid| pre_session_map.get(sid.as_str()))
                                 .and_then(|path| crate::discovery::extract_session_output(path));
                             let mut updated = pc.clone();
@@ -673,8 +752,12 @@ impl App {
                         let ws = slot.info.workspace_path.clone();
                         let idx = i;
                         // Global override first, then project config, then auto-detect
-                        let check_override = self.check_command.clone()
-                            .or_else(|| self.sessions.project_configs.get(&ws).and_then(|pc| pc.check_command.clone()));
+                        let check_override = self.check_command.clone().or_else(|| {
+                            self.sessions
+                                .project_configs
+                                .get(&ws)
+                                .and_then(|pc| pc.check_command.clone())
+                        });
                         std::thread::spawn(move || {
                             let result = if let Some(ref cmd_str) = check_override {
                                 // User-configured override command
@@ -705,8 +788,16 @@ impl App {
                                             .args(args)
                                             .current_dir(&ws)
                                             .output();
-                                        if !out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-                                            errs.push(format!("{} {} failed", prog, args.join(" ")));
+                                        if !out
+                                            .as_ref()
+                                            .map(|o| o.status.success())
+                                            .unwrap_or(false)
+                                        {
+                                            errs.push(format!(
+                                                "{} {} failed",
+                                                prog,
+                                                args.join(" ")
+                                            ));
                                         }
                                     }
                                     if errs.is_empty() {
@@ -717,8 +808,12 @@ impl App {
                                 }
                             };
                             // Store result via a marker file for the main thread to pick up
-                            let marker = crate::config::data_dir().join(format!(".check-result-{}", idx));
-                            let _ = std::fs::write(&marker, serde_json::to_string(&result).unwrap_or_default());
+                            let marker =
+                                crate::config::data_dir().join(format!(".check-result-{}", idx));
+                            let _ = std::fs::write(
+                                &marker,
+                                serde_json::to_string(&result).unwrap_or_default(),
+                            );
                         });
                     }
                 }
@@ -751,7 +846,6 @@ impl App {
                 let _ = std::fs::remove_file(&marker);
             }
         }
-
 
         let before = self.ptys.ptys.len();
         // Unregister dead PTYs from shared state before retaining only live ones.
@@ -795,23 +889,31 @@ impl App {
     }
 
     fn archive_old_sessions(&mut self) {
-        let Some(days) = self.sessions.archive_days else { return };
-        if days == 0 { return; }
+        let Some(days) = self.sessions.archive_days else {
+            return;
+        };
+        if days == 0 {
+            return;
+        }
 
         let now = now_secs();
         let threshold = now - (days * 86400);
 
         // Build set of active PTY session IDs — never archive those
-        let active_ids: std::collections::HashSet<String> = self.ptys.ptys.iter()
+        let active_ids: std::collections::HashSet<String> = self
+            .ptys
+            .ptys
+            .iter()
             .filter_map(|slot| slot.info.session_id.clone())
             .collect();
 
         // First, restore any previously archived sessions that are no longer
         // stale (e.g. if archive_days was increased) back into the main list.
-        let restored: Vec<Session> = self.sessions.archived_sessions.drain(..)
-            .filter(|s| {
-                s.last_active >= threshold || active_ids.contains(&s.id)
-            })
+        let restored: Vec<Session> = self
+            .sessions
+            .archived_sessions
+            .drain(..)
+            .filter(|s| s.last_active >= threshold || active_ids.contains(&s.id))
             .collect();
         self.sessions.sessions.extend(restored);
 
@@ -819,9 +921,7 @@ impl App {
         let (still_active, newly_archived): (Vec<Session>, Vec<Session>) =
             std::mem::take(&mut self.sessions.sessions)
                 .into_iter()
-                .partition(|s| {
-                    s.last_active >= threshold || active_ids.contains(&s.id)
-                });
+                .partition(|s| s.last_active >= threshold || active_ids.contains(&s.id));
 
         self.sessions.sessions = still_active;
         let count = newly_archived.len();
@@ -839,7 +939,6 @@ impl App {
             PtyState::Running
         }
     }
-
 
     fn toggle_agent_filter(&mut self, agent: Agent) {
         if self.view.agent_filter == Some(agent) {
@@ -871,10 +970,21 @@ impl App {
             }
         }
         // Remove entries for deleted workspaces
-        let cwd_set: Vec<_> = self.sessions.workspaces.iter().enumerate().map(|(wi, _)| self.workspace_cwd(wi)).collect();
-        self.sessions.project_configs.retain(|k, _| cwd_set.contains(k));
-        self.sessions.project_config_mtimes.retain(|k, _| cwd_set.contains(k));
-        self.sessions.sessions = discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
+        let cwd_set: Vec<_> = self
+            .sessions
+            .workspaces
+            .iter()
+            .enumerate()
+            .map(|(wi, _)| self.workspace_cwd(wi))
+            .collect();
+        self.sessions
+            .project_configs
+            .retain(|k, _| cwd_set.contains(k));
+        self.sessions
+            .project_config_mtimes
+            .retain(|k, _| cwd_set.contains(k));
+        self.sessions.sessions =
+            discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
         // Filter sessions matching ignore_sessions patterns from project configs
         let mut to_remove = Vec::new();
         for (i, session) in self.sessions.sessions.iter().enumerate() {
@@ -917,7 +1027,8 @@ impl App {
         if self.last_stats_check.elapsed() > std::time::Duration::from_secs(30) {
             for slot in &mut self.ptys.ptys {
                 if slot.handle.is_alive()
-                    && let Some(pid) = slot.handle.child_pid() {
+                    && let Some(pid) = slot.handle.child_pid()
+                {
                     match crate::procfs::read_process_stats(pid) {
                         Ok(mut stats) => {
                             if let Some(prev) = &slot.process_stats {
@@ -937,7 +1048,6 @@ impl App {
         }
     }
 
-
     /// Rebuild the BM25 search index from session titles and summaries.
     fn rebuild_search_index(&mut self) {
         self.search_index = crate::search_engine::SearchIndex::new();
@@ -949,10 +1059,12 @@ impl App {
 
     fn detect_file_conflicts(&mut self) {
         // Group running PTYs by workspace
-        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> = std::collections::HashMap::new();
+        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> =
+            std::collections::HashMap::new();
         for (i, slot) in self.ptys.ptys.iter().enumerate() {
             if !slot.info.completed {
-                ws_ptys.entry(slot.info.workspace_path.clone())
+                ws_ptys
+                    .entry(slot.info.workspace_path.clone())
                     .or_default()
                     .push(i);
             }
@@ -968,7 +1080,12 @@ impl App {
             for &idx in &indices {
                 let ws = &self.ptys.ptys[idx].info.workspace_path;
                 let files: Vec<String> = git_cmd(ws, &["diff", "--name-only"])
-                    .map(|s| s.lines().filter(|l| !l.is_empty()).map(|l| l.to_string()).collect())
+                    .map(|s| {
+                        s.lines()
+                            .filter(|l| !l.is_empty())
+                            .map(|l| l.to_string())
+                            .collect()
+                    })
                     .unwrap_or_default();
                 pty_files.push((idx, files));
             }
@@ -978,12 +1095,20 @@ impl App {
                 for b in (a + 1)..pty_files.len() {
                     let (_, files_a) = &pty_files[a];
                     let (_, files_b) = &pty_files[b];
-                    let overlap: Vec<&String> = files_a.iter().filter(|f| files_b.contains(f)).collect();
+                    let overlap: Vec<&String> =
+                        files_a.iter().filter(|f| files_b.contains(f)).collect();
                     if !overlap.is_empty() {
                         let title_a = &self.ptys.ptys[pty_files[a].0].info.title;
                         let title_b = &self.ptys.ptys[pty_files[b].0].info.title;
-                        let file_list = overlap.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(", ");
-                        new_warnings.push(format!("{} & {} both modifying: {}", title_a, title_b, file_list));
+                        let file_list = overlap
+                            .iter()
+                            .map(|f| f.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        new_warnings.push(format!(
+                            "{} & {} both modifying: {}",
+                            title_a, title_b, file_list
+                        ));
                     }
                 }
             }
@@ -1000,7 +1125,9 @@ impl App {
 
     /// Check cumulative token usage against configured budget limits.
     fn check_token_budget(&mut self) {
-        let Some(ref budget) = self.token_budget else { return };
+        let Some(ref budget) = self.token_budget else {
+            return;
+        };
 
         let now = crate::util::now_secs();
         let sessions = self.sessions.sessions.clone();
@@ -1033,10 +1160,12 @@ impl App {
         }
 
         // Identify PTYs involved in conflicts
-        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> = std::collections::HashMap::new();
+        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> =
+            std::collections::HashMap::new();
         for (i, slot) in self.ptys.ptys.iter().enumerate() {
             if !slot.info.completed && slot.info.worktree_branch.is_none() {
-                ws_ptys.entry(slot.info.workspace_path.clone())
+                ws_ptys
+                    .entry(slot.info.workspace_path.clone())
                     .or_default()
                     .push(i);
             }
@@ -1067,11 +1196,7 @@ impl App {
                 if has_branch {
                     continue;
                 }
-                let branch = crate::worktree::branch_name(
-                    &slot_title,
-                    idx,
-                    self.ptys.pty_counter,
-                );
+                let branch = crate::worktree::branch_name(&slot_title, idx, self.ptys.pty_counter);
                 let title = slot_title;
                 match crate::worktree::create_worktree(&ws, &branch) {
                     Ok(worktree_path) => {
@@ -1124,7 +1249,10 @@ impl App {
                             Err(e) => {
                                 // Clean up the worktree if PTY spawn fails
                                 let _ = crate::worktree::remove_worktree(&ws, &branch);
-                                errors.push(format!("{}: failed to restart in worktree: {}", title, e));
+                                errors.push(format!(
+                                    "{}: failed to restart in worktree: {}",
+                                    title, e
+                                ));
                             }
                         }
                     }
@@ -1162,27 +1290,29 @@ impl App {
         let mut tree = Vec::new();
         let mut ws_map = Vec::new();
         let parsed = self
-            .view.search_query
+            .view
+            .search_query
             .as_deref()
             .map(crate::util::parse_search_query);
         let query = parsed.as_ref().and_then(|p| p.text.as_deref());
         let date_cutoff = parsed.as_ref().and_then(|p| p.min_last_active);
 
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
-            let sess_idxs: Vec<usize> = self
-                .sessions.sessions
-                .iter()
-                .enumerate()
-                .filter(|(_, s)| {
-                    self.ws_matches_path(wi, &s.workspace_path)
-                        && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
-                        && self.view.tag_filter.as_ref().is_none_or(|tag| {
-                            s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
-                        })
-                        && date_cutoff.is_none_or(|cutoff| s.last_active >= cutoff)
-                })
-                .map(|(i, _)| i)
-                .collect();
+            let sess_idxs: Vec<usize> =
+                self.sessions
+                    .sessions
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, s)| {
+                        self.ws_matches_path(wi, &s.workspace_path)
+                            && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
+                            && self.view.tag_filter.as_ref().is_none_or(|tag| {
+                                s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
+                            })
+                            && date_cutoff.is_none_or(|cutoff| s.last_active >= cutoff)
+                    })
+                    .map(|(i, _)| i)
+                    .collect();
 
             if let Some(q) = query {
                 // Fuzzy-filter sessions for this workspace
@@ -1199,7 +1329,8 @@ impl App {
 
                 // Fuzzy-filter active PTYs for this workspace
                 let matching_ptys: Vec<usize> = self
-                    .ptys.ptys
+                    .ptys
+                    .ptys
                     .iter()
                     .enumerate()
                     .filter(|(_pi, slot)| {
@@ -1220,7 +1351,10 @@ impl App {
                     {
                         tree.push(TreeNode::WorkspaceWarning(
                             wi,
-                            format!("Path not found: {}. Update config.json or create the directory.", ws_path.display()),
+                            format!(
+                                "Path not found: {}. Update config.json or create the directory.",
+                                ws_path.display()
+                            ),
                         ));
                     }
                     for &pi in &matching_ptys {
@@ -1249,7 +1383,10 @@ impl App {
                 {
                     tree.push(TreeNode::WorkspaceWarning(
                         wi,
-                        format!("Path not found: {}. Update config.json or create the directory.", ws_path.display()),
+                        format!(
+                            "Path not found: {}. Update config.json or create the directory.",
+                            ws_path.display()
+                        ),
                     ));
                 }
                 if self.sessions.workspaces[wi].expanded {
@@ -1262,7 +1399,12 @@ impl App {
                         }
                     }
                     if self.view.sort_mode == SortMode::AgentGroup {
-                        Self::append_agent_grouped(&self.sessions.sessions, &sorted_idxs, wi, &mut tree);
+                        Self::append_agent_grouped(
+                            &self.sessions.sessions,
+                            &sorted_idxs,
+                            wi,
+                            &mut tree,
+                        );
                     } else {
                         for &si in &sorted_idxs {
                             tree.push(TreeNode::Session(wi, si));
@@ -1276,17 +1418,25 @@ impl App {
         // Append archived section when toggled visible
         if self.sessions.show_archived && !self.sessions.archived_sessions.is_empty() {
             tree.push(TreeNode::ArchivedHeader);
-            let mut archived_idxs: Vec<usize> = (0..self.sessions.archived_sessions.len()).collect();
+            let mut archived_idxs: Vec<usize> =
+                (0..self.sessions.archived_sessions.len()).collect();
             archived_idxs.sort_by(|&a, &b| {
-                self.sessions.archived_sessions[b].last_active.cmp(&self.sessions.archived_sessions[a].last_active)
+                self.sessions.archived_sessions[b]
+                    .last_active
+                    .cmp(&self.sessions.archived_sessions[a].last_active)
             });
             for ai in archived_idxs {
                 // Find workspace index for the archived session
                 let ws_path = &self.sessions.archived_sessions[ai].workspace_path;
-                let wi = self.sessions.workspaces.iter().position(|w| {
-                    w.path.as_deref() == Some(ws_path)
-                        || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
-                }).unwrap_or(0);
+                let wi = self
+                    .sessions
+                    .workspaces
+                    .iter()
+                    .position(|w| {
+                        w.path.as_deref() == Some(ws_path)
+                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                    })
+                    .unwrap_or(0);
                 tree.push(TreeNode::ArchivedSession(wi, ai));
             }
         }
@@ -1301,7 +1451,8 @@ impl App {
     }
 
     fn pty_index_for_session(&self, session_id: &str) -> Option<usize> {
-        self.ptys.ptys
+        self.ptys
+            .ptys
             .iter()
             .position(|s| s.info.session_id.as_deref() == Some(session_id))
     }
@@ -1351,7 +1502,10 @@ impl App {
     }
 
     fn selected_node(&self) -> Option<&TreeNode> {
-        self.sessions.tree_state.selected().and_then(|i| self.sessions.tree.get(i))
+        self.sessions
+            .tree_state
+            .selected()
+            .and_then(|i| self.sessions.tree.get(i))
     }
 
     fn move_sel(&mut self, delta: isize) {
@@ -1359,8 +1513,14 @@ impl App {
         if len == 0 {
             return;
         }
-        let cur = self.sessions.tree_state.selected().unwrap_or(0).min(len - 1) as isize;
-        self.sessions.tree_state
+        let cur = self
+            .sessions
+            .tree_state
+            .selected()
+            .unwrap_or(0)
+            .min(len - 1) as isize;
+        self.sessions
+            .tree_state
             .select(Some(((cur + delta).rem_euclid(len as isize)) as usize));
     }
 
@@ -1369,7 +1529,9 @@ impl App {
         // Find the tree index for the session.
         let tree_idx = self.sessions.tree.iter().position(|node| {
             if let TreeNode::Session(_wi, si) = node {
-                self.sessions.sessions.get(*si)
+                self.sessions
+                    .sessions
+                    .get(*si)
                     .is_some_and(|s| s.id == session_id)
             } else {
                 false
@@ -1377,9 +1539,15 @@ impl App {
         });
         if let Some(idx) = tree_idx {
             self.sessions.tree_state.select(Some(idx));
-            self.view.status = format!("Selected session {}.", &session_id[..8.min(session_id.len())]);
+            self.view.status = format!(
+                "Selected session {}.",
+                &session_id[..8.min(session_id.len())]
+            );
         } else {
-            self.view.status = format!("Session {} not found in sidebar.", &session_id[..8.min(session_id.len())]);
+            self.view.status = format!(
+                "Session {} not found in sidebar.",
+                &session_id[..8.min(session_id.len())]
+            );
         }
     }
 
@@ -1396,7 +1564,12 @@ impl App {
         match &node {
             Some(TreeNode::Workspace(wi)) => {
                 let name = self.sessions.workspaces[*wi].name.clone();
-                let session_count = self.sessions.ws_session_map.get(*wi).map(|v| v.len()).unwrap_or(0);
+                let session_count = self
+                    .sessions
+                    .ws_session_map
+                    .get(*wi)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
                 self.view.status = format!(
                     "Delete workspace \"{}\" ({} sessions)? y/n",
                     name, session_count
@@ -1425,7 +1598,12 @@ impl App {
             }
             Some(TreeNode::ActiveTab(pi)) => {
                 // Closing a tab doesn't destroy data, no confirmation needed
-                let title = self.ptys.ptys.get(*pi).map(|s| s.info.title.clone()).unwrap_or_default();
+                let title = self
+                    .ptys
+                    .ptys
+                    .get(*pi)
+                    .map(|s| s.info.title.clone())
+                    .unwrap_or_default();
                 if let Some(slot) = self.ptys.ptys.get(*pi) {
                     self.unregister_pty(&slot.id);
                 }
@@ -1570,7 +1748,10 @@ impl App {
                     self.popup.preview_show_summary = false;
                     self.popup.preview_session_id = Some(session.id.clone());
                     self.view.input_mode = InputMode::SessionPreview;
-                    self.view.status = format!("Preview: {} (s=summary  k=knowledge  any key=close)", session.title);
+                    self.view.status = format!(
+                        "Preview: {} (s=summary  k=knowledge  any key=close)",
+                        session.title
+                    );
                 } else {
                     self.view.status = "No preview available.".into();
                 }
@@ -1584,12 +1765,22 @@ impl App {
     fn load_preview_summary(&mut self) {
         if let Some(ref sid) = self.popup.preview_session_id {
             let short_id = &sid[..sid.len().min(16)];
-            let path = crate::config::data_dir().join("summaries").join(format!("{}.md", short_id));
+            let path = crate::config::data_dir()
+                .join("summaries")
+                .join(format!("{}.md", short_id));
             if let Ok(content) = std::fs::read_to_string(&path) {
-                self.popup.preview_lines = content.lines().map(|l| PreviewLine {
-                    role: if l.starts_with('#') { "heading" } else { "text" }.to_string(),
-                    text: l.to_string(),
-                }).collect();
+                self.popup.preview_lines = content
+                    .lines()
+                    .map(|l| PreviewLine {
+                        role: if l.starts_with('#') {
+                            "heading"
+                        } else {
+                            "text"
+                        }
+                        .to_string(),
+                        text: l.to_string(),
+                    })
+                    .collect();
                 self.view.status = "Summary view (s=content  k=knowledge  any key=close)".into();
             } else {
                 self.popup.preview_lines = vec![PreviewLine {
@@ -1605,60 +1796,118 @@ impl App {
     fn reload_preview_content(&mut self) {
         if let Some(ref sid) = self.popup.preview_session_id
             && let Some(session) = self.sessions.sessions.iter().find(|s| s.id == *sid)
-                && let Some(jsonl_path) = find_session_jsonl(session)
-                    && let Some(lines) = preview_session_content(&jsonl_path, 5) {
-                        self.popup.preview_lines = lines;
-                        self.view.status = format!("Preview: {} (s=summary  k=knowledge  any key=close)", session.title);
-                        return;
-                    }
+            && let Some(jsonl_path) = find_session_jsonl(session)
+            && let Some(lines) = preview_session_content(&jsonl_path, 5)
+        {
+            self.popup.preview_lines = lines;
+            self.view.status = format!(
+                "Preview: {} (s=summary  k=knowledge  any key=close)",
+                session.title
+            );
+            return;
+        }
         self.view.status = "Could not reload content.".into();
     }
 
     /// Load workspace knowledge into preview_lines for the knowledge view.
     fn load_knowledge_preview(&mut self) {
-        let ws_path = self.popup.preview_session_id.as_ref()
+        let ws_path = self
+            .popup
+            .preview_session_id
+            .as_ref()
             .and_then(|sid| self.sessions.sessions.iter().find(|s| s.id == *sid))
             .map(|s| s.workspace_path.clone());
         let Some(ws_path) = ws_path else {
-            self.popup.preview_lines = vec![PreviewLine { role: "text".into(), text: "No session selected.".into() }];
+            self.popup.preview_lines = vec![PreviewLine {
+                role: "text".into(),
+                text: "No session selected.".into(),
+            }];
             self.view.status = "Knowledge: no workspace context.".into();
             return;
         };
         let knowledge = crate::knowledge::load_knowledge(&ws_path);
         let mut lines: Vec<PreviewLine> = Vec::new();
-        lines.push(PreviewLine { role: "heading".into(), text: "## Knowledge Base".into() });
-        lines.push(PreviewLine { role: "text".into(), text: String::new() });
+        lines.push(PreviewLine {
+            role: "heading".into(),
+            text: "## Knowledge Base".into(),
+        });
+        lines.push(PreviewLine {
+            role: "text".into(),
+            text: String::new(),
+        });
         if !knowledge.architecture.is_empty() {
-            lines.push(PreviewLine { role: "heading".into(), text: "### Architecture".into() });
+            lines.push(PreviewLine {
+                role: "heading".into(),
+                text: "### Architecture".into(),
+            });
             for l in knowledge.architecture.lines() {
-                lines.push(PreviewLine { role: "text".into(), text: format!("  {}", l) });
+                lines.push(PreviewLine {
+                    role: "text".into(),
+                    text: format!("  {}", l),
+                });
             }
-            lines.push(PreviewLine { role: "text".into(), text: String::new() });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: String::new(),
+            });
         }
         if !knowledge.key_files.is_empty() {
-            lines.push(PreviewLine { role: "heading".into(), text: "### Key Files".into() });
+            lines.push(PreviewLine {
+                role: "heading".into(),
+                text: "### Key Files".into(),
+            });
             for f in &knowledge.key_files {
-                lines.push(PreviewLine { role: "text".into(), text: format!("  • {}", f) });
+                lines.push(PreviewLine {
+                    role: "text".into(),
+                    text: format!("  • {}", f),
+                });
             }
-            lines.push(PreviewLine { role: "text".into(), text: String::new() });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: String::new(),
+            });
         }
         if !knowledge.tech_stack.is_empty() {
-            lines.push(PreviewLine { role: "heading".into(), text: "### Tech Stack".into() });
-            lines.push(PreviewLine { role: "text".into(), text: format!("  {}", knowledge.tech_stack.join(", ")) });
-            lines.push(PreviewLine { role: "text".into(), text: String::new() });
+            lines.push(PreviewLine {
+                role: "heading".into(),
+                text: "### Tech Stack".into(),
+            });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: format!("  {}", knowledge.tech_stack.join(", ")),
+            });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: String::new(),
+            });
         }
         if !knowledge.known_issues.is_empty() {
-            lines.push(PreviewLine { role: "heading".into(), text: "### Known Issues".into() });
+            lines.push(PreviewLine {
+                role: "heading".into(),
+                text: "### Known Issues".into(),
+            });
             for issue in &knowledge.known_issues {
-                lines.push(PreviewLine { role: "text".into(), text: format!("  • {}", issue) });
+                lines.push(PreviewLine {
+                    role: "text".into(),
+                    text: format!("  • {}", issue),
+                });
             }
-            lines.push(PreviewLine { role: "text".into(), text: String::new() });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: String::new(),
+            });
         }
         if let Some(ref ts) = knowledge.last_updated {
-            lines.push(PreviewLine { role: "text".into(), text: format!("  Last updated: {}", ts) });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: format!("  Last updated: {}", ts),
+            });
         }
         if lines.len() <= 2 {
-            lines.push(PreviewLine { role: "text".into(), text: "  (empty — no knowledge accumulated yet)".into() });
+            lines.push(PreviewLine {
+                role: "text".into(),
+                text: "  (empty — no knowledge accumulated yet)".into(),
+            });
         }
         self.popup.preview_lines = lines;
         self.view.status = "Knowledge (k=back, c=clear, any key=close)".into();
@@ -1666,7 +1915,10 @@ impl App {
 
     /// Clear the knowledge base for the current workspace.
     fn clear_workspace_knowledge(&mut self) {
-        let ws_path = self.popup.preview_session_id.as_ref()
+        let ws_path = self
+            .popup
+            .preview_session_id
+            .as_ref()
             .and_then(|sid| self.sessions.sessions.iter().find(|s| s.id == *sid))
             .map(|s| s.workspace_path.clone());
         if let Some(ref ws_path) = ws_path {
@@ -1731,7 +1983,11 @@ impl App {
             }
             Some(TreeNode::Workspace(wi)) if wi < self.sessions.workspaces.len() => {
                 let ws = &self.sessions.workspaces[wi];
-                let path = ws.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "virtual".into());
+                let path = ws
+                    .path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "virtual".into());
                 let text = format!("{} ({})", ws.name, path);
                 match clipboard_copy(&text) {
                     Ok(()) => self.view.status = format!("Copied: {}", text),
@@ -1768,9 +2024,7 @@ impl App {
     fn start_branch(&mut self) -> Result<()> {
         let node = self.selected_node();
         let session = match node {
-            Some(TreeNode::Session(_wi, si)) => {
-                self.sessions.sessions.get(*si).cloned()
-            }
+            Some(TreeNode::Session(_wi, si)) => self.sessions.sessions.get(*si).cloned(),
             _ => None,
         };
         let Some(session) = session else {
@@ -1805,7 +2059,9 @@ impl App {
         let node = self.selected_node();
         let session = match node {
             Some(TreeNode::Session(_wi, si)) => self.sessions.sessions.get(*si).cloned(),
-            Some(TreeNode::ArchivedSession(_wi, ai)) => self.sessions.archived_sessions.get(*ai).cloned(),
+            Some(TreeNode::ArchivedSession(_wi, ai)) => {
+                self.sessions.archived_sessions.get(*ai).cloned()
+            }
             _ => None,
         };
         let Some(session) = session else {
@@ -1881,10 +2137,12 @@ impl App {
             let left_jsonl = find_session_jsonl(&left_session);
             let right_jsonl = find_session_jsonl(&right_session);
 
-            let left_output = left_jsonl.as_ref()
+            let left_output = left_jsonl
+                .as_ref()
                 .and_then(|p| extract_session_output(p))
                 .unwrap_or_default();
-            let right_output = right_jsonl.as_ref()
+            let right_output = right_jsonl
+                .as_ref()
                 .and_then(|p| extract_session_output(p))
                 .unwrap_or_default();
 
@@ -1896,7 +2154,10 @@ impl App {
             // First session selected
             self.popup.diff_left_session = Some(session_idx);
             let session = &self.sessions.sessions[session_idx];
-            self.view.status = format!("Diff: selected '{}' — select second session, press X again", &session.title[..session.title.len().min(30)]);
+            self.view.status = format!(
+                "Diff: selected '{}' — select second session, press X again",
+                &session.title[..session.title.len().min(30)]
+            );
         }
         Ok(())
     }
@@ -1925,9 +2186,12 @@ impl App {
         }
     }
 
-
     /// Execute a deferred chain step (called after the PTY iter_mut loop).
-    fn execute_chain_step(&mut self, chain_step: Option<crate::chain::ActiveChain>, chain_completed: bool) {
+    fn execute_chain_step(
+        &mut self,
+        chain_step: Option<crate::chain::ActiveChain>,
+        chain_completed: bool,
+    ) {
         if chain_completed {
             if let Some(ref chain) = self.chains.active_chain {
                 self.view.status = format!(
@@ -1942,7 +2206,10 @@ impl App {
         let Some(updated) = chain_step else { return };
 
         // Look up the next chain step configuration
-        let next_step = self.chains.chains.iter()
+        let next_step = self
+            .chains
+            .chains
+            .iter()
             .find(|c| c.name == updated.chain_name)
             .and_then(|c| c.steps.get(updated.current_step))
             .cloned();
@@ -1953,7 +2220,10 @@ impl App {
         };
 
         let workspace_path = updated.workspace_path.clone();
-        let prompt = step.prompt.replace("{prev_output}", updated.prev_output.as_deref().unwrap_or(""));
+        let prompt = step.prompt.replace(
+            "{prev_output}",
+            updated.prev_output.as_deref().unwrap_or(""),
+        );
         let agent = step.agent;
         let chain_name = updated.chain_name.clone();
         let step_num = updated.current_step + 1;
@@ -1963,12 +2233,18 @@ impl App {
         self.chains.active_chain = Some(updated);
 
         // Find workspace index for spawn
-        let wi = self.sessions.workspaces.iter().position(|ws| {
-            ws.path.as_deref() == Some(workspace_path.as_path())
-        });
+        let wi = self
+            .sessions
+            .workspaces
+            .iter()
+            .position(|ws| ws.path.as_deref() == Some(workspace_path.as_path()));
 
         if let Some(wi) = wi {
-            let tree_idx = self.sessions.tree.iter().position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
+            let tree_idx = self
+                .sessions
+                .tree
+                .iter()
+                .position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
             if let Some(ti) = tree_idx {
                 self.sessions.tree_state.select(Some(ti));
             }
@@ -1976,7 +2252,12 @@ impl App {
             let name = Some(format!("{}-step{}", chain_name, step_num));
             let env = self.project_env(&workspace_path);
             let pty_result = crate::pty::PtyHandle::spawn(
-                agent, &workspace_path, None, name.as_deref(), chat_size, &env,
+                agent,
+                &workspace_path,
+                None,
+                name.as_deref(),
+                chat_size,
+                &env,
             );
             if let Ok(pty) = pty_result {
                 let pty_id = self.next_pty_id();
@@ -2024,7 +2305,10 @@ impl App {
 
                 self.view.status = format!(
                     "Chain '{}': Step {}/{} — {}",
-                    chain_name, step_num, total, agent.label()
+                    chain_name,
+                    step_num,
+                    total,
+                    agent.label()
                 );
             } else {
                 self.view.status = format!("Chain step {} failed to spawn", step_num);
@@ -2036,8 +2320,12 @@ impl App {
     /// Scan the active PTY screen for file paths and update detected_paths.
     /// Only re-scans when the screen content hash has changed since last scan.
     fn detect_paths_from_screen(&mut self) {
-        let Some(idx) = self.ptys.active_pty else { return };
-        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+        let Some(idx) = self.ptys.active_pty else {
+            return;
+        };
+        let Some(slot) = self.ptys.ptys.get(idx) else {
+            return;
+        };
         // Reuse last_screen_hash from poll_states to skip unchanged screens
         let parser = slot.handle.screen();
         let guard = parser.read();
@@ -2056,13 +2344,14 @@ impl App {
         self.ptys.detected_paths = crate::util::extract_file_paths_with_lines(&text, 20);
         // Clamp selected_path_idx
         if let Some(si) = self.ptys.selected_path_idx
-            && si >= self.ptys.detected_paths.len() {
-                self.ptys.selected_path_idx = if self.ptys.detected_paths.is_empty() {
-                    None
-                } else {
-                    Some(self.ptys.detected_paths.len() - 1)
-                };
-            }
+            && si >= self.ptys.detected_paths.len()
+        {
+            self.ptys.selected_path_idx = if self.ptys.detected_paths.is_empty() {
+                None
+            } else {
+                Some(self.ptys.detected_paths.len() - 1)
+            };
+        }
     }
 
     /// Cycle through detected file paths in the PTY screen.
@@ -2087,7 +2376,11 @@ impl App {
     /// Open the currently selected file path in the user's editor.
     /// Suspends the TUI, runs the editor, then resumes.
     fn open_file_in_editor(&mut self) {
-        let (path, line) = match self.ptys.selected_path_idx.and_then(|i| self.ptys.detected_paths.get(i)) {
+        let (path, line) = match self
+            .ptys
+            .selected_path_idx
+            .and_then(|i| self.ptys.detected_paths.get(i))
+        {
             Some(p) => p.clone(),
             None => {
                 self.view.status = "No file selected. Press o to select a path.".into();
@@ -2096,7 +2389,9 @@ impl App {
         };
 
         // Resolve relative path against active PTY workspace
-        let workspace = self.ptys.active_pty
+        let workspace = self
+            .ptys
+            .active_pty
             .and_then(|idx| self.ptys.ptys.get(idx))
             .map(|slot| slot.info.workspace_path.clone());
 
@@ -2163,7 +2458,6 @@ impl App {
         }
     }
 
-
     fn cycle_theme(&mut self) {
         self.view.theme_name = self.view.theme_name.cycle();
         self.view.theme = self.view.theme_name.theme();
@@ -2175,7 +2469,9 @@ impl App {
         match &self.sessions.workspaces[wi].path {
             Some(p) => p.clone(),
             None => {
-                let dir = data_dir().join("workspaces").join(&self.sessions.workspaces[wi].id);
+                let dir = data_dir()
+                    .join("workspaces")
+                    .join(&self.sessions.workspaces[wi].id);
                 let _ = fs::create_dir_all(&dir);
                 dir
             }
@@ -2202,7 +2498,8 @@ impl App {
 
     /// Get project env vars for a workspace path from the loaded project config.
     fn project_env(&self, path: &Path) -> Vec<(String, String)> {
-        self.sessions.project_configs
+        self.sessions
+            .project_configs
             .get(path)
             .map(|pc| pc.env.clone())
             .unwrap_or_default()
@@ -2210,7 +2507,12 @@ impl App {
 
     /// Get the default agent for a workspace path, if configured in .amux.json.
     fn default_agent_for_workspace(&self, path: &Path) -> Option<Agent> {
-        let agent_name = self.sessions.project_configs.get(path)?.default_agent.as_ref()?;
+        let agent_name = self
+            .sessions
+            .project_configs
+            .get(path)?
+            .default_agent
+            .as_ref()?;
         Agent::from_label(agent_name)
     }
 
@@ -2279,7 +2581,11 @@ pub(crate) fn git_cmd(dir: &Path, args: &[&str]) -> Result<String, String> {
         } else if !stderr.is_empty() {
             Err(stderr)
         } else {
-            Err(format!("git {} failed (exit {})", args.join(" "), output.status))
+            Err(format!(
+                "git {} failed (exit {})",
+                args.join(" "),
+                output.status
+            ))
         }
     }
 }
@@ -2296,8 +2602,9 @@ pub fn run() -> anyhow::Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
     let _guard = rt.enter();
     // Shared PTY state between TUI and HTTP server
-    let shared_ptys: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>> =
-        std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    let shared_ptys: std::sync::Arc<
+        tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>,
+    > = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     // Determine server port and token from config
     let config = crate::config::load_config().unwrap_or_else(|_| Config {
         workspaces: Vec::new(),
@@ -2319,7 +2626,9 @@ pub fn run() -> anyhow::Result<()> {
     let mut app = App::new(shared_ptys.clone(), serve_port);
     // Spawn the HTTP server in the background
     let server_handle = rt.spawn(async move {
-        if let Err(e) = crate::server::run_server_with_state(serve_port, serve_token, shared_ptys).await {
+        if let Err(e) =
+            crate::server::run_server_with_state(serve_port, serve_token, shared_ptys).await
+        {
             eprintln!("amux server error: {}", e);
         }
     });
@@ -2390,18 +2699,20 @@ pub fn run() -> anyhow::Result<()> {
                 Event::Paste(text) => {
                     app.handle_paste(&text)?;
                 }
-                Event::Mouse(mouse) => {
-                    match mouse.kind {
-                        crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
-                            app.handle_mouse_click(mouse.column, mouse.row);
-                        }
-                        crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Right)
-                        | crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Middle) => {
-                            app.handle_tab_close_click(mouse.column, mouse.row);
-                        }
-                        _ => {}
+                Event::Mouse(mouse) => match mouse.kind {
+                    crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                        app.handle_mouse_click(mouse.column, mouse.row);
                     }
-                }
+                    crossterm::event::MouseEventKind::Down(
+                        crossterm::event::MouseButton::Right,
+                    )
+                    | crossterm::event::MouseEventKind::Down(
+                        crossterm::event::MouseButton::Middle,
+                    ) => {
+                        app.handle_tab_close_click(mouse.column, mouse.row);
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
             // Any input event should trigger a re-render
@@ -2411,7 +2722,6 @@ pub fn run() -> anyhow::Result<()> {
 
     // Clean up any worktrees created during the session
     app.cleanup_worktrees();
-
 
     for slot in &app.ptys.ptys {
         app.unregister_pty(&slot.id);
@@ -2555,14 +2865,15 @@ mod tests {
     #[test]
     fn filter_empty_query_shows_all() {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
-        let sessions = vec![
-            sess("s1", "first", "/tmp"),
-            sess("s2", "second", "/tmp"),
-        ];
+        let sessions = vec![sess("s1", "first", "/tmp"), sess("s2", "second", "/tmp")];
         let app = test_app(workspaces, sessions);
 
         // No search_query → all sessions visible (workspace expanded)
-        assert_eq!(app.sessions.tree.len(), 3, "expected workspace + 2 sessions");
+        assert_eq!(
+            app.sessions.tree.len(),
+            3,
+            "expected workspace + 2 sessions"
+        );
     }
 
     #[test]
@@ -2574,7 +2885,10 @@ mod tests {
         app.view.search_query = Some("zzzzz".into());
         app.rebuild_tree();
 
-        assert!(app.sessions.tree.is_empty(), "no matches should yield empty tree");
+        assert!(
+            app.sessions.tree.is_empty(),
+            "no matches should yield empty tree"
+        );
     }
 
     #[test]
@@ -2624,7 +2938,11 @@ mod tests {
         // Clear filter
         app.view.search_query = None;
         app.rebuild_tree();
-        assert_eq!(app.sessions.tree.len(), 3, "workspace + all sessions restored");
+        assert_eq!(
+            app.sessions.tree.len(),
+            3,
+            "workspace + all sessions restored"
+        );
     }
 
     #[test]
@@ -2636,10 +2954,7 @@ mod tests {
         let _ = std::fs::create_dir_all(&path_b);
         let pa = path_a.to_str().unwrap();
         let pb = path_b.to_str().unwrap();
-        let workspaces = vec![
-            ws("w1", "Alpha", pa),
-            ws("w2", "Beta", pb),
-        ];
+        let workspaces = vec![ws("w1", "Alpha", pa), ws("w2", "Beta", pb)];
         let sessions = vec![
             sess("s1", "fix alpha bug", pa),
             sess("s2", "fix beta bug", pb),
@@ -2658,7 +2973,11 @@ mod tests {
         // w2 name is "Beta" — matches "beta"
         // s2 title is "fix beta bug" — matches "beta"
         // So: TreeNode::Workspace(1), TreeNode::Session(1, 1)
-        assert_eq!(app.sessions.tree.len(), 2, "workspace Beta + 1 matching session");
+        assert_eq!(
+            app.sessions.tree.len(),
+            2,
+            "workspace Beta + 1 matching session"
+        );
         assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(1)));
         assert!(matches!(app.sessions.tree[1], TreeNode::Session(1, 1)));
     }
@@ -2695,7 +3014,11 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
 
         // Unfiltered: workspace + 2 sessions
-        assert_eq!(app.sessions.tree.len(), 3, "workspace + 2 sessions unfiltered");
+        assert_eq!(
+            app.sessions.tree.len(),
+            3,
+            "workspace + 2 sessions unfiltered"
+        );
 
         // Filter to GSD (none exist)
         app.view.agent_filter = Some(Agent::Gsd);
@@ -2753,7 +3076,11 @@ mod tests {
         // Toggle same agent again should clear
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, None);
-        assert_eq!(app.sessions.tree.len(), 3, "workspace + all 2 sessions restored");
+        assert_eq!(
+            app.sessions.tree.len(),
+            3,
+            "workspace + all 2 sessions restored"
+        );
     }
 
     // ─── sort mode tests ───
@@ -2880,11 +3207,20 @@ mod tests {
         // Expected tree: Workspace(0), AgentHeader(Claude), Session(Claude),
         //                AgentHeader(Codex), Session(Codex), AgentHeader(Gsd), Session(Gsd)
         assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::AgentHeader(Agent::Claude)));
+        assert!(matches!(
+            app.sessions.tree[1],
+            TreeNode::AgentHeader(Agent::Claude)
+        ));
         assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 1))); // s2 = Claude
-        assert!(matches!(app.sessions.tree[3], TreeNode::AgentHeader(Agent::Codex)));
+        assert!(matches!(
+            app.sessions.tree[3],
+            TreeNode::AgentHeader(Agent::Codex)
+        ));
         assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // s3 = Codex
-        assert!(matches!(app.sessions.tree[5], TreeNode::AgentHeader(Agent::Gsd)));
+        assert!(matches!(
+            app.sessions.tree[5],
+            TreeNode::AgentHeader(Agent::Gsd)
+        ));
         assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 0))); // s1 = Gsd
     }
 
@@ -2900,9 +3236,16 @@ mod tests {
         app.rebuild_tree();
 
         // Only Claude sessions — no Codex or Gsd headers
-        assert_eq!(app.sessions.tree.len(), 4, "workspace + header + 2 sessions");
+        assert_eq!(
+            app.sessions.tree.len(),
+            4,
+            "workspace + header + 2 sessions"
+        );
         assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::AgentHeader(Agent::Claude)));
+        assert!(matches!(
+            app.sessions.tree[1],
+            TreeNode::AgentHeader(Agent::Claude)
+        ));
         assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 0)));
         assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 1)));
 
@@ -2964,7 +3307,10 @@ mod tests {
             "activate_selection on AgentHeader should succeed"
         );
         assert_eq!(app.view.focus, focus_before, "focus should not change");
-        assert_eq!(app.view.input_mode, mode_before, "input_mode should not change");
+        assert_eq!(
+            app.view.input_mode, mode_before,
+            "input_mode should not change"
+        );
     }
 
     #[test]
@@ -3143,8 +3489,22 @@ mod tests {
         let old_time = now - 8 * 86400; // 8 days ago
         let recent_time = now - 3600; // 1 hour ago
         let sessions = vec![
-            Session { id: "old1".into(), workspace_path: PathBuf::from("/tmp"), title: "Old session".into(), last_active: old_time, agent: Agent::Claude, tags: Vec::new() },
-            Session { id: "new1".into(), workspace_path: PathBuf::from("/tmp"), title: "Recent session".into(), last_active: recent_time, agent: Agent::Claude, tags: Vec::new() },
+            Session {
+                id: "old1".into(),
+                workspace_path: PathBuf::from("/tmp"),
+                title: "Old session".into(),
+                last_active: old_time,
+                agent: Agent::Claude,
+                tags: Vec::new(),
+            },
+            Session {
+                id: "new1".into(),
+                workspace_path: PathBuf::from("/tmp"),
+                title: "Recent session".into(),
+                last_active: recent_time,
+                agent: Agent::Claude,
+                tags: Vec::new(),
+            },
         ];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
@@ -3161,7 +3521,10 @@ mod tests {
         assert_eq!(app.sessions.archived_sessions[0].id, "old1");
 
         // Tree should not contain archived by default
-        assert!(app.sessions.tree.iter().all(|n| !matches!(n, TreeNode::ArchivedHeader | TreeNode::ArchivedSession(_, _))));
+        assert!(app.sessions.tree.iter().all(|n| !matches!(
+            n,
+            TreeNode::ArchivedHeader | TreeNode::ArchivedSession(_, _)
+        )));
     }
 
     #[test]
@@ -3169,9 +3532,14 @@ mod tests {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
         let now = now_secs();
         let old_time = now - 8 * 86400;
-        let sessions = vec![
-            Session { id: "old1".into(), workspace_path: PathBuf::from("/tmp"), title: "Old".into(), last_active: old_time, agent: Agent::Claude, tags: Vec::new() },
-        ];
+        let sessions = vec![Session {
+            id: "old1".into(),
+            workspace_path: PathBuf::from("/tmp"),
+            title: "Old".into(),
+            last_active: old_time,
+            agent: Agent::Claude,
+            tags: Vec::new(),
+        }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
         app.archive_old_sessions();
@@ -3180,13 +3548,28 @@ mod tests {
         // Toggle on
         app.sessions.show_archived = true;
         app.rebuild_tree();
-        assert!(app.sessions.tree.iter().any(|n| matches!(n, TreeNode::ArchivedHeader)));
-        assert!(app.sessions.tree.iter().any(|n| matches!(n, TreeNode::ArchivedSession(_, _))));
+        assert!(
+            app.sessions
+                .tree
+                .iter()
+                .any(|n| matches!(n, TreeNode::ArchivedHeader))
+        );
+        assert!(
+            app.sessions
+                .tree
+                .iter()
+                .any(|n| matches!(n, TreeNode::ArchivedSession(_, _)))
+        );
 
         // Toggle off
         app.sessions.show_archived = false;
         app.rebuild_tree();
-        assert!(!app.sessions.tree.iter().any(|n| matches!(n, TreeNode::ArchivedHeader)));
+        assert!(
+            !app.sessions
+                .tree
+                .iter()
+                .any(|n| matches!(n, TreeNode::ArchivedHeader))
+        );
     }
 
     #[test]
@@ -3194,9 +3577,14 @@ mod tests {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
         let now = now_secs();
         let old_time = now - 5 * 86400; // 5 days ago
-        let sessions = vec![
-            Session { id: "s1".into(), workspace_path: PathBuf::from("/tmp"), title: "Five days".into(), last_active: old_time, agent: Agent::Claude, tags: Vec::new() },
-        ];
+        let sessions = vec![Session {
+            id: "s1".into(),
+            workspace_path: PathBuf::from("/tmp"),
+            title: "Five days".into(),
+            last_active: old_time,
+            agent: Agent::Claude,
+            tags: Vec::new(),
+        }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(3);
         app.archive_old_sessions();
@@ -3216,9 +3604,14 @@ mod tests {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
         let now = now_secs();
         let old_time = now - 10 * 86400;
-        let sessions = vec![
-            Session { id: "old1".into(), workspace_path: PathBuf::from("/tmp"), title: "Old".into(), last_active: old_time, agent: Agent::Claude, tags: Vec::new() },
-        ];
+        let sessions = vec![Session {
+            id: "old1".into(),
+            workspace_path: PathBuf::from("/tmp"),
+            title: "Old".into(),
+            last_active: old_time,
+            agent: Agent::Claude,
+            tags: Vec::new(),
+        }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
 

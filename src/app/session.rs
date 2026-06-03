@@ -22,7 +22,12 @@ impl super::App {
             && let Some(node) = self.selected_node()
             && let Some(path) = self.node_workspace_path(node)
         {
-            let pc = self.sessions.project_configs.get(&path).cloned().unwrap_or_default();
+            let pc = self
+                .sessions
+                .project_configs
+                .get(&path)
+                .cloned()
+                .unwrap_or_default();
             if matches!(pc.preflight.mode, crate::types::PreflightMode::Popup) {
                 let result = crate::preflight::run_preflight(&path);
                 if result.has_warnings() {
@@ -31,7 +36,8 @@ impl super::App {
                     self.popup.preflight_agent = Some(agent);
                     self.popup.preflight_session_name = name;
                     self.view.input_mode = InputMode::PreflightConfirm;
-                    self.view.status = "Pre-flight checks — Enter/p=proceed, f=fix, Esc=cancel".into();
+                    self.view.status =
+                        "Pre-flight checks — Enter/p=proceed, f=fix, Esc=cancel".into();
                     return Ok(());
                 }
             } else if pc.preflight.require_clean_git {
@@ -45,7 +51,8 @@ impl super::App {
                     self.popup.preflight_agent = Some(agent);
                     self.popup.preflight_session_name = name;
                     self.view.input_mode = InputMode::PreflightConfirm;
-                    self.view.status = "Git working tree dirty — Enter/p=proceed, Esc=cancel".into();
+                    self.view.status =
+                        "Git working tree dirty — Enter/p=proceed, Esc=cancel".into();
                     return Ok(());
                 }
             }
@@ -58,7 +65,11 @@ impl super::App {
         self.spawn_with_agent_inner(agent, name)
     }
 
-    pub(super) fn spawn_with_agent_inner(&mut self, agent: Agent, name: Option<String>) -> Result<()> {
+    pub(super) fn spawn_with_agent_inner(
+        &mut self,
+        agent: Agent,
+        name: Option<String>,
+    ) -> Result<()> {
         let chat_size = self.chat_size();
         match self.selected_node().cloned() {
             Some(TreeNode::Workspace(wi)) => {
@@ -72,18 +83,21 @@ impl super::App {
                 );
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);
-                let pty = match PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size, &env) {
-                    Ok(p) => p,
-                    Err(e) => {
-                        let msg = if e.to_string().contains("not found") || e.to_string().contains("No such file") {
-                            format!("{} not found. {}", agent.label(), agent.install_hint())
-                        } else {
-                            format!("Failed to spawn {}: {}", agent.label(), e)
-                        };
-                        self.view.status = msg;
-                        anyhow::bail!(e);
-                    }
-                };
+                let pty =
+                    match PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size, &env) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let msg = if e.to_string().contains("not found")
+                                || e.to_string().contains("No such file")
+                            {
+                                format!("{} not found. {}", agent.label(), agent.install_hint())
+                            } else {
+                                format!("Failed to spawn {}: {}", agent.label(), e)
+                            };
+                            self.view.status = msg;
+                            anyhow::bail!(e);
+                        }
+                    };
                 let pty_id = self.next_pty_id();
                 let idx = self.ptys.ptys.len();
                 self.ptys.ptys.push(PtySlot {
@@ -129,10 +143,19 @@ impl super::App {
                 self.view.status = format!("Resuming: {}...", &id[..8.min(id.len())]);
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);
-                let pty = match PtyHandle::spawn(agent, &path, Some(&id), name.as_deref(), chat_size, &env) {
+                let pty = match PtyHandle::spawn(
+                    agent,
+                    &path,
+                    Some(&id),
+                    name.as_deref(),
+                    chat_size,
+                    &env,
+                ) {
                     Ok(p) => p,
                     Err(e) => {
-                        let msg = if e.to_string().contains("not found") || e.to_string().contains("No such file") {
+                        let msg = if e.to_string().contains("not found")
+                            || e.to_string().contains("No such file")
+                        {
                             format!("{} not found. {}", agent.label(), agent.install_hint())
                         } else {
                             format!("Failed to resume session: {}", e)
@@ -200,10 +223,19 @@ impl super::App {
                     self.view.status = format!("Resuming archived: {}...", &id[..8.min(id.len())]);
                     let env = self.project_env(&path);
                     let snapshot = Self::capture_snapshot_commit(&path);
-                    let pty = match PtyHandle::spawn(agent, &path, Some(&id), name.as_deref(), chat_size, &env) {
+                    let pty = match PtyHandle::spawn(
+                        agent,
+                        &path,
+                        Some(&id),
+                        name.as_deref(),
+                        chat_size,
+                        &env,
+                    ) {
                         Ok(p) => p,
                         Err(e) => {
-                            let msg = if e.to_string().contains("not found") || e.to_string().contains("No such file") {
+                            let msg = if e.to_string().contains("not found")
+                                || e.to_string().contains("No such file")
+                            {
                                 format!("{} not found. {}", agent.label(), agent.install_hint())
                             } else {
                                 format!("Failed to resume archived session: {}", e)
@@ -261,7 +293,9 @@ impl super::App {
                 self.pending_session_name = name;
                 self.input_buffer.clear();
                 // Check if project config specifies a default agent and no filter is active
-                let project_default = self.selected_node().cloned()
+                let project_default = self
+                    .selected_node()
+                    .cloned()
                     .and_then(|n| self.node_workspace_path(&n))
                     .and_then(|path| self.default_agent_for_workspace(&path));
                 if let Some(agent) = project_default
@@ -286,7 +320,8 @@ impl super::App {
             InputMode::RenameSession => {
                 if let Some(si) = self.rename_target {
                     let new_title = if self.input_buffer.trim().is_empty() {
-                        self.sessions.sessions[si].id[..8.min(self.sessions.sessions[si].id.len())].to_string()
+                        self.sessions.sessions[si].id[..8.min(self.sessions.sessions[si].id.len())]
+                            .to_string()
                     } else {
                         self.input_buffer.clone()
                     };
@@ -352,13 +387,44 @@ impl super::App {
                         self.search_result_state.select(Some(0));
                         self.view.status = format!(
                             "BM25: '{}' ({} hits · j/k · Enter · Esc)",
-                            query, self.search_results.len()
+                            query,
+                            self.search_results.len()
                         );
                         // Stay in SemanticSearch mode for result navigation.
                     }
                 }
             }
-            InputMode::None | InputMode::BrowseDir | InputMode::Search | InputMode::ConfirmDelete | InputMode::Help | InputMode::SessionPreview | InputMode::TagFilter | InputMode::Settings | InputMode::TemplateSelect | InputMode::AutomationSelect | InputMode::BranchSelect | InputMode::Stats | InputMode::TokenStats | InputMode::DiffSelect | InputMode::DiffView | InputMode::RemoteView | InputMode::PluginList | InputMode::PluginOutput | InputMode::Timeline | InputMode::ConflictWarning | InputMode::AgentRecommend | InputMode::CrossSearch | InputMode::KeybindView | InputMode::SummaryPreview | InputMode::ScrollSearch | InputMode::ConflictResolve | InputMode::ThemeSelect | InputMode::RollbackConfirm | InputMode::BudgetWarning | InputMode::ChainSelect | InputMode::PreflightConfirm => {}
+            InputMode::None
+            | InputMode::BrowseDir
+            | InputMode::Search
+            | InputMode::ConfirmDelete
+            | InputMode::Help
+            | InputMode::SessionPreview
+            | InputMode::TagFilter
+            | InputMode::Settings
+            | InputMode::TemplateSelect
+            | InputMode::AutomationSelect
+            | InputMode::BranchSelect
+            | InputMode::Stats
+            | InputMode::TokenStats
+            | InputMode::DiffSelect
+            | InputMode::DiffView
+            | InputMode::RemoteView
+            | InputMode::PluginList
+            | InputMode::PluginOutput
+            | InputMode::Timeline
+            | InputMode::ConflictWarning
+            | InputMode::AgentRecommend
+            | InputMode::CrossSearch
+            | InputMode::KeybindView
+            | InputMode::SummaryPreview
+            | InputMode::ScrollSearch
+            | InputMode::ConflictResolve
+            | InputMode::ThemeSelect
+            | InputMode::RollbackConfirm
+            | InputMode::BudgetWarning
+            | InputMode::ChainSelect
+            | InputMode::PreflightConfirm => {}
         }
         Ok(())
     }
@@ -388,30 +454,31 @@ impl super::App {
         self.view.status = "Workspace name (Esc = cancel):".into();
     }
 
-
     /// Rate the selected session with `*` key. Cycles through 1-5 stars.
     pub(super) fn rate_selected_session(&mut self) {
         if let Some(TreeNode::Session(_, si)) = self.selected_node().cloned()
-            && si < self.sessions.sessions.len() {
-                let session = &self.sessions.sessions[si];
-                let current = crate::config::load_session_meta(&session.id, None)
-                    .and_then(|m| m.rating)
-                    .unwrap_or(0);
-                let new_rating = if current >= 5 { 1 } else { current + 1 };
-                let stars = "★".repeat(new_rating as usize);
-                let empty = "☆".repeat(5 - new_rating as usize);
-                if let Err(e) = crate::config::save_session_rating(&session.id, new_rating) {
-                    self.view.status = format!("Failed to save rating: {}", e);
-                } else {
-                    self.view.status = format!("Rated: {}{} ({}/5)", stars, empty, new_rating);
-                }
+            && si < self.sessions.sessions.len()
+        {
+            let session = &self.sessions.sessions[si];
+            let current = crate::config::load_session_meta(&session.id, None)
+                .and_then(|m| m.rating)
+                .unwrap_or(0);
+            let new_rating = if current >= 5 { 1 } else { current + 1 };
+            let stars = "★".repeat(new_rating as usize);
+            let empty = "☆".repeat(5 - new_rating as usize);
+            if let Err(e) = crate::config::save_session_rating(&session.id, new_rating) {
+                self.view.status = format!("Failed to save rating: {}", e);
+            } else {
+                self.view.status = format!("Rated: {}{} ({}/5)", stars, empty, new_rating);
             }
+        }
     }
-
 
     /// Inject workspace knowledge into the active PTY if auto_inject_knowledge is enabled.
     fn inject_knowledge(&mut self, workspace_path: &Path) {
-        let auto_inject = self.sessions.project_configs
+        let auto_inject = self
+            .sessions
+            .project_configs
             .get(workspace_path)
             .map(|pc| pc.auto_inject_knowledge)
             .unwrap_or(true);

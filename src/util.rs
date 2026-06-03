@@ -139,7 +139,11 @@ pub fn init_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
 
 pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
     Ok(())
 }
@@ -175,12 +179,20 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
 
         let remaining = trimmed[full_match.len()..].trim().to_string();
         ParsedSearch {
-            text: if remaining.is_empty() { None } else { Some(remaining) },
+            text: if remaining.is_empty() {
+                None
+            } else {
+                Some(remaining)
+            },
             min_last_active: Some(cutoff),
         }
     } else {
         ParsedSearch {
-            text: if trimmed.is_empty() { None } else { Some(trimmed.to_string()) },
+            text: if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            },
             min_last_active: None,
         }
     }
@@ -209,7 +221,12 @@ pub fn clipboard_copy(text: &str) -> Result<(), String> {
         .ok()
         .and_then(|mut child| {
             use std::io::Write;
-            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+            child
+                .stdin
+                .as_mut()
+                .map(|stdin| stdin.write_all(text.as_bytes()))
+                .transpose()
+                .ok()
         })
         .is_some()
     {
@@ -224,7 +241,12 @@ pub fn clipboard_copy(text: &str) -> Result<(), String> {
         .ok()
         .and_then(|mut child| {
             use std::io::Write;
-            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+            child
+                .stdin
+                .as_mut()
+                .map(|stdin| stdin.write_all(text.as_bytes()))
+                .transpose()
+                .ok()
         })
         .is_some()
     {
@@ -238,7 +260,12 @@ pub fn clipboard_copy(text: &str) -> Result<(), String> {
         .ok()
         .and_then(|mut child| {
             use std::io::Write;
-            child.stdin.as_mut().map(|stdin| stdin.write_all(text.as_bytes())).transpose().ok()
+            child
+                .stdin
+                .as_mut()
+                .map(|stdin| stdin.write_all(text.as_bytes()))
+                .transpose()
+                .ok()
         })
         .is_some()
     {
