@@ -1,6 +1,14 @@
 pub mod app;
+pub mod chain;
+pub mod budget;
 pub mod config;
 pub mod discovery;
 pub mod pty;
 pub mod types;
 pub mod util;
+pub mod theme;
+pub mod template;
+pub mod watch;
+pub mod worktree;
+pub mod headless;
+pub mod server;
