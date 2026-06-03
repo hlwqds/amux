@@ -2,9 +2,11 @@ use amux::app;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        // No subcommand — launch TUI
-        return app::run();
+    // Check for --web flag (enables embedded HTTP server in TUI mode)
+    let web_mode = args.iter().any(|a| a == "--web" || a == "-w");
+    if args.len() < 2 || (args.len() == 2 && web_mode) {
+        // No subcommand — launch TUI (optionally with web server)
+        return app::run(web_mode);
     }
 
     // Serve subcommand
@@ -58,5 +60,5 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Unknown subcommand — fall through to TUI
-    app::run()
+    app::run(web_mode)
 }

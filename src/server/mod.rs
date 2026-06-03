@@ -2,7 +2,7 @@ pub mod api;
 pub mod auth;
 pub mod ws;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::Router;
 use axum::middleware;
 use axum::routing::{get, post};
@@ -36,23 +36,31 @@ pub struct AppState {
 }
 
 /// Run the server with a pre-existing shared PTY state (used by TUI).
+///
+/// Returns the actual port bound (may differ from requested if auto-assigned).
+/// Pass `port = 0` to let the OS pick a free port.
 pub async fn run_server_with_state(
     port: u16,
     token: String,
     ptys: Arc<Mutex<HashMap<String, RegisteredPty>>>,
-) -> Result<()> {
+) -> Result<(u16, tokio::task::JoinHandle<()>)> {
     let state = Arc::new(AppState {
         config_dir: config::data_dir(),
         ptys,
     });
-
     let app = make_router(state, &token);
-
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
-    eprintln!("amux: server listening on http://{}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .with_context(|| format!("failed to bind port {}", port))?;
+    let actual_port = listener.local_addr()?.port();
+    eprintln!("amux: server listening on http://localhost:{}", actual_port);
+    let handle = tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, app).await {
+            eprintln!("amux: server error: {}", e);
+        }
+    });
+    Ok((actual_port, handle))
 }
 
 /// Run the standalone server (no TUI, `amux serve` subcommand).

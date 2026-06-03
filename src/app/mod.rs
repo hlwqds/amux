@@ -2593,48 +2593,76 @@ pub(crate) fn git_cmd(dir: &Path, args: &[&str]) -> Result<String, String> {
 
 // ─── Main ─────────────────────────────────────────────────
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(serve: bool) -> anyhow::Result<()> {
     let agents = detect_agents();
     if agents.is_empty() {
         anyhow::bail!("No agent CLI found. Install Claude Code, Codex, GSD, or OMP.");
     }
     crate::config::ensure_data_dir().context("failed to create data directory")?;
-    // Create tokio runtime for the background HTTP server
-    let rt = tokio::runtime::Runtime::new()?;
-    let _guard = rt.enter();
-    // Shared PTY state between TUI and HTTP server
+    // Shared PTY state between TUI and HTTP server (only needed with --web)
     let shared_ptys: std::sync::Arc<
         tokio::sync::Mutex<std::collections::HashMap<String, crate::server::RegisteredPty>>,
     > = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-    // Determine server port and token from config
-    let config = crate::config::load_config().unwrap_or_else(|_| Config {
-        workspaces: Vec::new(),
-        theme: crate::theme::ThemeName::Dark,
-        keybinds: Keybinds::default(),
-        templates: Vec::new(),
-        automations: Vec::new(),
-        archive_days: None,
-        remote_hosts: Vec::new(),
-        plugins: Vec::new(),
-        serve_port: None,
-        serve_token: None,
-        check_command: None,
-        token_budget: None,
-        chains: Vec::new(),
-    });
-    let serve_port = config.serve_port.unwrap_or(8080);
-    let serve_token = config.serve_token.clone().unwrap_or_default();
-    let mut app = App::new(shared_ptys.clone(), serve_port);
-    // Spawn the HTTP server in the background
-    let server_handle = rt.spawn(async move {
-        if let Err(e) =
-            crate::server::run_server_with_state(serve_port, serve_token, shared_ptys).await
-        {
-            eprintln!("amux server error: {}", e);
+    let mut app = App::new(shared_ptys.clone(), 0);
+    // Only start embedded server with --web flag
+    if serve {
+        let rt = tokio::runtime::Runtime::new()?;
+        let _guard = rt.enter();
+        let config = crate::config::load_config().unwrap_or_else(|_| Config {
+            workspaces: Vec::new(),
+            theme: crate::theme::ThemeName::Dark,
+            keybinds: Keybinds::default(),
+            templates: Vec::new(),
+            automations: Vec::new(),
+            archive_days: None,
+            remote_hosts: Vec::new(),
+            plugins: Vec::new(),
+            serve_port: None,
+            serve_token: None,
+            check_command: None,
+            token_budget: None,
+            chains: Vec::new(),
+        });
+        let serve_port = config.serve_port.unwrap_or(8080);
+        let serve_token = config.serve_token.clone().unwrap_or_default();
+        let actual_port = match rt.block_on(crate::server::run_server_with_state(
+            serve_port,
+            serve_token,
+            shared_ptys.clone(),
+        )) {
+            Ok((port, handle)) => {
+                app.server_handle = Some(handle);
+                port
+            }
+            Err(_) => {
+                eprintln!("amux: port {} in use, trying random port", serve_port);
+                match rt.block_on(crate::server::run_server_with_state(
+                    0,
+                    config.serve_token.clone().unwrap_or_default(),
+                    shared_ptys.clone(),
+                )) {
+                    Ok((port, handle)) => {
+                        app.server_handle = Some(handle);
+                        port
+                    }
+                    Err(e) => {
+                        eprintln!("amux: server disabled ({})", e);
+                        0u16
+                    }
+                }
+            }
+        };
+        app.serve_port = actual_port;
+        if actual_port > 0 {
+            app.view.status = format!(
+                "{} [web: http://localhost:{}]",
+                app.view.status, actual_port
+            );
         }
-    });
-    app.server_handle = Some(server_handle);
-    app.view.status = format!("{} [web: http://localhost:{}]", app.view.status, serve_port);
+        // Keep runtime alive for the server's lifetime — leak is intentional,
+        // the process is about to enter the TUI event loop.
+        std::mem::forget(rt);
+    }
     if !std::io::stdout().is_terminal() {
         let sessions = discover_sessions(&app.sessions.workspaces);
         for (wi, ws) in app.sessions.workspaces.iter().enumerate() {
