@@ -2014,7 +2014,7 @@ impl super::App {
         )]));
 
         let mut agents: Vec<_> = agent_tokens.iter().collect();
-        agents.sort_by(|a, b| b.1.2.cmp(&a.1.2));
+        agents.sort_by_key(|b| std::cmp::Reverse(b.1.2));
         for (agent, (inp, out, total, cost)) in agents {
             let mut spans = vec![
                 Span::styled(

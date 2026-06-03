@@ -653,20 +653,21 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
                     title = Some(truncated);
                 }
             }
-            "message" if title.is_none() => {
-                if record.get("role").and_then(|v| v.as_str()) == Some("user") {
-                    let text = record
-                        .get("message")
-                        .and_then(|v| v.as_str().map(|s| s.to_string()))
-                        .or_else(|| {
-                            record
-                                .get("message")
-                                .and_then(|v| extract_text_from_content(v.clone()))
-                        });
-                    if let Some(t) = text {
-                        let truncated: String = t.chars().take(50).collect();
-                        title = Some(truncated);
-                    }
+            "message"
+                if title.is_none()
+                    && record.get("role").and_then(|v| v.as_str()) == Some("user") =>
+            {
+                let text = record
+                    .get("message")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .or_else(|| {
+                        record
+                            .get("message")
+                            .and_then(|v| extract_text_from_content(v.clone()))
+                    });
+                if let Some(t) = text {
+                    let truncated: String = t.chars().take(50).collect();
+                    title = Some(truncated);
                 }
             }
             _ => {}
@@ -2033,7 +2034,7 @@ pub fn cross_session_search(
         }
     }
 
-    results.sort_by(|a, b| b.matches.len().cmp(&a.matches.len()));
+    results.sort_by_key(|b| std::cmp::Reverse(b.matches.len()));
     results.truncate(20);
     results
 }

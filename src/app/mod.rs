@@ -2538,16 +2538,17 @@ impl App {
             Some(TreeNode::AgentHeader(_)) => {}
             Some(TreeNode::ArchivedHeader) => {}
             Some(TreeNode::WorkspaceWarning(_, _)) => {}
-            Some(TreeNode::ArchivedSession(_wi, ai)) => {
-                if ai < self.sessions.archived_sessions.len() {
-                    let session = self.sessions.archived_sessions[ai].clone();
-                    if session.agent == Agent::Gsd {
-                        self.view.status = "GSD does not support resuming sessions.".into();
-                        return Ok(());
-                    }
-                    self.spawn_with_agent(session.agent, None)?;
+            Some(TreeNode::ArchivedSession(_wi, ai))
+                if ai < self.sessions.archived_sessions.len() =>
+            {
+                let session = self.sessions.archived_sessions[ai].clone();
+                if session.agent == Agent::Gsd {
+                    self.view.status = "GSD does not support resuming sessions.".into();
+                    return Ok(());
                 }
+                self.spawn_with_agent(session.agent, None)?;
             }
+            Some(TreeNode::ArchivedSession(_, _)) => {}
             None => {}
         }
         Ok(())

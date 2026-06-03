@@ -203,80 +203,81 @@ impl super::App {
             Some(TreeNode::AgentHeader(_)) => {}
             Some(TreeNode::ArchivedHeader) => {}
             Some(TreeNode::WorkspaceWarning(_, _)) => {}
-            Some(TreeNode::ArchivedSession(_wi, ai)) => {
+            Some(TreeNode::ArchivedSession(_wi, ai))
+                if ai < self.sessions.archived_sessions.len() =>
+            {
                 // Allow resuming archived sessions: move back to active list first
-                if ai < self.sessions.archived_sessions.len() {
-                    let session = self.sessions.archived_sessions[ai].clone();
-                    self.sessions.archived_sessions.remove(ai);
-                    self.sessions.sessions.push(session.clone());
-                    // Now delegate to the Session path with the new index
-                    let _si = self.sessions.sessions.len() - 1;
-                    if let Some(existing) = self.pty_index_for_session(&session.id) {
-                        self.ptys.active_pty = Some(existing);
-                        self.view.focus = Focus::Chat;
-                        self.rebuild_tree();
-                        return Ok(());
-                    }
-                    let path = session.workspace_path.clone();
-                    let id = session.id.clone();
-                    let title = session.title.clone();
-                    self.view.status = format!("Resuming archived: {}...", &id[..8.min(id.len())]);
-                    let env = self.project_env(&path);
-                    let snapshot = Self::capture_snapshot_commit(&path);
-                    let pty = match PtyHandle::spawn(
-                        agent,
-                        &path,
-                        Some(&id),
-                        name.as_deref(),
-                        chat_size,
-                        &env,
-                    ) {
-                        Ok(p) => p,
-                        Err(e) => {
-                            let msg = if e.to_string().contains("not found")
-                                || e.to_string().contains("No such file")
-                            {
-                                format!("{} not found. {}", agent.label(), agent.install_hint())
-                            } else {
-                                format!("Failed to resume archived session: {}", e)
-                            };
-                            self.view.status = msg;
-                            anyhow::bail!(e);
-                        }
-                    };
-                    let pty_id = self.next_pty_id();
-                    let idx = self.ptys.ptys.len();
-                    self.ptys.ptys.push(PtySlot {
-                        id: pty_id.clone(),
-                        handle: pty,
-                        info: {
-                            let pt = crate::discovery::ProjectType::detect(&path);
-                            RunningInfo {
-                                workspace_path: path.clone(),
-                                title,
-                                session_id: Some(id),
-                                started_at: now_secs(),
-                                completed: false,
-                                agent,
-                                git_info: GitInfo::default(),
-                                check_status: CheckStatus::Pending,
-                                diff_summary: DiffSummary::default(),
-                                project_type: pt,
-                                worktree_branch: None,
-                                snapshot_commit: snapshot,
-                            }
-                        },
-                        last_screen_hash: 0,
-                        last_recording_at: std::time::Instant::now(),
-                        process_stats: None,
-                    });
-                    self.register_pty(&pty_id, &self.ptys.ptys[idx]);
-                    self.ptys.active_pty = Some(idx);
-                    self.inject_knowledge(&path);
+                let session = self.sessions.archived_sessions[ai].clone();
+                self.sessions.archived_sessions.remove(ai);
+                self.sessions.sessions.push(session.clone());
+                // Now delegate to the Session path with the new index
+                let _si = self.sessions.sessions.len() - 1;
+                if let Some(existing) = self.pty_index_for_session(&session.id) {
+                    self.ptys.active_pty = Some(existing);
                     self.view.focus = Focus::Chat;
                     self.rebuild_tree();
+                    return Ok(());
                 }
+                let path = session.workspace_path.clone();
+                let id = session.id.clone();
+                let title = session.title.clone();
+                self.view.status = format!("Resuming archived: {}...", &id[..8.min(id.len())]);
+                let env = self.project_env(&path);
+                let snapshot = Self::capture_snapshot_commit(&path);
+                let pty = match PtyHandle::spawn(
+                    agent,
+                    &path,
+                    Some(&id),
+                    name.as_deref(),
+                    chat_size,
+                    &env,
+                ) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let msg = if e.to_string().contains("not found")
+                            || e.to_string().contains("No such file")
+                        {
+                            format!("{} not found. {}", agent.label(), agent.install_hint())
+                        } else {
+                            format!("Failed to resume archived session: {}", e)
+                        };
+                        self.view.status = msg;
+                        anyhow::bail!(e);
+                    }
+                };
+                let pty_id = self.next_pty_id();
+                let idx = self.ptys.ptys.len();
+                self.ptys.ptys.push(PtySlot {
+                    id: pty_id.clone(),
+                    handle: pty,
+                    info: {
+                        let pt = crate::discovery::ProjectType::detect(&path);
+                        RunningInfo {
+                            workspace_path: path.clone(),
+                            title,
+                            session_id: Some(id),
+                            started_at: now_secs(),
+                            completed: false,
+                            agent,
+                            git_info: GitInfo::default(),
+                            check_status: CheckStatus::Pending,
+                            diff_summary: DiffSummary::default(),
+                            project_type: pt,
+                            worktree_branch: None,
+                            snapshot_commit: snapshot,
+                        }
+                    },
+                    last_screen_hash: 0,
+                    last_recording_at: std::time::Instant::now(),
+                    process_stats: None,
+                });
+                self.register_pty(&pty_id, &self.ptys.ptys[idx]);
+                self.ptys.active_pty = Some(idx);
+                self.inject_knowledge(&path);
+                self.view.focus = Focus::Chat;
+                self.rebuild_tree();
             }
+            Some(TreeNode::ArchivedSession(_, _)) => {}
             None => {}
         }
         Ok(())
