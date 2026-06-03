@@ -35,6 +35,11 @@ jobs:
       - name: Generate SHA256
         run: sha256sum dist/amux-x86_64-linux.tar.gz > dist/sha256sums.txt
 
+      - name: Publish to crates.io
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
