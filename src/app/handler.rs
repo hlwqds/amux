@@ -467,11 +467,6 @@ impl super::App {
             self.view.status = "Semantic Search (type query, Enter=search, Esc=cancel):".into();
             return Ok(Action::Continue);
         }
-        // 'r': Replay — spawn new session with first user message from selected session
-        if key.code == KeyCode::Char('r') && key.modifiers == KeyModifiers::NONE {
-            self.replay_selected_session()?;
-            return Ok(Action::Continue);
-        }
         // Template select ('p' without modifiers)
         if key.code == KeyCode::Char('p') && key.modifiers == KeyModifiers::NONE {
             if self.templates.is_empty() {

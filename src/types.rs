@@ -847,23 +847,55 @@ impl Keybinds {
     /// Return a formatted list of all keybindings for display.
     pub fn display_lines(&self) -> Vec<String> {
         vec![
-            format!("  move_up:      {}", self.move_up.display()),
-            format!("  move_down:    {}", self.move_down.display()),
-            format!("  expand:       {}", self.expand.display()),
-            format!("  refresh:      {}", self.refresh.display()),
-            format!("  rename:       {}", self.rename.display()),
+            format!("  move_up:       {}", self.move_up.display()),
+            format!("  move_down:     {}", self.move_down.display()),
+            format!("  expand:        {}", self.expand.display()),
+            format!("  refresh:       {}", self.refresh.display()),
+            format!("  rename:        {}", self.rename.display()),
             format!("  new_workspace: {}", self.new_workspace.display()),
-            format!("  delete:       {}", self.delete.display()),
-            format!("  new_session:  {}", self.new_session.display()),
-            format!("  search:       {}", self.search.display()),
-            format!("  help:         {}", self.help.display()),
-            format!("  settings:     {}", self.settings.display()),
-            format!("  theme:        {}", self.theme.display()),
-            format!("  export:       {}", self.export.display()),
-            format!("  copy:         {}", self.copy.display()),
-            format!("  preview:      {}", self.preview.display()),
-            format!("  tag_filter:   {}", self.tag_filter.display()),
-            format!("  quit:         {}", self.quit.display()),
+            format!("  delete:        {}", self.delete.display()),
+            format!("  new_session:   {}", self.new_session.display()),
+            format!("  search:        {}", self.search.display()),
+            format!("  help:          {}", self.help.display()),
+            format!("  settings:      {}", self.settings.display()),
+            format!("  theme:         {}", self.theme.display()),
+            format!("  export:        {}", self.export.display()),
+            format!("  copy:          {}", self.copy.display()),
+            format!("  preview:       {}", self.preview.display()),
+            format!("  tag_filter:    {}", self.tag_filter.display()),
+            format!("  quit:          {}", self.quit.display()),
+        ]
+    }
+    /// One-line hint string for the status bar.
+    pub fn status_hint(&self) -> String {
+        format!(
+            "Enter:new/resume {}:{} {}:{} {}:{} Tab:toggle Ctrl+J/K:switch {}:quit",
+            self.expand.display(),
+            "exp",
+            self.refresh.display(),
+            "rfr",
+            self.rename.display(),
+            "ren",
+            self.quit.display(),
+        )
+    }
+    /// Key/action pairs for the help popup sidebar section (plain strings).
+    pub fn help_sidebar_pairs(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "Move selection",
+                format!("{}/{} ↑↓", self.move_up.display(), self.move_down.display()),
+            ),
+            ("New session / Resume / Switch", "Enter".into()),
+            ("Expand / collapse", self.expand.display()),
+            ("Refresh sessions", self.refresh.display()),
+            ("Rename selected", self.rename.display()),
+            ("New workspace", self.new_workspace.display()),
+            ("Delete", self.delete.display()),
+            ("New session (agent picker)", self.new_session.display()),
+            ("Search sessions", self.search.display()),
+            ("This help", self.help.display()),
+            ("Quit", format!("{} / Esc", self.quit.display())),
         ]
     }
 }

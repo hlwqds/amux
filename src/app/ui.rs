@@ -785,21 +785,25 @@ impl super::App {
 
         lines.push(Line::from(""));
         lines.push(
-            Line::from("\u{2500}\u{2500} Keybindings \u{2500}\u{2500}")
-                .style(Style::default().fg(Color::DarkGray)),
+            Line::from(format!(
+                "── {} → Keybindings for full list ──",
+                self.view.keybinds.settings.display()
+            ))
+            .style(Style::default().fg(Color::DarkGray)),
         );
-        lines.push(Line::from("Enter        New (with name) / Resume / Switch"));
-        lines.push(Line::from("e            Expand / collapse workspace"));
-        lines.push(Line::from("j/k \u{2191}\u{2193}     Navigate tree"));
-        lines.push(Line::from("r            Refresh sessions"));
-        lines.push(Line::from("R            Rename selected session"));
-        lines.push(Line::from("N            New workspace"));
-        lines.push(Line::from("D            Delete workspace"));
-        lines.push(Line::from("Tab          Toggle sidebar/chat"));
-        lines.push(Line::from("Ctrl+J/K     Switch between active sessions"));
-        lines.push(Line::from("Ctrl+Q       Kill current session"));
-        lines.push(Line::from("q / Esc      Quit"));
-
+        lines.push(Line::from(format!(
+            "  {}     New / Resume / Switch",
+            "Enter"
+        )));
+        lines.push(Line::from(format!(
+            "  {}/{}  Navigate",
+            self.view.keybinds.move_up.display(),
+            self.view.keybinds.move_down.display()
+        )));
+        lines.push(Line::from(format!(
+            "  {}     Quit",
+            self.view.keybinds.quit.display()
+        )));
         lines
     }
 
@@ -1256,7 +1260,7 @@ impl super::App {
             budget_span,
             Span::raw("  "),
             Span::styled(
-                "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws Tab:toggle Ctrl+J/K:switch Ctrl+Q:kill q:quit",
+                self.view.keybinds.status_hint(),
                 Style::default().fg(Color::DarkGray),
             ),
         ]);
@@ -1322,9 +1326,8 @@ impl super::App {
     }
 
     fn render_help_popup(&self, frame: &mut Frame, area: Rect) {
-        let popup_area = centered_rect(50, 25, area);
-
-        let sidebar_keys = vec![
+        let popup_area = centered_rect(48, 24, area);
+        let mut lines: Vec<Line> = vec![
             Line::from(vec![Span::styled(
                 "  Sidebar Keybindings",
                 Style::default()
@@ -1332,61 +1335,48 @@ impl super::App {
                     .add_modifier(Modifier::BOLD),
             )]),
             Line::from(""),
-            Line::from("  j/k / ↑↓        Move selection"),
-            Line::from("  Enter           New session / Resume / Switch"),
-            Line::from("  e               Expand / collapse workspace"),
-            Line::from("  r               Refresh sessions"),
-            Line::from("  R               Rename selected"),
-            Line::from("  N               New workspace"),
-            Line::from("  D               Delete (with confirmation)"),
-            Line::from("  n               New session (agent picker)"),
-            Line::from("  c / x / g / o   Quick create Claude/Codex/GSD/OMP"),
-            Line::from("  1 / 2 / 3 / 4   Filter by agent type"),
-            Line::from("  s               Cycle sort mode"),
-            Line::from("  /               Search sessions"),
-            Line::from("  Tab             Switch to chat"),
-            Line::from("  ?               This help"),
-            Line::from("  I               Edit session tags"),
-            Line::from("  q / Esc         Quit"),
-            Line::from("  G               Toggle archived sessions"),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("  Chat: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    "Tab=sidebar  Ctrl+J/K=switch  Ctrl+Q=kill",
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("  Scroll: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    "PgUp/Dn  Ctrl+B/F  Home/End",
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("  Paths: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    "o=cycle  g/Enter=open in $EDITOR",
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]),
-            Line::from(""),
-            Line::from(""),
-            Line::from(vec![Span::styled(
-                "  Run `amux doctor` for full diagnostics",
-                Style::default().fg(Color::Yellow),
-            )]),
-            Line::from(""),
-            Line::from(vec![Span::styled(
-                "  Press any key to close",
-                Style::default().fg(Color::Yellow),
-            )]),
         ];
-
+        for (action, key) in self.view.keybinds.help_sidebar_pairs() {
+            lines.push(Line::from(format!("  {:<14} {}", key, action)));
+        }
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled("  Chat: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "Tab=sidebar  Ctrl+J/K=switch  Ctrl+Q=kill",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Scroll: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "PgUp/Dn  Ctrl+B/F  Home/End",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Extra: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "s=sort  c/x/g/o=quick-agent  1-4=filter  G=archived",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            format!(
+                "  Full list: {} → Keybindings",
+                self.view.keybinds.settings.display()
+            ),
+            Style::default().fg(Color::DarkGray),
+        )]));
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            "  Press any key to close",
+            Style::default().fg(Color::Yellow),
+        )]));
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
-            Paragraph::new(sidebar_keys)
+            Paragraph::new(lines)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)

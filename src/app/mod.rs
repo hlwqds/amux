@@ -8,7 +8,7 @@ use std::{
 use crate::config::{data_dir, save_config_file, title_override_path};
 use crate::discovery::{
     PreviewLine, SessionCache, discover_sessions, discover_sessions_cached, extract_branch_points,
-    extract_first_user_message, find_session_jsonl, preview_session_content,
+    find_session_jsonl, preview_session_content,
 };
 use crate::pty::PtyState;
 use crate::types::*;
@@ -319,8 +319,7 @@ impl App {
             view: AppView {
                 focus: Focus::Sidebar,
                 input_mode: InputMode::None,
-                status: "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws q:quit"
-                    .into(),
+                status: Default::default(),
                 sort_mode: SortMode::default(),
                 agent_filter: None,
                 tag_filter: None,
@@ -411,10 +410,10 @@ impl App {
             );
         }
         // Quick environment diagnostics on first launch
-        if (app.view.status.starts_with('E') || app.view.status.starts_with("Enter"))
-            && let Some(warning) = crate::doctor::run_quick_doctor()
-        {
+        if let Some(warning) = crate::doctor::run_quick_doctor() {
             app.view.status = warning;
+        } else if app.view.status.is_empty() {
+            app.view.status = app.view.keybinds.status_hint();
         }
         app
     }
@@ -2052,52 +2051,6 @@ impl App {
                 self.view.status = "Failed to read session data.".into();
             }
         }
-        Ok(())
-    }
-
-    fn replay_selected_session(&mut self) -> Result<()> {
-        let node = self.selected_node();
-        let session = match node {
-            Some(TreeNode::Session(_wi, si)) => self.sessions.sessions.get(*si).cloned(),
-            Some(TreeNode::ArchivedSession(_wi, ai)) => {
-                self.sessions.archived_sessions.get(*ai).cloned()
-            }
-            _ => None,
-        };
-        let Some(session) = session else {
-            self.view.status = "Select a session to replay.".into();
-            return Ok(());
-        };
-
-        let jsonl_path = find_session_jsonl(&session);
-        let Some(jsonl_path) = jsonl_path else {
-            self.view.status = "Cannot find session JSONL file.".into();
-            return Ok(());
-        };
-
-        let Some(prompt) = extract_first_user_message(&jsonl_path) else {
-            self.view.status = "No user message found in this session.".into();
-            return Ok(());
-        };
-
-        // Expand template variables with the session's workspace path
-        let expanded = crate::template::expand_template_vars(&prompt, &session.workspace_path);
-
-        // Spawn a new session (no session_id → creates new) with the original agent
-        let replay_title = Some(format!("Replay: {}", session.title));
-        self.spawn_with_agent(session.agent, replay_title)?;
-
-        // Queue the prompt to be sent after the agent starts up
-        let now_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-        self.ptys.pending_inputs.push(PendingInput {
-            fire_at_ms: now_ms + 3000,
-            text: expanded,
-        });
-        self.view.status = format!("Replaying: {}", session.title);
-
         Ok(())
     }
 
