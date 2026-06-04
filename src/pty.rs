@@ -115,10 +115,10 @@ impl PtyHandle {
                             let data = &buf[..n];
                             let mut p = parser.write();
                             p.process(data);
-                            // Snapshot screen periodically (every ~8 reads) when in alternate screen.
-                            // This gives scrollback for agents like Codex that use alternate screen.
+                            // Snapshot screen periodically for scrollback.
+                            // Works for alternate screen (Codex) and normal screen (OMP).
                             snap_counter += 1;
-                            if snap_counter >= 8 && p.screen().alternate_screen() {
+                            if snap_counter >= 4 {
                                 snap_counter = 0;
                                 let screen = p.screen();
                                 let rows: Vec<String> = screen.rows(0, screen.size().1).collect();
@@ -128,7 +128,6 @@ impl PtyHandle {
                                         snaps.pop_front();
                                     }
                                     snaps.push_back(rows);
-                                    // New output resets scroll position
                                     snap_scroll.store(0, Ordering::Relaxed);
                                 }
                             }
@@ -265,6 +264,9 @@ impl PtyHandle {
         let snaps = self.snapshots.read();
         let idx = snaps.len().saturating_sub(pos);
         snaps.get(idx).cloned()
+    }
+    pub fn snap_count(&self) -> usize {
+        self.snapshots.read().len()
     }
 
     pub fn is_alternate_screen(&self) -> bool {
