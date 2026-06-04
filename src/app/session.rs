@@ -420,7 +420,6 @@ impl super::App {
             | InputMode::CrossSearch
             | InputMode::KeybindView
             | InputMode::SummaryPreview
-            | InputMode::ScrollSearch
             | InputMode::ConflictResolve
             | InputMode::ThemeSelect
             | InputMode::RollbackConfirm

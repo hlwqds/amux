@@ -57,9 +57,7 @@ pub struct ThemeFile {
 
     pub agent_claude: Option<String>,
     pub agent_codex: Option<String>,
-    pub agent_gsd: Option<String>,
     pub agent_omp: Option<String>,
-
     pub status_running: Option<String>,
     pub status_done: Option<String>,
     pub status_error: Option<String>,
@@ -216,11 +214,6 @@ impl ThemeFile {
                 .as_deref()
                 .and_then(parse_color)
                 .unwrap_or(base.agent_codex),
-            agent_gsd: self
-                .agent_gsd
-                .as_deref()
-                .and_then(parse_color)
-                .unwrap_or(base.agent_gsd),
             agent_omp: self
                 .agent_omp
                 .as_deref()
@@ -307,7 +300,6 @@ pub struct Theme {
     // Agent colors
     pub agent_claude: Color,
     pub agent_codex: Color,
-    pub agent_gsd: Color,
     pub agent_omp: Color,
 
     // Status
@@ -343,7 +335,6 @@ impl Theme {
 
             agent_claude: Color::Cyan,
             agent_codex: Color::Green,
-            agent_gsd: Color::Magenta,
             agent_omp: Color::Blue,
 
             status_running: Color::Yellow,
@@ -376,7 +367,6 @@ impl Theme {
 
             agent_claude: Color::Blue,
             agent_codex: Color::Green,
-            agent_gsd: Color::Magenta,
             agent_omp: Color::Cyan,
 
             status_running: Color::Yellow,

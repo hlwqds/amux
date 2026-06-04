@@ -575,26 +575,6 @@ impl super::App {
                 let term = PseudoTerminal::new(guard.screen());
                 frame.render_widget(term, pty_area);
             }
-            // Scroll search overlay on bottom of PTY area
-            if self.view.input_mode == InputMode::ScrollSearch {
-                let search_text = format!("/{}", self.ptys.scroll_search_query);
-                let match_info = if self.ptys.scroll_search_results.is_empty() {
-                    String::new()
-                } else {
-                    format!(" [{} matches]", self.ptys.scroll_search_results.len())
-                };
-                let search_area = Rect {
-                    x: chunks[1].x,
-                    y: chunks[1].bottom().saturating_sub(1),
-                    width: chunks[1].width,
-                    height: 1,
-                };
-                frame.render_widget(
-                    Paragraph::new(format!("{search_text}{match_info}"))
-                        .style(Style::default().fg(Color::Yellow)),
-                    search_area,
-                );
-            }
             frame.render_widget(block, area);
             return;
         }
@@ -678,13 +658,7 @@ impl super::App {
                             .style(Style::default().fg(Color::Magenta)),
                     );
                 }
-                if session.agent == Agent::Gsd {
-                    lines.push(Line::from(""));
-                    lines.push(
-                        Line::from("GSD does not support resuming sessions")
-                            .style(Style::default().fg(Color::Red)),
-                    );
-                } else if self.pty_index_for_session(&session.id).is_some() {
+                if self.pty_index_for_session(&session.id).is_some() {
                     lines.push(Line::from(""));
                     lines.push(
                         Line::from("This session is already running - Enter to switch to it")
@@ -918,7 +892,7 @@ impl super::App {
             .highlight_symbol("\u{203a}");
         frame.render_stateful_widget(list, chunks[0], &mut self.agent_state);
 
-        let help = Line::from(" C:Claude  X:Codex  G:GSD  j/k:navigate  Enter:confirm  Esc:cancel")
+        let help = Line::from(" C:Claude  X:Codex  O:OMP  j/k:navigate  Enter:confirm  Esc:cancel")
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(Paragraph::new(help), chunks[1]);
         frame.render_widget(block, popup);
@@ -1574,9 +1548,9 @@ impl super::App {
                 .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(
-            "  c/x/g/o          Quick create Claude/Codex/GSD/OMP",
+            "  c/x/o            Quick create Claude/Codex/OMP",
         ));
-        lines.push(Line::from("  1/2/3/4          Filter by agent type"));
+        lines.push(Line::from("  1/2/3            Filter by agent type"));
         lines.push(Line::from("  Space            Mark/unmark session"));
         lines.push(Line::from("  s                Cycle sort mode"));
         lines.push(Line::from("  S                Semantic search (BM25)"));
@@ -1614,7 +1588,6 @@ impl super::App {
         lines.push(Line::from(
             "  y                Copy visible screen (when scrolled)",
         ));
-        lines.push(Line::from("  /                Enter scrollback search"));
         // Section: Panels & info
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -2170,7 +2143,6 @@ impl super::App {
                 let color = match agent.as_str() {
                     "Claude" => Color::Magenta,
                     "Codex" => Color::Green,
-                    "GSD" => Color::Cyan,
                     "OMP" => Color::Blue,
                     "Error" => Color::Red,
                     "Info" => Color::Yellow,
@@ -2343,7 +2315,6 @@ impl super::App {
                     "Claude" => Color::Magenta,
                     "OMP" => Color::Blue,
                     "Codex" => Color::Yellow,
-                    "GSD" => Color::Green,
                     _ => Color::DarkGray,
                 };
                 let type_icon = if ev.event_type == "user" {
@@ -2481,7 +2452,6 @@ impl super::App {
                 "Claude" => Color::Magenta,
                 "OMP" => Color::Blue,
                 "Codex" => Color::Yellow,
-                "GSD" => Color::Green,
                 _ => Color::White,
             };
             lines.push(Line::from(vec![
@@ -2540,7 +2510,6 @@ impl super::App {
                 "Claude" => Color::Magenta,
                 "OMP" => Color::Blue,
                 "Codex" => Color::Yellow,
-                "GSD" => Color::Green,
                 _ => Color::White,
             };
             lines.push(Line::from(vec![

@@ -59,11 +59,6 @@ pub fn run(agent: Agent, prompt: &str, workspace: &Path, timeout_secs: Option<u6
             cmd.arg("--quiet");
             cmd.arg(prompt);
         }
-        Agent::Gsd => {
-            cmd.arg("run");
-            cmd.arg("--prompt");
-            cmd.arg(prompt);
-        }
         Agent::Omp => {
             cmd.arg("--print");
             cmd.arg(prompt);
@@ -328,7 +323,7 @@ fn cmd_run(rest: &[String]) -> Result<i32> {
                 i += 1;
                 let name = rest.get(i).context("--agent requires a value")?;
                 agent = Some(Agent::from_label(name).context(format!(
-                    "unknown agent '{}'. Supported: claude, codex, gsd, omp",
+                    "unknown agent '{}'. Supported: claude, codex, omp",
                     name
                 ))?);
             }

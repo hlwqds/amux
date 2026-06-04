@@ -47,11 +47,10 @@ pub enum PreflightMode {
 pub enum Agent {
     Claude,
     Codex,
-    Gsd,
     Omp,
 }
 
-// Manual Ord impl to guarantee fixed sort order: Claude < Codex < Gsd < Omp
+// Manual Ord impl to guarantee fixed sort order: Claude < Codex < Omp
 impl Ord for Agent {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (*self as u8).cmp(&(*other as u8))
@@ -68,7 +67,6 @@ impl Agent {
         match self {
             Agent::Claude => "claude",
             Agent::Codex => "codex",
-            Agent::Gsd => "gsd",
             Agent::Omp => "omp",
         }
     }
@@ -77,7 +75,6 @@ impl Agent {
         match self {
             Agent::Claude => "Claude Code",
             Agent::Codex => "Codex",
-            Agent::Gsd => "GSD",
             Agent::Omp => "OMP",
         }
     }
@@ -86,7 +83,6 @@ impl Agent {
         match label.to_lowercase().as_str() {
             "claude" | "claude code" => Some(Agent::Claude),
             "codex" => Some(Agent::Codex),
-            "gsd" => Some(Agent::Gsd),
             "omp" => Some(Agent::Omp),
             _ => None,
         }
@@ -96,7 +92,6 @@ impl Agent {
         match self {
             Agent::Claude => "C",
             Agent::Codex => "X",
-            Agent::Gsd => "G",
             Agent::Omp => "O",
         }
     }
@@ -105,7 +100,6 @@ impl Agent {
         match self {
             Agent::Claude => Color::Cyan,
             Agent::Codex => Color::Green,
-            Agent::Gsd => Color::Magenta,
             Agent::Omp => Color::Blue,
         }
     }
@@ -115,7 +109,6 @@ impl Agent {
         match self {
             Agent::Claude => "Install: npm i -g @anthropic-ai/claude-code",
             Agent::Codex => "Install: npm i -g @openai/codex",
-            Agent::Gsd => "Install: pip install gsd-cli",
             Agent::Omp => "Install: See omp documentation",
         }
     }
@@ -151,16 +144,6 @@ impl Agent {
                 if let Some(name) = session_name {
                     cmd.arg(name);
                 }
-                cmd
-            }
-            Agent::Gsd => {
-                let mut cmd = portable_pty::CommandBuilder::new("gsd");
-                cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
                 cmd
             }
             Agent::Omp => {
@@ -206,17 +189,6 @@ impl Agent {
                 cmd.arg(session_id);
                 cmd
             }
-            Agent::Gsd => {
-                let mut cmd = portable_pty::CommandBuilder::new("gsd");
-                cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
-                cmd.arg("sessions");
-                cmd
-            }
             Agent::Omp => {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
@@ -242,11 +214,6 @@ impl Agent {
             Agent::Codex => {
                 let dir = PathBuf::from(std::env::var("HOME").unwrap_or_default())
                     .join(".codex/sessions");
-                if dir.exists() { Some(dir) } else { None }
-            }
-            Agent::Gsd => {
-                let dir =
-                    PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".gsd/sessions");
                 if dir.exists() { Some(dir) } else { None }
             }
             Agent::Omp => {
@@ -578,7 +545,6 @@ pub enum InputMode {
     CrossSearch,
     SummaryPreview,
     KeybindView,
-    ScrollSearch,
     ThemeSelect,
     BudgetWarning,
     RollbackConfirm,
@@ -1013,78 +979,12 @@ mod tests {
     fn agent_traits() {
         assert_eq!(Agent::Claude.cmd(), "claude");
         assert_eq!(Agent::Codex.cmd(), "codex");
-        assert_eq!(Agent::Gsd.cmd(), "gsd");
         assert_eq!(Agent::Claude.label(), "Claude Code");
         assert_eq!(Agent::Codex.label(), "Codex");
-        assert_eq!(Agent::Gsd.label(), "GSD");
         assert_eq!(Agent::Claude.icon(), "C");
         assert_eq!(Agent::Codex.icon(), "X");
-        assert_eq!(Agent::Gsd.icon(), "G");
         assert_eq!(Agent::Claude.color(), Color::Cyan);
         assert_eq!(Agent::Codex.color(), Color::Green);
-        assert_eq!(Agent::Gsd.color(), Color::Magenta);
-    }
-
-    #[test]
-    fn gsd_sessions_persist_after_pty_exit() {
-        // Verifies the poll_states() retain logic from app.rs:
-        //   self.ptys.retain(|slot| {
-        //       if slot.info.agent == Agent::Codex && !slot.handle.is_alive() { return false; }
-        //       true
-        //   });
-        // Only Codex sessions are cleaned up on PTY exit; GSD and Claude persist.
-        let should_retain = |agent: Agent, is_alive: bool| -> bool {
-            if agent == Agent::Codex && !is_alive {
-                return false;
-            }
-            true
-        };
-
-        // When PTY is alive, all agents are retained
-        assert!(
-            should_retain(Agent::Claude, true),
-            "Claude should retain when alive"
-        );
-        assert!(
-            should_retain(Agent::Codex, true),
-            "Codex should retain when alive"
-        );
-        assert!(
-            should_retain(Agent::Gsd, true),
-            "GSD should retain when alive"
-        );
-
-        // When PTY exits, only Codex is removed — GSD and Claude persist
-        assert!(
-            should_retain(Agent::Claude, false),
-            "Claude sessions MUST persist after PTY exit"
-        );
-        assert!(
-            !should_retain(Agent::Codex, false),
-            "Codex sessions should be cleaned up after PTY exit"
-        );
-        assert!(
-            should_retain(Agent::Gsd, false),
-            "GSD sessions MUST persist after PTY exit"
-        );
-    }
-
-    #[test]
-    fn gsd_build_new_cmd_no_session_name() {
-        let ws = Path::new("/home/user/proj");
-        let cmd = Agent::Gsd.build_new_cmd(ws, None);
-        // CommandBuilder doesn't expose args directly, but the method must not panic
-        // and must return a valid builder (tested by compilation + the agent_traits test)
-        let _ = cmd;
-    }
-
-    #[test]
-    fn gsd_build_resume_cmd_uses_sessions() {
-        let ws = Path::new("/home/user/proj");
-        let cmd = Agent::Gsd.build_resume_cmd(ws, "some-session-id");
-        // Verify the builder is created without panic.
-        // The resume uses "gsd sessions" (interactive picker) not --resume.
-        let _ = cmd;
     }
 
     #[test]

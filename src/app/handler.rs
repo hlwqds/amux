@@ -42,10 +42,6 @@ impl super::App {
                         self.activate_selection()?;
                         return Ok(Action::Continue);
                     }
-                    if kb.search.matches_event(&key) {
-                        self.enter_scroll_search();
-                        return Ok(Action::Continue);
-                    }
                     if kb.help.matches_event(&key) {
                         self.view.input_mode = InputMode::KeybindView;
                         return Ok(Action::Continue);
@@ -212,11 +208,6 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // P2: `/` enters scrollback search mode (don't forward to PTY)
-                if key.code == KeyCode::Char('/') && key.modifiers.is_empty() {
-                    self.enter_scroll_search();
-                    return Ok(Action::Continue);
-                }
                 // P2: `y` copies visible screen when scrolled up
                 if key.code == KeyCode::Char('y')
                     && key.modifiers.is_empty()
@@ -317,10 +308,6 @@ impl super::App {
                         return Ok(Action::Continue);
                     }
                     '3' => {
-                        self.toggle_agent_filter(Agent::Gsd);
-                        return Ok(Action::Continue);
-                    }
-                    '4' => {
                         self.toggle_agent_filter(Agent::Omp);
                         return Ok(Action::Continue);
                     }
@@ -821,9 +808,6 @@ impl super::App {
             self.popup.preview_show_summary = false;
             return Ok(Action::Continue);
         }
-        if self.view.input_mode == InputMode::ScrollSearch {
-            return self.handle_scroll_search_key(key);
-        }
         if self.view.input_mode == InputMode::ThemeSelect {
             return self.handle_theme_select_key(key);
         }
@@ -1030,11 +1014,7 @@ impl super::App {
     }
 
     pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
-        if self.view.input_mode == InputMode::ScrollSearch {
-            self.ptys.scroll_search_query.push_str(text);
-            self.run_scroll_search();
-            self.update_search_status();
-        } else if self.view.input_mode != InputMode::None {
+        if self.view.input_mode != InputMode::None {
             self.input_buffer.push_str(text);
         } else if self.view.focus == Focus::Chat
             && let Some(idx) = self.ptys.active_pty

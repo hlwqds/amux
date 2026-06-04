@@ -43,7 +43,6 @@ impl SessionWatcher {
         let dirs: Vec<PathBuf> = vec![
             PathBuf::from(format!("{home}/.claude/projects")),
             PathBuf::from(format!("{home}/.codex/sessions")),
-            PathBuf::from(format!("{home}/.gsd/sessions")),
             std::env::var("PI_CODING_AGENT_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from(format!("{home}/.omp/agent")))

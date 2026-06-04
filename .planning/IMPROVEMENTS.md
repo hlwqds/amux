@@ -24,8 +24,7 @@
 - [x] PTY 获焦时绑定 `PgUp`/`PgDn` 翻页 (已有)
 - [x] `Home`/`End` 跳顶/底,`Ctrl+B`/`Ctrl+F` vi 风格翻页
 - [x] 状态栏显示 idle 时长 (`now - last_output_at > IDLE_THRESHOLD_SECS`)
-- [x] `/` 进入 scrollback 搜索模式,高亮匹配行
-- [x] `y` 复制选中行到剪贴板 (已有 `arboard` 依赖)
+- [ ] `/` 重设计为 scrollback 搜索：只在 PTY 滚动状态（PgUp 后）或 `Ctrl+/` 触发，不与 agent 输入冲突；PTY 区域顶部覆盖搜索栏 UI；匹配行高亮 + n/N 跳转
 - [x] 可选:agent 空闲超阈值时触发 `notify-send` 通知 (已有桌面通知)
 
 ### P3: 打通 `amux serve` ↔ 正在运行的 PTY

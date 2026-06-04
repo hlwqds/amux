@@ -156,11 +156,10 @@ pub async fn create_session(AxumJson(body): AxumJson<CreateSessionRequest>) -> J
     let agent = match body.agent.to_lowercase().as_str() {
         "claude" => crate::types::Agent::Claude,
         "codex" => crate::types::Agent::Codex,
-        "gsd" => crate::types::Agent::Gsd,
         "omp" => crate::types::Agent::Omp,
         _ => {
             return Json(json!({
-                "error": format!("Unknown agent: {}. Supported: claude, codex, gsd, omp", body.agent)
+                "error": format!("Unknown agent: {}. Supported: claude, codex, omp", body.agent)
             }));
         }
     };

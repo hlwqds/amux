@@ -616,17 +616,6 @@ impl super::App {
                 ));
                 self.confirm_input()?;
             }
-            KeyCode::Char('g') | KeyCode::Char('G')
-                if self.available_agents.contains(&Agent::Gsd) =>
-            {
-                self.agent_state.select(Some(
-                    self.available_agents
-                        .iter()
-                        .position(|a| *a == Agent::Gsd)
-                        .unwrap(),
-                ));
-                self.confirm_input()?;
-            }
             KeyCode::Char('o') | KeyCode::Char('O')
                 if self.available_agents.contains(&Agent::Omp) =>
             {

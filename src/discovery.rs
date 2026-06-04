@@ -105,7 +105,6 @@ pub fn discover_sessions_cached(
     let mut jsonl_files: Vec<PathBuf> = Vec::new();
     collect_claude_jsonl(workspaces, &mut jsonl_files);
     collect_codex_jsonl(workspaces, &mut jsonl_files);
-    collect_gsd_jsonl(workspaces, &mut jsonl_files);
     collect_omp_jsonl(workspaces, &mut jsonl_files);
     let jsonl_set: std::collections::HashSet<_> = jsonl_files.iter().cloned().collect();
     cache.retain(|path, _| jsonl_set.contains(path));
@@ -159,36 +158,11 @@ pub fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
             let sessions_root = Agent::Codex.sessions_dir()?;
             walk_codex_jsonl(&sessions_root, &session.id)
         }
-        Agent::Gsd => {
-            let sessions_root = Agent::Gsd.sessions_dir()?;
-            walk_gsd_jsonl(&sessions_root, &session.id)
-        }
         Agent::Omp => {
             let sessions_root = Agent::Omp.sessions_dir()?;
             walk_omp_jsonl(&sessions_root, &session.id)
         }
     }
-}
-
-fn walk_gsd_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
-    // GSD sessions are stored as <session-id>.jsonl in subdirs
-    // e.g. ~/.gsd/sessions/-home-user-proj/<session-id>.jsonl
-    let expected = format!("{}.jsonl", session_id);
-    if let Ok(subdirs) = fs::read_dir(root) {
-        for subdir in subdirs.flatten() {
-            if !subdir.path().is_dir() {
-                continue;
-            }
-            if let Ok(files) = fs::read_dir(subdir.path()) {
-                for file in files.flatten() {
-                    if file.file_name() == expected.as_str() {
-                        return Some(file.path());
-                    }
-                }
-            }
-        }
-    }
-    None
 }
 
 fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
@@ -250,7 +224,7 @@ fn walk_omp_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
             }
         }
     }
-    walk_gsd_jsonl(root, session_id)
+    None
 }
 
 /// Collect all Claude JSONL file paths from workspace project directories.
@@ -315,29 +289,6 @@ fn collect_codex_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Collect all GSD JSONL file paths from session subdirectories.
-fn collect_gsd_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
-    let sessions_root = match Agent::Gsd.sessions_dir() {
-        Some(d) => d,
-        None => return,
-    };
-    if let Ok(subdirs) = fs::read_dir(&sessions_root) {
-        for subdir in subdirs.flatten() {
-            if !subdir.path().is_dir() {
-                continue;
-            }
-            if let Ok(files) = fs::read_dir(subdir.path()) {
-                for file in files.flatten() {
-                    let path = file.path();
-                    if path.extension().and_then(|e| e.to_str()) == Some("jsonl") {
-                        out.push(path);
-                    }
-                }
-            }
-        }
-    }
-}
-
 /// Collect all OMP JSONL file paths from session subdirectories.
 fn collect_omp_jsonl(_workspaces: &[Workspace], out: &mut Vec<PathBuf>) {
     let sessions_root = match Agent::Omp.sessions_dir() {
@@ -376,12 +327,10 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
 
     // Determine agent type from the path
     let claude_dir = Agent::Claude.sessions_dir();
-    let gsd_dir = Agent::Gsd.sessions_dir();
     let omp_dir = Agent::Omp.sessions_dir();
     let codex_dir = Agent::Codex.sessions_dir();
 
     let is_claude = claude_dir.as_ref().is_some_and(|d| path.starts_with(d));
-    let is_gsd = gsd_dir.as_ref().is_some_and(|d| path.starts_with(d));
     let is_omp = omp_dir.as_ref().is_some_and(|d| path.starts_with(d));
     let is_codex = codex_dir.as_ref().is_some_and(|d| path.starts_with(d));
 
@@ -433,8 +382,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             tags: Vec::new(),
             pinned,
         })
-    } else if is_gsd || is_omp {
-        let agent = if is_gsd { Agent::Gsd } else { Agent::Omp };
+    } else if is_omp {
         let (id, title, cwd) = parse_gsd_session(path)?;
         let ws_path = match cwd {
             Some(ref cwd_str) => ws_paths
@@ -450,9 +398,9 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
         Some(Session {
             id,
             workspace_path: ws_path,
-            title: title.unwrap_or_else(|| format!("{:?} session", agent)),
+            title: title.unwrap_or_else(|| "OMP session".into()),
             last_active,
-            agent,
+            agent: Agent::Omp,
             tags: Vec::new(),
             pinned,
         })
@@ -1217,7 +1165,6 @@ pub fn compute_diff(left: &str, right: &str) -> Vec<DiffLine> {
 const DEFAULT_REMOTE_SCAN_PATHS: &[&str] = &[
     "~/.claude/projects",
     "~/.codex/sessions",
-    "~/.gsd/sessions",
     "~/.omp/agent/sessions",
 ];
 
@@ -1356,8 +1303,6 @@ fn detect_agent_from_path(path: &str) -> &'static str {
         "Claude"
     } else if path.contains(".codex/") {
         "Codex"
-    } else if path.contains(".gsd/") {
-        "GSD"
     } else if path.contains(".omp/") {
         "OMP"
     } else {

@@ -19,7 +19,6 @@ pub struct CheckResult {
 const INSTALL_HINTS: &[(&str, &str)] = &[
     ("claude", "npm install -g @anthropic-ai/claude-code"),
     ("codex", "npm install -g @openai/codex"),
-    ("gsd", "npm install -g gsd-cli"),
     ("omp", "npm install -g omp-cli"),
 ];
 
@@ -64,13 +63,13 @@ pub fn run_quick_doctor() -> Option<String> {
         warnings.push("git not found");
     }
 
-    let agents: Vec<&str> = ["claude", "codex", "gsd", "omp"]
+    let agents: Vec<&str> = ["claude", "codex", "omp"]
         .into_iter()
         .filter(|cmd| which(cmd).is_some())
         .collect();
 
     if agents.is_empty() {
-        warnings.push("no agent CLI found (claude/codex/gsd/omp)");
+        warnings.push("no agent CLI found (claude/codex/omp)");
     }
 
     if warnings.is_empty() {
@@ -106,7 +105,7 @@ fn check_git(results: &mut Vec<CheckResult>) {
 }
 
 fn check_agents(results: &mut Vec<CheckResult>) {
-    for agent in [Agent::Claude, Agent::Codex, Agent::Gsd, Agent::Omp] {
+    for agent in [Agent::Claude, Agent::Codex, Agent::Omp] {
         let cmd = agent.cmd();
         let label = agent.label();
         match which(cmd) {
@@ -259,10 +258,10 @@ mod tests {
     #[test]
     fn doctor_runs_all_checks() {
         let results = run_doctor();
-        // At minimum: git + 4 agents + data_dir + sessions_dir + config + editor = 9
+        // At minimum: git + 3 agents + data_dir + sessions_dir + config + editor = 8
         assert!(
-            results.len() >= 9,
-            "expected >= 9 checks, got {}",
+            results.len() >= 8,
+            "expected >= 8 checks, got {}",
             results.len()
         );
     }

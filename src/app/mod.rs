@@ -49,14 +49,6 @@ struct PtyManager {
     prev_states: Vec<PtyState>,
     /// Pending input steps queued for the active PTY.
     pending_inputs: Vec<PendingInput>,
-    /// Current search query for PTY scrollback search.
-    scroll_search_query: String,
-    /// Line indices (absolute row positions in full buffer) matching the query.
-    scroll_search_results: Vec<usize>,
-    /// Index into scroll_search_results for n/N cycling.
-    scroll_search_result_idx: usize,
-    /// Full buffer rows captured when entering search (for match lookup).
-    scroll_search_rows: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -459,7 +451,7 @@ impl App {
         wi: usize,
         tree: &mut Vec<TreeNode>,
     ) {
-        let agent_order = [Agent::Claude, Agent::Codex, Agent::Gsd, Agent::Omp];
+        let agent_order = [Agent::Claude, Agent::Codex, Agent::Omp];
         for agent in agent_order {
             let group: Vec<usize> = indices
                 .iter()
@@ -2355,10 +2347,6 @@ impl App {
             }
             Some(TreeNode::Session(_wi, si)) => {
                 let session = self.sessions.sessions[si].clone();
-                if session.agent == Agent::Gsd {
-                    self.view.status = "GSD does not support resuming sessions.".into();
-                    return Ok(());
-                }
                 self.spawn_with_agent(session.agent, None)?;
             }
             Some(TreeNode::ActiveTab(pi)) => {
@@ -2373,10 +2361,6 @@ impl App {
                 if ai < self.sessions.archived_sessions.len() =>
             {
                 let session = self.sessions.archived_sessions[ai].clone();
-                if session.agent == Agent::Gsd {
-                    self.view.status = "GSD does not support resuming sessions.".into();
-                    return Ok(());
-                }
                 self.spawn_with_agent(session.agent, None)?;
             }
             Some(TreeNode::ArchivedSession(_, _)) => {}
@@ -2427,7 +2411,7 @@ pub(crate) fn git_cmd(dir: &Path, args: &[&str]) -> Result<String, String> {
 pub fn run(serve: bool) -> anyhow::Result<()> {
     let agents = detect_agents();
     if agents.is_empty() {
-        anyhow::bail!("No agent CLI found. Install Claude Code, Codex, GSD, or OMP.");
+        anyhow::bail!("No agent CLI found. Install Claude Code, Codex, or OMP.");
     }
     crate::config::ensure_data_dir().context("failed to create data directory")?;
     // Shared PTY state between TUI and HTTP server (only needed with --web)
@@ -2852,7 +2836,7 @@ mod tests {
         let sessions = vec![
             sess_with_agent("s1", "claude task", "/tmp", Agent::Claude),
             sess_with_agent("s2", "codex task", "/tmp", Agent::Codex),
-            sess_with_agent("s3", "gsd task", "/tmp", Agent::Gsd),
+            sess_with_agent("s3", "omp task", "/tmp", Agent::Omp),
         ];
         let mut app = test_app(workspaces, sessions);
 
@@ -2882,8 +2866,8 @@ mod tests {
             "workspace + 2 sessions unfiltered"
         );
 
-        // Filter to GSD (none exist)
-        app.view.agent_filter = Some(Agent::Gsd);
+        // Filter to OMP (none exist)
+        app.view.agent_filter = Some(Agent::Omp);
         app.rebuild_tree();
 
         // Without search query, workspace is still shown but has no sessions under it
@@ -2902,7 +2886,7 @@ mod tests {
             sess_with_agent("s1", "fix bug", "/tmp", Agent::Claude),
             sess_with_agent("s2", "fix bug", "/tmp", Agent::Codex),
             sess_with_agent("s3", "add feature", "/tmp", Agent::Claude),
-            sess_with_agent("s4", "fix bug", "/tmp", Agent::Gsd),
+            sess_with_agent("s4", "fix bug", "/tmp", Agent::Omp),
         ];
         let mut app = test_app(workspaces, sessions);
 
@@ -2926,7 +2910,7 @@ mod tests {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
         let sessions = vec![
             sess_with_agent("s1", "task a", "/tmp", Agent::Claude),
-            sess_with_agent("s2", "task b", "/tmp", Agent::Gsd),
+            sess_with_agent("s2", "task b", "/tmp", Agent::Omp),
         ];
         let mut app = test_app(workspaces, sessions);
 
@@ -3058,7 +3042,7 @@ mod tests {
     fn sort_agent_group_groups_by_agent() {
         let workspaces = vec![ws("w1", "Project", "/tmp")];
         let sessions = vec![
-            sess_with_agent("s1", "task 1", "/tmp", Agent::Gsd),
+            sess_with_agent("s1", "task 1", "/tmp", Agent::Omp),
             sess_with_agent("s2", "task 2", "/tmp", Agent::Claude),
             sess_with_agent("s3", "task 3", "/tmp", Agent::Codex),
         ];
@@ -3067,7 +3051,7 @@ mod tests {
         app.rebuild_tree();
 
         // Expected tree: Workspace(0), AgentHeader(Claude), Session(Claude),
-        //                AgentHeader(Codex), Session(Codex), AgentHeader(Gsd), Session(Gsd)
+        //                AgentHeader(Codex), Session(Codex), AgentHeader(Omp), Session(Omp)
         assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
         assert!(matches!(
             app.sessions.tree[1],
@@ -3081,9 +3065,9 @@ mod tests {
         assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // s3 = Codex
         assert!(matches!(
             app.sessions.tree[5],
-            TreeNode::AgentHeader(Agent::Gsd)
+            TreeNode::AgentHeader(Agent::Omp)
         ));
-        assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 0))); // s1 = Gsd
+        assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 0))); // s1 = Omp
     }
 
     #[test]
@@ -3097,7 +3081,7 @@ mod tests {
         app.view.sort_mode = SortMode::AgentGroup;
         app.rebuild_tree();
 
-        // Only Claude sessions — no Codex or Gsd headers
+        // Only Claude sessions — no Codex or Omp headers
         assert_eq!(
             app.sessions.tree.len(),
             4,
