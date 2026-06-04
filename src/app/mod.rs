@@ -2658,7 +2658,28 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 let guard = term.lock();
                 let grid = guard.grid();
                 let cursor_point = grid.cursor.point;
-                let cursor_col = cursor_point.column.0 as u16;
+                let raw_col = cursor_point.column.0;
+                // Calculate display column: wide (CJK) chars occupy 2 screen
+                // columns but only 1 grid column.  We must count how many
+                // WIDE_CHAR cells appear before the cursor on the same row
+                // so the IME candidate window lands at the right spot.
+                let display_col = {
+                    let line_idx = cursor_point.line;
+                    let mut extra = 0usize;
+                    for c in 0..raw_col {
+                        let p = alacritty_terminal::index::Point::new(
+                            line_idx,
+                            alacritty_terminal::index::Column(c),
+                        );
+                        if grid[p].flags.contains(
+                            alacritty_terminal::term::cell::Flags::WIDE_CHAR,
+                        ) {
+                            extra += 1;
+                        }
+                    }
+                    raw_col + extra
+                };
+                let cursor_col = display_col as u16;
                 let cursor_row = (grid.display_offset() as i32 + cursor_point.line.0) as u16;
                 let cursor_visible = guard.mode().contains(
                     alacritty_terminal::term::TermMode::SHOW_CURSOR,
