@@ -2660,16 +2660,56 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 let cursor_point = grid.cursor.point;
                 let cursor_col = cursor_point.column.0 as u16;
                 let cursor_row = (grid.display_offset() as i32 + cursor_point.line.0) as u16;
+                let cursor_visible = guard.mode().contains(
+                    alacritty_terminal::term::TermMode::SHOW_CURSOR,
+                );
+                let cursor_style = guard.cursor_style();
                 drop(guard);
                 let rect = app.view.last_chat_area;
                 if cursor_row < rect.height && cursor_col < rect.width {
+                    use crossterm::cursor::SetCursorStyle;
+                    let shape = match cursor_style.shape {
+                        alacritty_terminal::vte::ansi::CursorShape::Block => {
+                            if cursor_style.blinking {
+                                SetCursorStyle::BlinkingBlock
+                            } else {
+                                SetCursorStyle::SteadyBlock
+                            }
+                        }
+                        alacritty_terminal::vte::ansi::CursorShape::Underline => {
+                            if cursor_style.blinking {
+                                SetCursorStyle::BlinkingUnderScore
+                            } else {
+                                SetCursorStyle::SteadyUnderScore
+                            }
+                        }
+                        alacritty_terminal::vte::ansi::CursorShape::Beam => {
+                            if cursor_style.blinking {
+                                SetCursorStyle::BlinkingBar
+                            } else {
+                                SetCursorStyle::SteadyBar
+                            }
+                        }
+                        alacritty_terminal::vte::ansi::CursorShape::HollowBlock => {
+                            SetCursorStyle::SteadyBlock
+                        }
+                        alacritty_terminal::vte::ansi::CursorShape::Hidden => {
+                            SetCursorStyle::SteadyBlock
+                        }
+                    };
                     let _ = crossterm::execute!(
                         std::io::stdout(),
+                        shape,
                         crossterm::cursor::MoveTo(
                             rect.x + cursor_col,
-                            rect.y + cursor_row + 1, // +1 for tab bar
-                        )
+                            rect.y + cursor_row + 1,
+                        ),
+                        crossterm::cursor::Show,
                     );
+                }
+                // Hide cursor when terminal program hides it (e.g. alternate-screen apps).
+                if !cursor_visible {
+                    let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
                 }
             }
         }
