@@ -393,6 +393,7 @@ impl App {
             search_results: Vec::new(),
             search_result_state: ListState::default(),
         };
+        app.rebuild_tree();
         if !app.sessions.tree.is_empty() {
             app.sessions.tree_state.select(Some(0));
         }
