@@ -17,11 +17,11 @@ impl super::App {
                 if key.code == KeyCode::F(12) {
                     self.view.chat_mode = match self.view.chat_mode {
                         ChatMode::Passthrough => {
-                            self.view.status = "F12: Amux".into();
+                            self.view.status = "Amux".into();
                             ChatMode::Amux
                         }
                         ChatMode::Amux => {
-                            self.view.status = "F12: RAW".into();
+                            self.view.status = "RAW".into();
                             ChatMode::Passthrough
                         }
                     };
