@@ -24,7 +24,7 @@
 - [x] PTY 获焦时绑定 `PgUp`/`PgDn` 翻页 (已有)
 - [x] `Home`/`End` 跳顶/底,`Ctrl+B`/`Ctrl+F` vi 风格翻页
 - [x] 状态栏显示 idle 时长 (`now - last_output_at > IDLE_THRESHOLD_SECS`)
-- [ ] Scrollback 搜索重设计：`Ctrl+F` 触发（浏览器页内搜索直觉），cross-session search 改为 `Ctrl+Shift+F`；PTY 区域顶部覆盖搜索栏 UI；匹配行高亮 + n/N 跳转；仅在 Chat focus 且有 PTY 时可用
+- [ ] 搜索功能重设计：1) `Ctrl+F` 触发 PTY scrollback 页内搜索（浏览器直觉），顶部覆盖搜索栏 + 匹配高亮 + n/N 跳转；2) `Ctrl+Shift+F` 触发全局搜索（跨 session 内容搜索，需重新设计交互：搜索框 → 结果列表 → 选中跳转到对应 session）；两者共享搜索栏 UI 组件，只在 Chat focus 且有 PTY 时可用
 - [x] 可选:agent 空闲超阈值时触发 `notify-send` 通知 (已有桌面通知)
 
 ### P3: 打通 `amux serve` ↔ 正在运行的 PTY
