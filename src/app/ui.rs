@@ -1357,7 +1357,7 @@ impl super::App {
         lines.push(Line::from(vec![
             Span::styled("  Extra: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
-                "s=sort  c/x/g/o=quick-agent  1-4=filter  G=archived",
+                "s=sort  o=open dir  c/x/g/o=quick-agent  G=archived",
                 Style::default().fg(Color::DarkGray),
             ),
         ]));

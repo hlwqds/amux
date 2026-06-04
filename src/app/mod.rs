@@ -2411,6 +2411,46 @@ impl App {
         }
     }
 
+    /// Open the selected session's workspace directory in the system file manager.
+    fn open_workspace_dir(&mut self) {
+        let node = self.selected_node();
+        let ws_path: Option<PathBuf> = match &node {
+            Some(TreeNode::Session(wi, _)) => self
+                .sessions
+                .workspaces
+                .get(*wi)
+                .and_then(|ws| ws.path.clone()),
+            Some(TreeNode::ArchivedSession(wi, _)) => self
+                .sessions
+                .workspaces
+                .get(*wi)
+                .and_then(|ws| ws.path.clone()),
+            Some(TreeNode::Workspace(wi)) => self
+                .sessions
+                .workspaces
+                .get(*wi)
+                .and_then(|ws| ws.path.clone()),
+            _ => None,
+        };
+        let Some(path) = ws_path else {
+            self.view.status = "No workspace path available.".into();
+            return;
+        };
+        if !path.exists() {
+            self.view.status = format!("Path not found: {}", path.display());
+            return;
+        }
+        let opener = if cfg!(target_os = "macos") {
+            "open"
+        } else {
+            "xdg-open"
+        };
+        match std::process::Command::new(opener).arg(&path).spawn() {
+            Ok(_) => self.view.status = format!("Opened {}", path.display()),
+            Err(e) => self.view.status = format!("Failed to open: {}", e),
+        }
+    }
+
     fn cycle_theme(&mut self) {
         self.view.theme_name = self.view.theme_name.cycle();
         self.view.theme = self.view.theme_name.theme();

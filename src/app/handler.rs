@@ -453,6 +453,11 @@ impl super::App {
             self.rate_selected_session();
             return Ok(Action::Continue);
         }
+        // 'o': Open selected session's workspace directory in file manager
+        if key.code == KeyCode::Char('o') && key.modifiers == KeyModifiers::NONE {
+            self.open_workspace_dir();
+            return Ok(Action::Continue);
+        }
         // Sort mode cycle ('s' without modifiers — fallback when not matched by keybinds)
         if key.code == KeyCode::Char('s') && key.modifiers == KeyModifiers::NONE {
             self.cycle_sort_mode();
