@@ -1501,18 +1501,27 @@ impl super::App {
             }
         };
 
-        let line = Line::from(vec![
+        // Left side: volatile content (status messages, alerts)
+        let left = Line::from(vec![
             Span::styled(
                 self.view.status.clone(),
                 Style::default().fg(self.view.theme.sidebar_text),
             ),
-            chain_span,
             budget_span,
-            stats_span,
         ]);
 
+        // Right side: stable content (chain, resource usage)
+        let right = Line::from(vec![chain_span, stats_span]);
+
         frame.render_widget(
-            Paragraph::new(line)
+            Paragraph::new(right)
+                .style(Style::default().bg(self.view.theme.sidebar_bg))
+                .right_aligned(),
+            area,
+        );
+        // Render left on top (overwrites the left portion)
+        frame.render_widget(
+            Paragraph::new(left)
                 .style(Style::default().bg(self.view.theme.sidebar_bg)),
             area,
         );
