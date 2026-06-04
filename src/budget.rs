@@ -157,6 +157,7 @@ mod tests {
             agent: Agent::Claude,
             tags: vec![],
             pinned: false,
+            last_message: None,
         }
     }
 

@@ -302,10 +302,17 @@ impl super::App {
                                 );
                             }
                         }
-                        ListItem::new(vec![
+                        let mut item_lines = vec![
                             Line::from(spans),
                             Line::from(detail_line).style(Style::default().fg(Color::Gray)),
-                        ])
+                        ];
+                        if let Some(ref msg) = session.last_message {
+                            item_lines.push(
+                                Line::from(format!("     {}", msg))
+                                    .style(Style::default().fg(Color::DarkGray))
+                            );
+                        }
+                        ListItem::new(item_lines)
                     } else {
                         ListItem::new(Line::from("   \u{25cf} ?"))
                     }

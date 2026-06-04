@@ -329,6 +329,8 @@ pub struct Session {
     pub agent: Agent,
     pub tags: Vec<String>,
     pub pinned: bool,
+    /// Last user message text (truncated), extracted from JSONL during discovery.
+    pub last_message: Option<String>,
 }
 
 #[derive(Clone, Debug)]

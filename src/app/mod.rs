@@ -2783,15 +2783,7 @@ mod tests {
     }
 
     fn sess(id: &str, title: &str, ws_path: &str) -> Session {
-        Session {
-            id: id.into(),
-            workspace_path: PathBuf::from(ws_path),
-            title: title.into(),
-            last_active: 1000,
-            agent: Agent::Claude,
-            tags: Vec::new(),
-            pinned: false,
-        }
+        Session { id: id.into(), workspace_path: PathBuf::from(ws_path), title: title.into(), last_active: 1000, agent: Agent::Claude, tags: Vec::new(), pinned: false, last_message: None }
     }
 
     fn sess_with_agent(id: &str, title: &str, ws_path: &str, agent: Agent) -> Session {
@@ -2803,6 +2795,7 @@ mod tests {
             agent,
             tags: Vec::new(),
             pinned: false,
+            last_message: None,
         }
     }
 
@@ -2815,6 +2808,7 @@ mod tests {
             agent: Agent::Claude,
             tags: Vec::new(),
             pinned: false,
+            last_message: None,
         }
     }
 
@@ -3515,6 +3509,7 @@ mod tests {
                 agent: Agent::Claude,
                 tags: Vec::new(),
                 pinned: false,
+                last_message: None,
             },
             Session {
                 id: "new1".into(),
@@ -3524,6 +3519,7 @@ mod tests {
                 agent: Agent::Claude,
                 tags: Vec::new(),
                 pinned: false,
+                last_message: None,
             },
         ];
         let mut app = test_app(workspaces, sessions);
@@ -3560,6 +3556,7 @@ mod tests {
             agent: Agent::Claude,
             tags: Vec::new(),
             pinned: false,
+            last_message: None,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
@@ -3606,6 +3603,7 @@ mod tests {
             agent: Agent::Claude,
             tags: Vec::new(),
             pinned: false,
+            last_message: None,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(3);
@@ -3634,6 +3632,7 @@ mod tests {
             agent: Agent::Claude,
             tags: Vec::new(),
             pinned: false,
+            last_message: None,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);

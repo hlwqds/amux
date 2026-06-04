@@ -381,6 +381,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             agent: Agent::Claude,
             tags: Vec::new(),
             pinned,
+            last_message: extract_last_user_message(path),
         })
     } else if is_omp {
         let (id, title, cwd) = parse_gsd_session(path)?;
@@ -403,6 +404,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             agent: Agent::Omp,
             tags: Vec::new(),
             pinned,
+            last_message: extract_last_user_message(path),
         })
     } else if is_codex {
         let (id, title, cwd) = parse_codex_session(path)?;
@@ -422,6 +424,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             agent: Agent::Codex,
             tags: Vec::new(),
             pinned,
+            last_message: extract_last_user_message(path),
         })
     } else {
         None
@@ -591,6 +594,43 @@ pub fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// Extract the last user message from a session JSONL file.
+/// Returns the message text truncated to ~100 chars, or None if no user message found.
+fn extract_last_user_message(path: &Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    for line in content.lines().rev() {
+        let record: serde_json::Value = serde_json::from_str(line).ok()?;
+        let r#type = record.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        let text = if r#type == "user" {
+            extract_claude_message_text(&record)
+        } else if r#type == "message" {
+            if record.get("message")
+                .and_then(|msg| msg.get("role"))
+                .and_then(|v| v.as_str())
+                .is_some_and(|r| r == "user")
+            {
+                extract_claude_message_text(&record)
+            } else {
+                String::new()
+            }
+        } else if r#type == "user_message" {
+            record.get("payload")
+                .and_then(|p| p.get("text"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        } else {
+            continue;
+        };
+        if !text.is_empty() {
+            let truncated: String = text.chars().take(100).collect();
+            let suffix = if text.chars().count() > 100 { "..." } else { "" };
+            return Some(format!("{}{}", truncated, suffix));
+        }
+    }
+    None
 }
 
 /// Preview entry: a role + truncated text.
