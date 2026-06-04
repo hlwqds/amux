@@ -410,7 +410,6 @@ impl super::App {
             | InputMode::BranchSelect
             | InputMode::Stats
             | InputMode::TokenStats
-            | InputMode::DiffSelect
             | InputMode::DiffView
             | InputMode::RemoteView
             | InputMode::PluginList

@@ -9,6 +9,7 @@ use axum::routing::{get, post};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::info;
 use tower_http::cors::CorsLayer;
 
 use crate::config;
@@ -65,6 +66,7 @@ pub async fn run_server_with_state(
 
 /// Run the standalone server (no TUI, `amux serve` subcommand).
 pub async fn run_server(port: u16, token: String) -> Result<()> {
+    info!("starting web server on port {}", port);
     let state = Arc::new(AppState {
         config_dir: config::data_dir(),
         ptys: Arc::new(Mutex::new(HashMap::new())),

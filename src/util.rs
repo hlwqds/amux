@@ -49,17 +49,11 @@ pub fn which(cmd: &str) -> Option<PathBuf> {
 }
 
 pub fn detect_agents() -> Vec<Agent> {
-    let mut agents = Vec::new();
-    if which("claude").is_some() {
-        agents.push(Agent::Claude);
-    }
-    if which("codex").is_some() {
-        agents.push(Agent::Codex);
-    }
-    if which("omp").is_some() {
-        agents.push(Agent::Omp);
-    }
-    agents
+    Agent::ALL
+        .iter()
+        .filter(|a| which(a.cmd()).is_some())
+        .copied()
+        .collect()
 }
 
 pub fn key_to_bytes(key: &KeyEvent) -> Vec<u8> {

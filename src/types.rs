@@ -88,6 +88,9 @@ impl Agent {
         }
     }
 
+    /// All supported agent types.
+    pub const ALL: &[Agent] = &[Agent::Claude, Agent::Codex, Agent::Omp];
+
     pub fn icon(&self) -> &str {
         match self {
             Agent::Claude => "C",
@@ -113,6 +116,14 @@ impl Agent {
         }
     }
 
+    pub(crate) fn apply_term_env(cmd: &mut portable_pty::CommandBuilder) {
+        cmd.env("TERM", "xterm-256color");
+        cmd.env_remove("KITTY_WINDOW_ID");
+        cmd.env_remove("KITTY_LISTEN_ON");
+        cmd.env_remove("TERM_PROGRAM");
+        cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+    }
+
     pub fn build_new_cmd(
         &self,
         workspace_path: &Path,
@@ -122,11 +133,7 @@ impl Agent {
             Agent::Claude => {
                 let mut cmd = portable_pty::CommandBuilder::new("claude");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 if let Some(name) = session_name {
                     cmd.arg("-n");
                     cmd.arg(name);
@@ -136,11 +143,7 @@ impl Agent {
             Agent::Codex => {
                 let mut cmd = portable_pty::CommandBuilder::new("codex");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 if let Some(name) = session_name {
                     cmd.arg(name);
                 }
@@ -149,11 +152,7 @@ impl Agent {
             Agent::Omp => {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 cmd
             }
         }
@@ -168,11 +167,7 @@ impl Agent {
             Agent::Claude => {
                 let mut cmd = portable_pty::CommandBuilder::new("claude");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 cmd.arg("--resume");
                 cmd.arg(session_id);
                 cmd
@@ -180,11 +175,7 @@ impl Agent {
             Agent::Codex => {
                 let mut cmd = portable_pty::CommandBuilder::new("codex");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 cmd.arg("resume");
                 cmd.arg(session_id);
                 cmd
@@ -192,11 +183,7 @@ impl Agent {
             Agent::Omp => {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
-                cmd.env("TERM", "xterm-256color");
-                cmd.env_remove("KITTY_WINDOW_ID");
-                cmd.env_remove("KITTY_LISTEN_ON");
-                cmd.env_remove("TERM_PROGRAM");
-                cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+                Self::apply_term_env(&mut cmd);
                 cmd.arg("--resume");
                 cmd.arg(session_id);
                 cmd
@@ -473,68 +460,7 @@ pub enum ChatMode {
     Amux,
 }
 
-// EVALUATION: InputMode consolidation
-// ─────────────────────────────────────────────
-// Current state: 36 variants (including `None`), flat C-like enum with `Copy + Clone`.
-// Dead variant: `DiffSelect` exists but is never used anywhere.
-//
-// ## Option A — Categorical grouping (TextInput(TextInputKind), ListSelect(…), Popup(…), Confirm(…))
-//
-// Handler dispatch (handler.rs:481-748) uses ~30 sequential `if self.input_mode == Variant`
-// comparisons, each delegating to a dedicated method. Grouping into categories would NOT
-// collapse these branches because each variant has unique behavior — even within the same
-// "category", no two TextInput modes share confirm logic (SessionName → agent select,
-// RenameSession → save title, NewWorkspaceName → browse dir, Search → filter tree).
-//
-// The one genuine pattern: 8+ variants (Help, Stats, TokenStats, CrossSearch, DiffView,
-// AgentRecommend, Timeline, ConflictWarning, BudgetWarning, KeybindView, SummaryPreview)
-// all close on "any key" with identical `self.input_mode = InputMode::None; return Continue`.
-// This could be a `Popup(PopupKind)` arm with a shared `dismiss_any_key` handler. Savings:
-// ~30 lines of dispatch boilerplate. But each still needs its own render function and
-// cleanup logic (e.g., `self.diff_lines.clear()`, `self.timeline_events.clear()`), so the
-// dismiss handler would need a `match PopupKind` anyway — just moved.
-//
-// UI render dispatch (ui.rs:42-88) is a 22-arm if-else chain. Each arm calls a unique
-// render method. Grouping into `Popup(PopupKind)` would replace 12 `else if` lines with
-// one `Popup` arm containing a 12-way match inside `render_popup()` — same total branches.
-//
-// `confirm_input` (session.rs:202-289) handles 5 modes with distinct logic and falls through
-// the remaining 31 as no-ops. Categorical grouping wouldn't reduce this — each TextInput
-// variant does something completely different on confirm.
-//
-// ## Option B — Data-carrying enum (embed buffer/state in variants)
-//
-// This would break `Copy` on InputMode. Every `self.input_mode == InputMode::Foo` comparison
-// throughout the codebase (30+ sites) currently works because the enum is `Copy + PartialEq`.
-// Adding `String` or `ListState` fields means:
-//   - Loss of `Copy` → every comparison needs `&self.input_mode` or destructuring
-//   - Buffer state duplicated: `input_buffer` already lives on `App` alongside mode-specific
-//     state (agent_state, browse_state, template_state, etc.). Moving it INTO InputMode
-//     creates two sources of truth and complicates transitions.
-//   - `confirm_input()` already reads `self.input_buffer`; if buffer were in the enum,
-//     we'd need to destructure `self.input_mode` mutably while also accessing `self.sessions`,
-//     triggering borrow conflicts.
-// Net: significant API churn for no behavioral improvement.
-//
-// ## Option C — Keep as-is (RECOMMENDED)
-//
-// The flat enum is:
-//   1. Zero-cost: `Copy + PartialEq`, compares as a simple integer discriminant.
-//   2. Explicit: every mode is greppable, no indirection through sub-enums.
-//   3. Already well-factored: handler delegates to per-mode methods, UI to per-mode renders.
-//      The flat dispatch is a thin routing layer, not a complexity sink.
-//   4. Easy to extend: adding a new mode = add one variant + one handler + one render.
-//      Categorical grouping adds a step: pick the right category first.
-//
-// The only actionable cleanup: remove the dead `DiffSelect` variant.
-//
-// Recommendation: **Keep as-is** (remove DiffSelect).
-// Rationale: The flat enum correctly models the domain — each variant IS a distinct UI mode
-// with unique key handling, rendering, and confirmation logic. Categorical grouping would
-// redistribute the same match arms across more types without reducing total complexity.
-// Data-carrying would sacrifice Copy and create borrow conflicts for no gain. The flat enum
-// is the simplest representation that handles all 36 cases correctly.
-// ─────────────────────────────────────────────
+// InputMode consolidation evaluation — see docs/architecture-decisions/0001-inputmode-eval.md
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum InputMode {
@@ -557,7 +483,6 @@ pub enum InputMode {
     BranchSelect,
     Stats,
     TokenStats,
-    DiffSelect,
     DiffView,
     RemoteView,
     PluginList,

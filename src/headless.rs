@@ -11,6 +11,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use tracing::info;
+
 use anyhow::{Context, Result, bail};
 use portable_pty::PtySystem;
 
@@ -356,6 +358,8 @@ fn cmd_run(rest: &[String]) -> Result<i32> {
     let agent = agent.context("--agent is required")?;
     let prompt = prompt.context("--prompt is required")?;
     let workspace = workspace.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+    info!("headless run: agent={:?} workspace={}", agent, workspace.display());
 
     if !workspace.exists() {
         bail!("workspace path does not exist: {}", workspace.display());

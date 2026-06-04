@@ -17,6 +17,7 @@ use bytes::Bytes;
 use parking_lot::RwLock;
 use portable_pty::{NativePtySystem, PtySize, PtySystem};
 use tokio::sync::Notify;
+use tracing::{error, info, warn};
 
 use crate::types::Agent;
 use crate::util::now_secs;
@@ -110,6 +111,7 @@ impl PtyHandle {
         size: (u16, u16),
         env_vars: &[(String, String)],
     ) -> Result<Self> {
+        info!("spawning PTY: {} in {}", agent.label(), workspace_path.display());
         let pty_system = NativePtySystem::default();
         let pty_size = PtySize {
             rows: size.1,
@@ -117,7 +119,13 @@ impl PtyHandle {
             pixel_width: 0,
             pixel_height: 0,
         };
-        let pair = pty_system.openpty(pty_size).context("failed to open PTY")?;
+        let pair = match pty_system.openpty(pty_size) {
+            Ok(p) => p,
+            Err(e) => {
+                error!("failed to open PTY: {e:?}");
+                anyhow::bail!("failed to open PTY: {e:#}");
+            }
+        };
         let mut cmd = if let Some(id) = session_id {
             agent.build_resume_cmd(workspace_path, id)
         } else {
@@ -252,7 +260,10 @@ impl PtyHandle {
                             last_output_at.store(now_secs(), Ordering::Relaxed);
                             output_notify.notify_waiters();
                         }
-                        Err(_) => break,
+                        Err(_) => {
+                            warn!("PTY reader error");
+                            break;
+                        }
                     }
                 }
             });
@@ -303,14 +314,11 @@ impl PtyHandle {
         workspace_path: &std::path::Path,
         size: (u16, u16),
     ) -> Result<Self> {
+        info!("spawning shell in {}", workspace_path.display());
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
         let mut cmd = portable_pty::CommandBuilder::new(shell);
         cmd.cwd(workspace_path);
-        cmd.env("TERM", "xterm-256color");
-        cmd.env_remove("KITTY_WINDOW_ID");
-        cmd.env_remove("KITTY_LISTEN_ON");
-        cmd.env_remove("TERM_PROGRAM");
-        cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+        crate::types::Agent::apply_term_env(&mut cmd);
 
         let pty_system = NativePtySystem::default();
         let pty_size = PtySize {

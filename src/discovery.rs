@@ -9,13 +9,14 @@ use crate::types::{Agent, ClaudeRecord, Session, Workspace};
 use crate::util::now_secs;
 
 /// Detected project build system type.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ProjectType {
     Rust,
     Node,
     Python,
     Go,
     Make,
+    #[default]
     Unknown,
 }
 impl ProjectType {

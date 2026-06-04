@@ -7,6 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use tracing::warn;
 
 /// Check whether `path` is inside a git repository.
 pub fn is_git_repo(path: &Path) -> bool {
@@ -101,8 +102,8 @@ pub fn remove_worktree(repo_path: &Path, branch_name: &str) -> Result<()> {
 
         if !output.status.success() {
             // Best-effort: don't fail if worktree was already cleaned up
-            eprintln!(
-                "warning: git worktree remove failed: {}",
+            warn!(
+                "git worktree remove failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
         }

@@ -20,72 +20,33 @@
 
 ## 一、质量债(P0/P1)
 
-### 1. [ ] P0 修复 `ProjectType::default()` 缺失
-- **位置**:`src/app/handler.rs:342` 使用 `ProjectType::default()`,但 `src/discovery.rs:13` 只定义了 `ProjectType::detect()`
-- **根因**:`enum ProjectType` 没有派生 `Default`
-- **修复**:在 `discovery.rs` 给 `ProjectType` 加 `#[derive(Default)]` 并 `#[default] Unknown`,或在 `enum` 上手写 `impl Default { fn default() -> Self { Self::Unknown } }`
-- **为什么不是 P1**:同上,主干 424b3b2 之后无 agent 加了新代码未编译,任何一次 `cargo build` 都失败,CI 根本跑不起来
+### 1. [x] P0 修复 `ProjectType::default()` 缺失
+- **位置**:`src/discovery.rs:13`
+- **修复**:已加 `#[derive(Default)]` + `#[default] Unknown`
 - **阻塞**:`#2`
 
 ### 2. [?] P0 补 `render_terminal` 函数
-- **位置**:`src/app/ui.rs:91` 调用 `self.render_terminal(frame, chat_chunks[1])`
-- **当前状态**:`render_terminal` 未定义,只有 `render_chat`
-- **修复**:在 `App` 上加 `fn render_terminal(&self, frame: &mut Frame, area: Rect)`,或把 `ui.rs:91` 改成 `self.render_chat(frame, chat_chunks[1])`
-- **阻塞**:依赖另一个 agent 的设计决定(`self.terminal.is_some()` 的 if 分支是不是要拆开 render),暂不处理
+### 2. [x] P0 补 `render_terminal` 函数
+- **位置**:`src/app/ui.rs:932`
+- **状态**:已实现 — `render_terminal` 渲染底部 shell PTY 分屏
 
-### 3. [ ] P1 删除死变体 `InputMode::DiffSelect`
-- **位置**:`src/types.rs:560` 定义了 `InputMode::DiffSelect`,但全代码库无 `match` / `==` 命中
-- **修复**:
-  1. `rg "DiffSelect" src/` 确认无引用
-  2. 删 `types.rs:560`
-  3. `cargo build` 确认通过
+### 3. [x] P1 删除死变体 `InputMode::DiffSelect`
+- **位置**:`src/types.rs` — 已删除 `DiffSelect` 变体及 `session.rs` 引用
 - **价值**:移除未分支覆盖的死代码,降低认知负担
 
-### 4. [ ] P1 把 `types.rs` 内的 60 行 `EVALUATION` 注释搬到 `docs/`
-- **位置**:`src/types.rs:476-537`,60 行大段"选项 A/B/C"评估
-- **性质**:历史决策记录,不属于产品代码
-- **修复**:
-  1. 新建 `docs/architecture-decisions/0001-inputmode-eval.md`,贴过去
-  2. `types.rs:476-537` 替换成 `// see docs/architecture-decisions/0001-inputmode-eval.md`
-- **价值**:产品代码清爽,设计历史可被 git/adrs 单独追溯
+### 4. [x] P1 把 `types.rs` 内的 60 行 `EVALUATION` 注释搬到 `docs/`
+- **位置**:已移至 `docs/architecture-decisions/0001-inputmode-eval.md`,源文件仅保留一行引用
 
-### 5. [ ] P1 抽取 `apply_term_env` 消除 6 处重复
-- **位置**:types.rs 内 3 个 `Agent` × 2 个 `build_*_cmd`,共 6 处 `cmd.env("TERM", ...); cmd.env_remove("KITTY_WINDOW_ID"); ...`
-- **修复**:
-  ```rust
-  // src/types.rs
-  pub(crate) fn apply_term_env(cmd: &mut CommandBuilder) {
-      cmd.env("TERM", "xterm-256color");
-      cmd.env_remove("KITTY_WINDOW_ID");
-      cmd.env_remove("GHOSTTY_BIN_DIR");
-      cmd.env_remove("TERM_PROGRAM");
-      cmd.env_remove("ALACRITTY_WINDOW_ID");
-  }
-  ```
-  6 处调用点改 `apply_term_env(&mut cmd);`
-- **价值**:减少 ~18 行,后续加 unset 只需改一处
+### 5. [x] P1 抽取 `apply_term_env` 消除 6 处重复
+- **位置**:`Agent::apply_term_env()` — `types.rs:121`,6 处调用 + `pty.rs:309` 共享
 
-### 6. [ ] P1 提取 `available_agents()` 共享给 doctor/quick_doctor/util
-- **现状**:
-  - `src/util.rs:51 detect_agents()` — 限定的硬编码列表 `["claude","codex","omp"]`
-  - `src/doctor.rs:66` — `["claude","codex","omp"]` 再次硬编码
-  - `src/doctor.rs:62-68` `run_quick_doctor` — 同样的 `which()` 逻辑但内联
-- **修复**:
-  ```rust
-  // src/doctor.rs (新公开 API)
-  pub const SUPPORTED_AGENTS: &[&str] = &["claude", "codex", "omp"];
-  pub fn available_agents() -> Vec<Agent> { ... }
-  pub fn missing_agents() -> Vec<&'static str> { ... }
-  ```
-  `util::detect_agents` 改用 `SUPPORTED_AGENTS` 列表
-- **价值**:单点真相,加新 agent(如 `gsd`)只改一处
-
+### 6. [x] P1 提取 `available_agents()` 共享给 doctor/quick_doctor/util
+- **位置**:`Agent::ALL` 常量 — `types.rs:92`,替换了 `util.rs`/`doctor.rs` 中 3 处硬编码列表
 ### 7. [ ] P2 拆分 `App` god-struct
-- **位置**:`src/app/mod.rs:3745` 行的 `App`,`handler.rs:1313` 行,`ui.rs:3788` 行
+
 - **现状**:`App` 把 `AppView` / `PtyManager` / `SessionStore` / `PopupState` / `ChainState` 五块全塞一起
 - **方案**:
   - 短期:把 `ChainState` 的方法从 `handler.rs` 抽到 `src/chain.rs`(零风险)
-  - 中期:把 `ui.rs` 按 popup 类型拆成 `ui_popup.rs`(diff/preflight/help/settings/keybinds/theme/... 各一个文件)
   - 长期:把 `App` 拆成 `HasView` / `HasPtys` / `HasSessions` trait,handler 函数签名分小块
 - **触发条件**:下次有人想动 `ChainState` 时,体验到"改 1 行跳 4 文件"的痛感,立即启动
 
@@ -276,14 +237,9 @@
 - **方案**:与 #22 共用底层 stats,加 dashboard popup,`BarChart` 多指标
 - **价值**:启动后看到"今早 Claude session 平均 4m23s, 87% 一次通过"
 
-### 31. [ ] P1 接 `tracing` 写结构化日志
-- **现状**:全代码库只有 `eprintln!`(`src/watch.rs:36`,`src/worktree.rs:104`),无日志框架
-- **方案**:
-  - `tracing` + `tracing-subscriber` + `tracing-appender`(已潜在的栈)
-  - 写到 `data_dir/logs/amux.YYYY-MM-DD.log`(JSON 格式,轮转)
-  - 关键事件 `info!`:spawn_pty / session_completed / hook_fired
-  - 错误 `error!`:配置解析失败、PTY spawn 失败、外部命令退出非 0
-- **价值**:出问题时能 grep 复盘,3am 排查不再靠记忆
+### 31. [x] P1 接 `tracing` 写结构化日志
+- **位置**:`Cargo.toml` 加 `tracing` + `tracing-subscriber`,`main.rs` 初始化,`pty.rs`/`watch.rs`/`headless.rs`/`worktree.rs`/`server/mod.rs` 已加 `info!`/`warn!`/`error!` 调用
+- **验收**:`RUST_LOG=debug cargo run` 输出结构化日志
 
 ### 32. [ ] P2 `amux doctor --fix` 自动修复
 - **现状**:`src/doctor.rs` 只报告问题(`CheckResult.fix_hint: Option<String>`),不能自动修
@@ -314,7 +270,6 @@
 ### 34. [ ] P3 GitHub Actions CI
 - **现状**:`.github/` 目录存在但空
 - **方案**:
-  - `.github/workflows/ci.yml`:fmt + clippy + test,跑 `cargo test --workspace`
   - `.github/workflows/release.yml`:tag push → 交叉编译 linux-x64/aarch64 + macos-x64/aarch64 → release tarball
   - 集成 `cargo-deny` / `cargo-audit` 检查依赖
 

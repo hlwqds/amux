@@ -63,12 +63,12 @@ pub fn run_quick_doctor() -> Option<String> {
         warnings.push("git not found");
     }
 
-    let agents: Vec<&str> = ["claude", "codex", "omp"]
-        .into_iter()
-        .filter(|cmd| which(cmd).is_some())
+    let available: Vec<_> = Agent::ALL
+        .iter()
+        .filter(|a| which(a.cmd()).is_some())
         .collect();
 
-    if agents.is_empty() {
+    if available.is_empty() {
         warnings.push("no agent CLI found (claude/codex/omp)");
     }
 
@@ -105,7 +105,7 @@ fn check_git(results: &mut Vec<CheckResult>) {
 }
 
 fn check_agents(results: &mut Vec<CheckResult>) {
-    for agent in [Agent::Claude, Agent::Codex, Agent::Omp] {
+    for agent in Agent::ALL {
         let cmd = agent.cmd();
         let label = agent.label();
         match which(cmd) {

@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
+use tracing::warn;
+
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 /// Watches agent session directories for file system changes.
@@ -33,7 +35,7 @@ impl SessionWatcher {
         ) {
             Ok(w) => w,
             Err(e) => {
-                eprintln!("warning: failed to create file watcher: {e}");
+                warn!("watch error: failed to create file watcher: {e}");
                 return SessionWatcher { _watcher: None, rx };
             }
         };
