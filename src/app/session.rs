@@ -426,7 +426,8 @@ impl super::App {
             | InputMode::RollbackConfirm
             | InputMode::BudgetWarning
             | InputMode::ChainSelect
-            | InputMode::PreflightConfirm => {}
+            | InputMode::PreflightConfirm
+            | InputMode::ScrollbackSearch => {}
         }
         Ok(())
     }

@@ -89,7 +89,7 @@ impl super::App {
             self.render_preflight_confirm(frame, area);
         } else if self.view.input_mode == InputMode::SemanticSearch {
             self.render_semantic_search(frame, area);
-        } else if self.view.input_mode != InputMode::None {
+        } else if self.view.input_mode != InputMode::None && self.view.input_mode != InputMode::ScrollbackSearch {
             self.render_input_popup(frame, area);
         }
     }
@@ -586,16 +586,116 @@ impl super::App {
             // Render tab bar
             let tab_line = self.build_tab_bar(chunks[0].width as usize);
             frame.render_widget(Paragraph::new(tab_line), chunks[0]);
+
+            let is_searching = self.view.input_mode == InputMode::ScrollbackSearch;
+            // Split pty area: [search_bar(1)] + [pty] when searching
+            let pty_area = if is_searching {
+                let search_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(1), Constraint::Min(1)])
+                    .split(chunks[1]);
+                // Render search bar
+                let query = &self.view.scrollback_query;
+                let total = self.view.scrollback_matches.len();
+                let current = if total == 0 {
+                    0
+                } else {
+                    self.view.scrollback_match_idx + 1
+                };
+                let search_text = if query.is_empty() {
+                    " Search: _".to_string()
+                } else if total == 0 {
+                    format!(" Search: {} (no matches)", query)
+                } else {
+                    format!(" Search: {} ({}/{})", query, current, total)
+                };
+                let search_bar = Paragraph::new(Line::from(vec![
+                    Span::styled(
+                        search_text,
+                        Style::default()
+                            .fg(Color::Black)
+                            .bg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        " ".repeat(search_chunks[0].width as usize),
+                        Style::default().bg(Color::Yellow),
+                    ),
+                ]))
+                .style(Style::default().bg(Color::Yellow));
+                frame.render_widget(Clear, search_chunks[0]);
+                frame.render_widget(search_bar, search_chunks[0]);
+                search_chunks[1]
+            } else {
+                chunks[1]
+            };
+
             // Render PTY content
             if let Some(idx) = self.ptys.active_pty
                 && let Some(slot) = self.ptys.ptys.get(idx)
             {
-                let pty_area = chunks[1];
                 slot.handle.resize((pty_area.width, pty_area.height));
                 let parser = slot.handle.screen();
                 let guard = parser.read();
                 let term = PseudoTerminal::new(guard.screen());
                 frame.render_widget(term, pty_area);
+                drop(guard);
+
+                // Highlight scrollback search matches
+                if is_searching && !self.view.scrollback_matches.is_empty() {
+                    let offset = slot.handle.scrollback_offset();
+                    let (term_rows, _term_cols) = {
+                        let guard = parser.read();
+                        guard.screen().size()
+                    };
+                    let term_rows = term_rows as usize;
+                    let page_height = pty_area.height as usize;
+                    // Visible rows: from (term_rows - offset - page_height) to (term_rows - offset)
+                    let vis_end = term_rows.saturating_sub(offset);
+                    let vis_start = vis_end.saturating_sub(page_height);
+
+                    for (mi, &(row, col, len)) in self.view.scrollback_matches.iter().enumerate() {
+                        let row = row as usize;
+                        if row < vis_start || row >= vis_end {
+                            continue;
+                        }
+                        let screen_y = pty_area.y + (row - vis_start) as u16;
+                        let screen_x = pty_area.x + col;
+                        if screen_x + len as u16 > pty_area.x + pty_area.width {
+                            continue;
+                        }
+                        let highlight_style = if mi == self.view.scrollback_match_idx {
+                            Style::default()
+                                .bg(Color::Cyan)
+                                .fg(Color::Black)
+                                .add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default().bg(Color::DarkGray).fg(Color::White)
+                        };
+                        // Read the actual cell contents to preserve text
+                        let guard = parser.read();
+                        let s = guard.screen();
+                        let mut text = String::new();
+                        for c in col..col + len as u16 {
+                            match s.cell(row as u16, c) {
+                                Some(cell) => text.push_str(cell.contents()),
+                                None => text.push(' '),
+                            }
+                        }
+                        drop(guard);
+                        let span = Span::styled(text, highlight_style);
+                        let highlight_area = Rect {
+                            x: screen_x,
+                            y: screen_y,
+                            width: len as u16,
+                            height: 1,
+                        };
+                        frame.render_widget(
+                            Paragraph::new(Line::from(vec![span])),
+                            highlight_area,
+                        );
+                    }
+                }
             }
             frame.render_widget(block, area);
             return;

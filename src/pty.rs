@@ -212,6 +212,10 @@ impl PtyHandle {
         self.parser.write().screen_mut().set_scrollback(0);
     }
 
+    pub fn set_scrollback(&self, offset: usize) {
+        self.parser.write().screen_mut().set_scrollback(offset);
+    }
+
     pub fn is_alternate_screen(&self) -> bool {
         self.parser.read().screen().alternate_screen()
     }

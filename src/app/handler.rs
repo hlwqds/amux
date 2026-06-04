@@ -189,15 +189,16 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Ctrl+F: page down (vi forward)
+                // Ctrl+F: scrollback search (normal screen) or page-down (alternate screen)
                 if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let _ = slot.handle.write_input(&[27, 91, 54, 126]);
                         } else {
-                            slot.handle.scroll_page_down(
-                                self.view.last_chat_area.height.saturating_sub(2) as usize,
-                            );
+                            self.view.input_mode = InputMode::ScrollbackSearch;
+                            self.view.scrollback_query.clear();
+                            self.view.scrollback_matches.clear();
+                            self.view.scrollback_match_idx = 0;
                         }
                     }
                     return Ok(Action::Continue);
@@ -579,6 +580,9 @@ impl super::App {
         }
         if self.view.input_mode == InputMode::Search {
             return self.handle_search_key(key);
+        }
+        if self.view.input_mode == InputMode::ScrollbackSearch {
+            return self.handle_scrollback_search_key(key);
         }
         if self.view.input_mode == InputMode::TagFilter {
             return self.handle_tag_filter_key(key);
@@ -1032,7 +1036,10 @@ impl super::App {
     }
 
     pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
-        if self.view.input_mode != InputMode::None {
+        if self.view.input_mode == InputMode::ScrollbackSearch {
+            self.view.scrollback_query.push_str(text);
+            self.run_scrollback_search();
+        } else if self.view.input_mode != InputMode::None {
             self.input_buffer.push_str(text);
         } else if self.view.focus == Focus::Chat
             && let Some(idx) = self.ptys.active_pty
@@ -1041,5 +1048,123 @@ impl super::App {
             let _ = slot.handle.write_input(text.as_bytes());
         }
         Ok(Action::Continue)
+    }
+
+    /// Handle keys in ScrollbackSearch mode (Ctrl+F in PTY chat).
+    fn handle_scrollback_search_key(&mut self, key: KeyEvent) -> Result<Action> {
+        match key.code {
+            KeyCode::Esc => {
+                self.view.scrollback_query.clear();
+                self.view.scrollback_matches.clear();
+                self.view.scrollback_match_idx = 0;
+                self.view.input_mode = InputMode::None;
+            }
+            KeyCode::Enter => {
+                if !self.view.scrollback_matches.is_empty() {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        // Shift+Enter: previous match
+                        self.view.scrollback_match_idx = if self.view.scrollback_match_idx == 0 {
+                            self.view.scrollback_matches.len() - 1
+                        } else {
+                            self.view.scrollback_match_idx - 1
+                        };
+                    } else {
+                        // Enter: next match
+                        self.view.scrollback_match_idx =
+                            (self.view.scrollback_match_idx + 1) % self.view.scrollback_matches.len();
+                    }
+                    self.scroll_to_current_match();
+                }
+            }
+            KeyCode::Backspace => {
+                self.view.scrollback_query.pop();
+                self.run_scrollback_search();
+            }
+            KeyCode::Char(c) => {
+                self.view.scrollback_query.push(c);
+                self.run_scrollback_search();
+            }
+            _ => {}
+        }
+        Ok(Action::Continue)
+    }
+
+    /// Search the active PTY screen for the current scrollback query.
+    fn run_scrollback_search(&mut self) {
+        self.view.scrollback_matches.clear();
+        self.view.scrollback_match_idx = 0;
+
+        let query = self.view.scrollback_query.as_str();
+        if query.is_empty() {
+            return;
+        }
+
+        let Some(idx) = self.ptys.active_pty else { return };
+        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+
+        let screen = slot.handle.screen();
+        let guard = screen.read();
+        let s = guard.screen();
+        let (term_rows, term_cols) = s.size();
+
+        let query_lower = query.to_lowercase();
+
+        for row in 0..term_rows {
+            let mut line = String::new();
+            for col in 0..term_cols {
+                match s.cell(row, col) {
+                    Some(cell) => line.push_str(cell.contents()),
+                    None => line.push(' '),
+                }
+            }
+            let line_lower = line.to_lowercase();
+            let mut start = 0;
+            while let Some(pos) = line_lower[start..].find(&query_lower) {
+                let abs_pos = start + pos;
+                self.view.scrollback_matches.push((row, abs_pos as u16, query.len()));
+                start = abs_pos + query.len();
+                if start >= line_lower.len() {
+                    break;
+                }
+            }
+        }
+
+        drop(guard);
+
+        if !self.view.scrollback_matches.is_empty() {
+            self.scroll_to_current_match();
+        }
+    }
+
+    /// Scroll the PTY to make the current match visible.
+    fn scroll_to_current_match(&self) {
+        if self.view.scrollback_matches.is_empty() {
+            return;
+        }
+        let target_row = self.view.scrollback_matches[self.view.scrollback_match_idx].0;
+        let Some(idx) = self.ptys.active_pty else { return };
+        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+
+        let screen = slot.handle.screen();
+        let guard = screen.read();
+        let (term_rows, _) = guard.screen().size();
+        drop(guard);
+        let term_rows = term_rows as usize;
+
+        let page_size = self.view.last_chat_area.height.saturating_sub(2) as usize;
+        let current_offset = slot.handle.scrollback_offset();
+        let visible_start = term_rows.saturating_sub(current_offset + page_size);
+        let visible_end = term_rows.saturating_sub(current_offset);
+
+        let target = target_row as usize;
+        if target >= visible_start && target < visible_end {
+            // Already visible
+            return;
+        }
+
+        // Scroll so target_row is near the top of visible area
+        let desired_offset = term_rows.saturating_sub(target + page_size);
+        let new_offset = desired_offset.min(term_rows.saturating_sub(1));
+        slot.handle.set_scrollback(new_offset);
     }
 }
