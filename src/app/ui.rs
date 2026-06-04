@@ -1442,43 +1442,7 @@ impl super::App {
     }
 
     fn render_status(&mut self, frame: &mut Frame, area: Rect) {
-        let active_count = self.ptys.ptys.len();
-        let pty_status = if active_count > 0 {
-            let current = self
-                .ptys
-                .active_pty
-                .map(|i| {
-                    self.ptys
-                        .ptys
-                        .get(i)
-                        .map(|s| s.info.title.as_str())
-                        .unwrap_or("?")
-                })
-                .unwrap_or("none");
-            // P2: Show idle time when agent is quiet
-            let idle_info = self
-                .ptys
-                .active_pty
-                .and_then(|i| {
-                    self.ptys.ptys.get(i).and_then(|slot| {
-                        let idle = slot.handle.idle_secs();
-                        if idle >= crate::pty::IDLE_THRESHOLD_SECS {
-                            Some(format!(" (quiet {}s)", idle))
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .unwrap_or_default();
-            Span::styled(
-                format!(" [{} active: {}{}]", active_count, current, idle_info),
-                Style::default().fg(self.view.theme.status_done),
-            )
-        } else {
-            Span::raw("")
-        };
-
-        // Budget alert indicator in status bar
+        // Budget alert — flashing, keep when present
         let budget_span = if let Some(ref msg) = self.popup.budget_alert {
             self.popup.budget_flash_on = !self.popup.budget_flash_on;
             if self.popup.budget_flash_on {
@@ -1493,43 +1457,26 @@ impl super::App {
                 Span::styled(
                     format!(" {} ", msg),
                     Style::default()
-                        .fg(self.view.theme.status_error)
-                        .bg(Color::Black),
+                        .fg(self.view.theme.status_error),
                 )
             }
         } else {
             Span::raw("")
         };
 
-
         let chain_span = if let Some(ref chain) = self.chains.active_chain {
-            let agent_label = if chain.current_step < chain.total_steps {
-                self.chains
-                    .chains
-                    .iter()
-                    .find(|c| c.name == chain.chain_name)
-                    .and_then(|c| c.steps.get(chain.current_step))
-                    .map(|s| format!(" ({})", s.agent.label()))
-                    .unwrap_or_default()
-            } else {
-                String::new()
-            };
             Span::styled(
                 format!(
-                    " Chain: {}/{}{} ",
+                    " {}/{} ",
                     chain.current_step + 1,
                     chain.total_steps,
-                    agent_label
                 ),
-                Style::default()
-                    .fg(self.view.theme.agent_omp)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(self.view.theme.agent_omp),
             )
         } else {
             Span::raw("")
         };
 
-        // Resource usage for the active PTY only
         let stats_span = {
             let stats = self
                 .ptys
@@ -1540,11 +1487,11 @@ impl super::App {
                 if stats.cpu_percent > 0.0 || stats.mem_rss_kb > 0 {
                     Span::styled(
                         format!(
-                            " CPU:{:.1}% MEM:{}",
-                            stats.cpu_percent,
+                            " {}% {}",
+                            stats.cpu_percent as u32,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
-                        Style::default().fg(self.view.theme.accent),
+                        Style::default().fg(self.view.theme.sidebar_dim),
                     )
                 } else {
                     Span::raw("")
@@ -1559,12 +1506,12 @@ impl super::App {
         {
             Span::styled(
                 " RAW",
-                Style::default()
-                    .fg(self.view.theme.status_running),
+                Style::default().fg(self.view.theme.status_running),
             )
         } else {
             Span::raw("")
         };
+
         let line = Line::from(vec![
             mode_span,
             Span::styled(
@@ -1572,14 +1519,8 @@ impl super::App {
                 Style::default().fg(self.view.theme.sidebar_text),
             ),
             chain_span,
-            pty_status,
-            stats_span,
             budget_span,
-            Span::raw("  "),
-            Span::styled(
-                self.view.keybinds.status_hint(),
-                Style::default().fg(self.view.theme.sidebar_dim),
-            ),
+            stats_span,
         ]);
 
         frame.render_widget(
