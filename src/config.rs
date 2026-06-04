@@ -244,11 +244,13 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
         if !trimmed.is_empty() {
             // Try JSON format first
             if let Ok(obj) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                let title = obj
-                    .get("title")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(trimmed)
-                    .to_string();
+                let title = match obj.get("title").and_then(|v| v.as_str()) {
+                    Some(t) if !t.is_empty() => t.to_string(),
+                    _ => {
+                        // JSON exists but no valid title — let discovery extract from JSONL
+                        return None;
+                    }
+                };
                 let tags = obj
                     .get("tags")
                     .and_then(|v| v.as_array())
