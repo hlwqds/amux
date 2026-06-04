@@ -33,16 +33,17 @@ fn page_size() -> i64 {
 }
 
 /// Read process stats from /proc/{pid}/stat, /proc/{pid}/io, and /proc/uptime.
+/// Aggregates the process tree (PID + all descendants) for accurate resource usage.
 ///
 /// Returns default stats on non-Linux platforms.
+#[allow(unused_variables)]
 pub fn read_process_stats(pid: u32) -> Result<ProcessStats> {
     #[cfg(target_os = "linux")]
     {
-        read_process_stats_linux(pid)
+        read_process_tree_stats_linux(pid)
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = pid;
         Ok(ProcessStats::default())
     }
 }
@@ -145,6 +146,69 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
         prev_cpu_system: 0,
         prev_instant: None,
     })
+}
+
+/// Collect all descendant PIDs by scanning /proc/*/stat for matching ppid.
+#[cfg(target_os = "linux")]
+fn collect_descendants(root_pid: u32) -> Vec<u32> {
+    let mut result = vec![root_pid];
+    let mut queue = std::collections::VecDeque::from([root_pid]);
+    // Build ppid map: scan all /proc/{n}/stat entries
+    let mut children_map: std::collections::HashMap<u32, Vec<u32>> = std::collections::HashMap::new();
+    if let Ok(entries) = std::fs::read_dir("/proc") {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if let Ok(pid) = name_str.parse::<u32>() {
+                let stat_path = format!("/proc/{}/stat", pid);
+                if let Ok(content) = std::fs::read_to_string(&stat_path) {
+                    // Extract ppid: find last ')', then split, field[1] is ppid
+                    if let Some(close) = content.rfind(')') {
+                        let after = &content[close + 1..];
+                        let fields: Vec<&str> = after.split_whitespace().collect();
+                        if let Some(ppid_str) = fields.get(1)
+                            && let Ok(ppid) = ppid_str.parse::<u32>()
+                        {
+                            children_map.entry(ppid).or_default().push(pid);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // BFS from root
+    while let Some(parent) = queue.pop_front() {
+        if let Some(kids) = children_map.get(&parent) {
+            for &child in kids {
+                result.push(child);
+                queue.push_back(child);
+            }
+        }
+    }
+    result
+}
+
+/// Read stats for an entire process tree (root PID + all descendants).
+/// Aggregates CPU, memory, IO across all processes in the tree.
+#[cfg(target_os = "linux")]
+fn read_process_tree_stats_linux(root_pid: u32) -> Result<ProcessStats> {
+    let pids = collect_descendants(root_pid);
+    let mut aggregated = ProcessStats::default();
+    let mut max_uptime: u64 = 0;
+    for pid in &pids {
+        if let Ok(s) = read_process_stats_linux(*pid) {
+            aggregated.cpu_user = aggregated.cpu_user.saturating_add(s.cpu_user);
+            aggregated.cpu_system = aggregated.cpu_system.saturating_add(s.cpu_system);
+            aggregated.mem_rss_kb = aggregated.mem_rss_kb.saturating_add(s.mem_rss_kb);
+            aggregated.mem_virt_kb = aggregated.mem_virt_kb.saturating_add(s.mem_virt_kb);
+            aggregated.read_bytes = aggregated.read_bytes.saturating_add(s.read_bytes);
+            aggregated.write_bytes = aggregated.write_bytes.saturating_add(s.write_bytes);
+            aggregated.threads = aggregated.threads.saturating_add(s.threads);
+            max_uptime = max_uptime.max(s.uptime_secs);
+        }
+    }
+    aggregated.uptime_secs = max_uptime;
+    Ok(aggregated)
 }
 
 /// Compute CPU percentage from previous measurement.
