@@ -644,65 +644,78 @@ impl super::App {
                 && let Some(slot) = self.ptys.ptys.get(idx)
             {
                 slot.handle.resize((pty_area.width, pty_area.height));
-                let parser = slot.handle.screen();
-                let guard = parser.read();
-                let term = PseudoTerminal::new(guard.screen());
-                frame.render_widget(term, pty_area);
-                drop(guard);
-
-                // Highlight scrollback search matches
-                if is_searching && !self.view.scrollback_matches.is_empty() {
-                    let offset = slot.handle.scrollback_offset();
-                    let (term_rows, _term_cols) = {
-                        let guard = parser.read();
-                        guard.screen().size()
-                    };
-                    let term_rows = term_rows as usize;
-                    let page_height = pty_area.height as usize;
-                    // Visible rows: from (term_rows - offset - page_height) to (term_rows - offset)
-                    let vis_end = term_rows.saturating_sub(offset);
-                    let vis_start = vis_end.saturating_sub(page_height);
-
-                    for (mi, &(row, col, len)) in self.view.scrollback_matches.iter().enumerate() {
-                        let row = row as usize;
-                        if row < vis_start || row >= vis_end {
-                            continue;
-                        }
-                        let screen_y = pty_area.y + (row - vis_start) as u16;
-                        let screen_x = pty_area.x + col;
-                        if screen_x + len as u16 > pty_area.x + pty_area.width {
-                            continue;
-                        }
-                        let highlight_style = if mi == self.view.scrollback_match_idx {
-                            Style::default()
-                                .bg(Color::Cyan)
-                                .fg(Color::Black)
-                                .add_modifier(Modifier::BOLD)
-                        } else {
-                            Style::default().bg(Color::DarkGray).fg(Color::White)
+                // Check if we're viewing a snapshot (alternate screen scrollback)
+                if let Some(snapshot_rows) = slot.handle.scrolled_snapshot() {
+                    let lines: Vec<Line<'_>> = snapshot_rows.iter()
+                        .take(pty_area.height as usize)
+                        .map(|row| Line::from(row.clone()))
+                        .collect();
+                    let snap_widget = Paragraph::new(lines)
+                        .style(Style::default().fg(Color::White).bg(Color::Rgb(30, 30, 40)));
+                    frame.render_widget(Clear, pty_area);
+                    frame.render_widget(snap_widget, pty_area);
+                    // Show scroll indicator
+                    let indicator = Paragraph::new(Line::from(vec![
+                        Span::styled(" HIST ", Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    ]));
+                    frame.render_widget(indicator, Rect { x: pty_area.x, y: pty_area.y, width: 5, height: 1 });
+                } else {
+                    let parser = slot.handle.screen();
+                    let guard = parser.read();
+                    let term = PseudoTerminal::new(guard.screen());
+                    frame.render_widget(term, pty_area);
+                    drop(guard);
+                    // Highlight scrollback search matches
+                    if is_searching && !self.view.scrollback_matches.is_empty() {
+                        let offset = slot.handle.scrollback_offset();
+                        let (term_rows, _term_cols) = {
+                            let guard = parser.read();
+                            guard.screen().size()
                         };
-                        // Read the actual cell contents to preserve text
-                        let guard = parser.read();
-                        let s = guard.screen();
-                        let mut text = String::new();
-                        for c in col..col + len as u16 {
-                            match s.cell(row as u16, c) {
-                                Some(cell) => text.push_str(cell.contents()),
-                                None => text.push(' '),
+                        let term_rows = term_rows as usize;
+                        let page_height = pty_area.height as usize;
+                        let vis_end = term_rows.saturating_sub(offset);
+                        let vis_start = vis_end.saturating_sub(page_height);
+                        for (mi, &(row, col, len)) in self.view.scrollback_matches.iter().enumerate() {
+                            let row = row as usize;
+                            if row < vis_start || row >= vis_end {
+                                continue;
                             }
+                            let screen_y = pty_area.y + (row - vis_start) as u16;
+                            let screen_x = pty_area.x + col;
+                            if screen_x + len as u16 > pty_area.x + pty_area.width {
+                                continue;
+                            }
+                            let highlight_style = if mi == self.view.scrollback_match_idx {
+                                Style::default()
+                                    .bg(Color::Cyan)
+                                    .fg(Color::Black)
+                                    .add_modifier(Modifier::BOLD)
+                            } else {
+                                Style::default().bg(Color::DarkGray).fg(Color::White)
+                            };
+                            let guard = parser.read();
+                            let s = guard.screen();
+                            let mut text = String::new();
+                            for c in col..col + len as u16 {
+                                match s.cell(row as u16, c) {
+                                    Some(cell) => text.push_str(cell.contents()),
+                                    None => text.push(' '),
+                                }
+                            }
+                            drop(guard);
+                            let span = Span::styled(text, highlight_style);
+                            let highlight_area = Rect {
+                                x: screen_x,
+                                y: screen_y,
+                                width: len as u16,
+                                height: 1,
+                            };
+                            frame.render_widget(
+                                Paragraph::new(Line::from(vec![span])),
+                                highlight_area,
+                            );
                         }
-                        drop(guard);
-                        let span = Span::styled(text, highlight_style);
-                        let highlight_area = Rect {
-                            x: screen_x,
-                            y: screen_y,
-                            width: len as u16,
-                            height: 1,
-                        };
-                        frame.render_widget(
-                            Paragraph::new(Line::from(vec![span])),
-                            highlight_area,
-                        );
                     }
                 }
             }

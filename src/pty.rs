@@ -2,7 +2,7 @@ use std::{
     io::Write,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc::SyncSender,
     },
     thread,
@@ -35,6 +35,11 @@ pub struct PtyHandle {
     output_notify: Arc<Notify>,
     /// PID of the child process (captured before child is moved to wait thread).
     child_pid: Option<u32>,
+    /// Screen snapshots for scrollback in alternate screen mode.
+    /// Each snapshot is the full screen rows at a point in time.
+    snapshots: Arc<RwLock<std::collections::VecDeque<Vec<String>>>>,
+    /// Current scrollback position: 0 = live, N = N snapshots back.
+    snap_scroll: Arc<AtomicUsize>,
 }
 
 impl PtyHandle {
@@ -90,14 +95,19 @@ impl PtyHandle {
         let alive = Arc::new(AtomicBool::new(true));
         let last_output_at = Arc::new(AtomicU64::new(now_secs()));
         let output_notify = Arc::new(Notify::new());
-
+        let snapshots: Arc<RwLock<std::collections::VecDeque<Vec<String>>>> =
+            Arc::new(RwLock::new(std::collections::VecDeque::with_capacity(500)));
+        let snap_scroll = Arc::new(AtomicUsize::new(0));
         {
             let parser = parser.clone();
             let last_output_at = last_output_at.clone();
             let last_raw_output = last_raw_output.clone();
             let output_notify = output_notify.clone();
+            let snapshots = snapshots.clone();
+            let snap_scroll = snap_scroll.clone();
             thread::spawn(move || {
                 let mut buf = [0u8; 8192];
+                let mut snap_counter: u32 = 0;
                 loop {
                     match std::io::Read::read(&mut reader, &mut buf) {
                         Ok(0) => break,
@@ -105,18 +115,32 @@ impl PtyHandle {
                             let data = &buf[..n];
                             let mut p = parser.write();
                             p.process(data);
+                            // Snapshot screen periodically (every ~8 reads) when in alternate screen.
+                            // This gives scrollback for agents like Codex that use alternate screen.
+                            snap_counter += 1;
+                            if snap_counter >= 8 && p.screen().alternate_screen() {
+                                snap_counter = 0;
+                                let screen = p.screen();
+                                let rows: Vec<String> = screen.rows(0, screen.size().1).collect();
+                                let mut snaps = snapshots.write();
+                                if snaps.back() != Some(&rows) {
+                                    if snaps.len() == snaps.capacity() {
+                                        snaps.pop_front();
+                                    }
+                                    snaps.push_back(rows);
+                                    // New output resets scroll position
+                                    snap_scroll.store(0, Ordering::Relaxed);
+                                }
+                            }
                             drop(p);
-                            // Accumulate raw ANSI bytes for WebSocket consumers
                             let mut raw = last_raw_output.write();
                             raw.extend_from_slice(data);
-                            // Cap at 1 MB to avoid unbounded growth
                             const MAX_RAW: usize = 1024 * 1024;
                             if raw.len() > MAX_RAW {
                                 let excess = raw.len() - MAX_RAW;
                                 raw.drain(..excess);
                             }
                             last_output_at.store(now_secs(), Ordering::Relaxed);
-                            // Wake any async consumers waiting for output
                             output_notify.notify_waiters();
                         }
                         Err(_) => break,
@@ -158,6 +182,8 @@ impl PtyHandle {
             last_raw_output,
             output_notify,
             child_pid,
+            snapshots,
+            snap_scroll,
         })
     }
 
@@ -165,6 +191,7 @@ impl PtyHandle {
         if !self.alive.load(Ordering::Relaxed) {
             return Err("PTY closed".to_string());
         }
+        self.snap_scroll.store(0, Ordering::Relaxed);
         self.writer_tx
             .try_send(Bytes::from(data.to_vec()))
             .map_err(|_| "PTY input buffer full".to_string())
@@ -191,29 +218,53 @@ impl PtyHandle {
     pub fn scrollback_offset(&self) -> usize {
         self.parser.read().screen().scrollback()
     }
-
+    /// Scroll up: in normal mode uses vt100 scrollback, in alternate screen
+    /// mode uses the snapshot buffer.
     pub fn scroll_page_up(&self, page_size: usize) {
-        let current = self.scrollback_offset();
-        self.parser
-            .write()
-            .screen_mut()
-            .set_scrollback(current + page_size);
+        if self.is_alternate_screen() {
+            let snaps = self.snapshots.read();
+            let max_scroll = snaps.len().saturating_sub(1);
+            let current = self.snap_scroll.load(Ordering::Relaxed);
+            let new_scroll = (current + 1).min(max_scroll);
+            self.snap_scroll.store(new_scroll, Ordering::Relaxed);
+        } else {
+            let current = self.scrollback_offset();
+            self.parser
+                .write()
+                .screen_mut()
+                .set_scrollback(current + page_size);
+        }
     }
-
     pub fn scroll_page_down(&self, page_size: usize) {
-        let current = self.scrollback_offset();
-        self.parser
-            .write()
-            .screen_mut()
-            .set_scrollback(current.saturating_sub(page_size));
+        if self.is_alternate_screen() {
+            let current = self.snap_scroll.load(Ordering::Relaxed);
+            self.snap_scroll.store(current.saturating_sub(1), Ordering::Relaxed);
+        } else {
+            let current = self.scrollback_offset();
+            self.parser
+                .write()
+                .screen_mut()
+                .set_scrollback(current.saturating_sub(page_size));
+        }
     }
-
     pub fn reset_scroll(&self) {
+        self.snap_scroll.store(0, Ordering::Relaxed);
         self.parser.write().screen_mut().set_scrollback(0);
     }
-
     pub fn set_scrollback(&self, offset: usize) {
         self.parser.write().screen_mut().set_scrollback(offset);
+    }
+    /// Returns the snapshot at the current scroll position, if any.
+    /// Returns None when scroll is at live position (snap_scroll == 0)
+    /// or when there are no snapshots.
+    pub fn scrolled_snapshot(&self) -> Option<Vec<String>> {
+        let pos = self.snap_scroll.load(Ordering::Relaxed);
+        if pos == 0 {
+            return None;
+        }
+        let snaps = self.snapshots.read();
+        let idx = snaps.len().saturating_sub(pos);
+        snaps.get(idx).cloned()
     }
 
     pub fn is_alternate_screen(&self) -> bool {
