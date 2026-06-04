@@ -6,49 +6,79 @@ A single binary that aggregates your projects, discovers Claude Code, Codex, GSD
 
 ## Features
 
-### Core
+- **Dual input mode** — F12 toggles between Passthrough (RAW) and Amux (command) mode
+- **Catppuccin Mocha** theme (default), plus Dark, Light, and custom JSON themes
+- **alacritty_terminal backend** — full PTY emulation with scrollback search
+- **Multi-agent support** — Claude Code, Codex, GSD, and OMP with agent picker
+- **Session persistence** — auto-discovers sessions from agent data directories
+- **Configurable keybinds** — customize all Alt+key shortcuts via `config.json`
+- **macOS + Linux** — cross-platform with platform-aware data directories
 
-- **Multi-workspace management** — sidebar with project workspaces, expandable session lists
-- **Multi-agent support** — Claude Code, Codex, GSD, and OMP, with an agent picker when creating sessions
-- **PTY-embedded sessions** — agents run inside the TUI via PTY, no external windows needed
-- **Session persistence** — discovers existing sessions from `~/.claude/projects`, `~/.codex/sessions`, `~/.gsd/sessions`, and `~/.omp/agent/sessions`
-- **Configurable keybinds** — customize all shortcuts via `config.json`, with Alt+key mode
-- **macOS + Linux** — cross-platform support with platform-aware data directories
+## Keybindings
 
-### Session Management
+### Global (both modes)
 
-- **Session tags** — tag and filter sessions
-- **Session rollback** — one-click `git reset` to pre-session state with snapshot commits
-- **Session chains** — define multi-step agent pipelines (Claude → Codex review) in config
-- **Replay prompt** — re-use a previous session's prompt with fresh template variables
-- **Session knowledge** — auto-inject workspace context into new sessions, reducing token waste
-- **Pre-flight checks** — verify git state, test status, and project config before starting sessions
+| Key | Action |
+|-----|--------|
+| `F12` | Toggle Passthrough ↔ Amux mode |
+| `Tab` / `Alt+H` | Go to sidebar |
+| `Alt+J/K` | Move selection |
+| `Alt+N` | New session (agent picker) |
+| `Alt+R` | Refresh session list |
+| `Alt+Q` | Quit |
+| `Alt+D` | Delete workspace/session |
+| `Alt+M` | Rename |
+| `Alt+W` | Create workspace |
+| `Alt+V` | Preview session |
+| `Alt+E` | Expand/collapse workspace |
+| `Alt+S` | Settings |
+| `Alt+T` | Theme selector |
+| `Alt+F` | Filter by tag |
+| `Alt+L` | Focus chat |
+| `Ctrl+J` / `Ctrl+K` | Switch PTY tabs |
+| `Ctrl+Shift+J/K` | Reorder PTY tabs |
+| `Ctrl+Q` | Kill current session |
+| `Ctrl+Y` | Copy session title |
 
-### Monitoring & Analysis
+### Amux Mode (command mode, letters = actions)
 
-- **Process monitoring** — real-time CPU/memory stats for agent processes (via `/proc`)
-- **Token budget alerts** — configurable daily/weekly token limits with status bar warnings
-- **Token usage stats** — per-agent input/output/cost breakdown
-- **Session timeline** — chronological event view across all sessions
-- **Cross-session search** — full-text search across all session content
-- **Semantic search** — natural language search via TF-IDF/BM25
+| Key | Action |
+|-----|--------|
+| `b` | Scrollback page up |
+| `f` | Scrollback search |
+| `t` | Token usage |
+| `s` | Activity stats |
+| `e` | Chain select |
+| `g` | Session timeline |
+| `w` | Agent recommendations |
+| `r` | Remote sessions |
+| `x` | Diff view |
+| `y` | Copy visible screen (when scrolled) |
+| `PgUp`/`PgDn` | Scroll PTY output |
+| `Home`/`End` | Scroll to top/bottom |
 
-### Remote & Web
+Modified keys (`Ctrl+X`, `Alt+X`, `Shift+X`) still forward to PTY.
 
-- **Built-in HTTP server** — `amux serve` with WebSocket terminal streaming
-- **Mobile-responsive web client** — xterm.js terminal, virtual function keys, agent selector
-- **SSH remote discovery** — scan remote hosts for agent sessions
-- **Headless CLI** — `amux run`, `amux list`, `amux status` for CI/scripting
+### Passthrough Mode (RAW, default for typing)
 
-### Development
+All keys are forwarded directly to the PTY (agent session). Use this for normal agent interaction.
 
-- **Post-completion checks** — auto-run tests after session ends (Rust/Node/Python/Go)
-- **Git worktree isolation** — auto-isolate conflicting PTYs in separate worktrees
-- **Custom themes** — load Tokyo Night variants from JSON files
-- **Plugin system** — run custom commands with ANSI output, JSON actions, lifecycle hooks
-- **Project config** — `.amux.json` per-project settings (agent, check command, templates)
-- **Prompt templates** — variables like `{git_diff}`, `{git_branch}`, `{project_type}`
-- **Environment diagnostics** — `amux doctor` checks git, agent CLIs, data dirs
+### Sidebar
+
+| Key | Action |
+|-----|--------|
+| `c` / `x` / `o` | Quick create Claude/Codex/OMP session |
+| `1` / `2` / `3` | Filter by agent type |
+| `Space` | Mark/unmark session |
+| `s` | Cycle sort mode |
+| `S` | Semantic search (BM25) |
+| `o` | Open workspace directory |
+| `!` | Pin/unpin session |
+| `p` | Template select |
+| `B` | Git branch |
+| `G` | Toggle archived sessions |
+
+All keybinds are customizable in `config.json`.
 
 ## Install
 
@@ -99,32 +129,6 @@ amux status <session-id>   # show single session status
 ```bash
 amux serve --port 8080 --token my-secret    # start HTTP+WebSocket server
 ```
-
-## Keybindings
-
-| Key | Action |
-|-----|--------|
-| `Alt+j` / `Alt+k` | Move selection |
-| `h` / `l` / `Tab` | Switch between sidebar and terminal |
-| `Enter` | Open or resume session |
-| `Alt+n` | New session (opens agent picker) |
-| `c` / `x` / `g` / `o` | Quick create Claude / Codex / GSD / OMP session |
-| `Alt+r` | Refresh session list |
-| `Alt+q` | Quit |
-| `Alt+d` | Delete workspace or session |
-| `Alt+m` | Rename workspace or session |
-| `Alt+w` | Create new workspace |
-| `Alt+v` | Preview session |
-| `Alt+e` | Expand/collapse workspace |
-| `Alt+s` | Settings |
-| `Alt+t` | Theme selector |
-| `Alt+f` | Filter by tag |
-| `Alt+h` | Help |
-| `Ctrl+J` / `Ctrl+K` | Switch between active PTY tabs |
-| `PgUp` / `PgDn` | Scroll PTY output |
-| `/` | Search workspaces and sessions |
-
-All keybinds are customizable in `config.json`.
 
 ## Data Directory
 

@@ -1903,16 +1903,44 @@ impl super::App {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
+        lines.push(Line::from(
+            "  F12              Toggle Amux ↔ Passthrough mode",
+        ));
+        lines.push(Line::from(Span::styled(
+            "    Amux (command)  — letters are actions (b/f/t/s/e/g/w/r/x/y)",
+            Style::default().fg(Color::DarkGray),
+        )));
+        lines.push(Line::from(Span::styled(
+            "    Passthrough     — all keys forwarded to PTY (normal typing)",
+            Style::default().fg(Color::DarkGray),
+        )));
         lines.push(Line::from("  Ctrl+Q           Kill current session"));
         lines.push(Line::from("  Ctrl+Y           Copy session title"));
+        lines.push(Line::from("  Ctrl+J/K         Switch active PTY tab"));
+        lines.push(Line::from("  Ctrl+Shift+J/K   Reorder PTY tabs"));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Amux Mode Keys",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from("  b                Scrollback page up"));
+        lines.push(Line::from("  f                Scrollback search"));
+        lines.push(Line::from("  t                Token usage"));
+        lines.push(Line::from("  s                Activity stats"));
+        lines.push(Line::from("  e                Chain select"));
+        lines.push(Line::from("  g                Session timeline"));
+        lines.push(Line::from("  w                Agent recommendations"));
+        lines.push(Line::from("  r                Remote sessions"));
+        lines.push(Line::from("  x                Diff view"));
+        lines.push(Line::from("  y                Copy screen (when scrolled)"));
         lines.push(Line::from("  PgUp/PgDn        Scroll PTY output"));
-        lines.push(Line::from(
-            "  b/f              Scroll page up/down (vi-style)",
-        ));
         lines.push(Line::from("  Home/End         Scroll to top/bottom"));
-        lines.push(Line::from(
-            "  y                Copy visible screen (when scrolled)",
-        ));
+        lines.push(Line::from(Span::styled(
+            "  (Ctrl/Alt/Shift modified keys still forward to PTY)",
+            Style::default().fg(Color::DarkGray),
+        )));
         // Section: Panels & info
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
