@@ -2542,6 +2542,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 Event::Paste(text) => {
                     app.handle_paste(&text)?;
                 }
+
                 Event::Mouse(mouse) => match mouse.kind {
                     crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
                         app.handle_mouse_click(mouse.column, mouse.row);
@@ -2553,6 +2554,24 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                         crossterm::event::MouseButton::Middle,
                     ) => {
                         app.handle_tab_close_click(mouse.column, mouse.row);
+                    }
+                    crossterm::event::MouseEventKind::ScrollUp => {
+                        if app.view.focus == Focus::Chat
+                            && let Some(idx) = app.ptys.active_pty
+                            && let Some(slot) = app.ptys.ptys.get(idx)
+                        {
+                            let seq = format!("\x1b[<64;{};{}M", mouse.column + 1, mouse.row + 1);
+                            let _ = slot.handle.write_input(seq.as_bytes());
+                        }
+                    }
+                    crossterm::event::MouseEventKind::ScrollDown => {
+                        if app.view.focus == Focus::Chat
+                            && let Some(idx) = app.ptys.active_pty
+                            && let Some(slot) = app.ptys.ptys.get(idx)
+                        {
+                            let seq = format!("\x1b[<65;{};{}M", mouse.column + 1, mouse.row + 1);
+                            let _ = slot.handle.write_input(seq.as_bytes());
+                        }
                     }
                     _ => {}
                 },
