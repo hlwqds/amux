@@ -64,6 +64,11 @@ impl super::App {
                         }
                         return Ok(Action::Continue);
                     }
+                    if kb.delete.matches_event(&key) {
+                        self.view.focus = Focus::Sidebar;
+                        self.request_delete();
+                        return Ok(Action::Continue);
+                    }
                     if kb.theme.matches_event(&key) {
                         self.cycle_theme();
                         return Ok(Action::Continue);

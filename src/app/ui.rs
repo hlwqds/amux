@@ -85,6 +85,8 @@ impl super::App {
             self.render_chain_select(frame, area);
         } else if self.view.input_mode == InputMode::RollbackConfirm {
             self.render_rollback_confirm(frame, area);
+        } else if self.view.input_mode == InputMode::ConfirmDelete {
+            self.render_confirm_delete(frame, area);
         } else if self.view.input_mode == InputMode::PreflightConfirm {
             self.render_preflight_confirm(frame, area);
         } else if self.view.input_mode == InputMode::SemanticSearch {
@@ -3128,6 +3130,83 @@ impl super::App {
                     Block::default()
                         .borders(Borders::ALL)
                         .title(" Rollback ")
+                        .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+                        .border_style(Style::default().fg(Color::Red)),
+                )
+                .wrap(Wrap { trim: true }),
+            popup_area,
+        );
+    }
+
+    fn render_confirm_delete(&self, frame: &mut Frame, area: Rect) {
+        let popup_area = centered_rect(50, 16, area);
+        let mut lines: Vec<Line<'_>> = Vec::new();
+
+        lines.push(Line::from(vec![Span::styled(
+            "  Delete Confirmation",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]));
+        lines.push(Line::from(""));
+
+        if self.pending_batch_delete {
+            lines.push(Line::from(vec![
+                Span::styled("  Delete ", Style::default().fg(Color::White)),
+                Span::styled(
+                    format!("{}", self.view.selected_set.len()),
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" marked session(s)?", Style::default().fg(Color::White)),
+            ]));
+        } else if let Some(node) = &self.pending_delete {
+            match node {
+                TreeNode::Workspace(wi) => {
+                    let ws = &self.sessions.workspaces[*wi];
+                    let count = self.sessions.ws_session_map.get(*wi).map(|v| v.len()).unwrap_or(0);
+                    lines.push(Line::from(vec![
+                        Span::styled("  Workspace: ", Style::default().fg(Color::DarkGray)),
+                        Span::styled(&ws.name, Style::default().fg(Color::Cyan)),
+                    ]));
+                    lines.push(Line::from(vec![
+                        Span::styled("  Sessions: ", Style::default().fg(Color::DarkGray)),
+                        Span::styled(format!("{}", count), Style::default().fg(Color::Yellow)),
+                    ]));
+                }
+                TreeNode::Session(_, si) => {
+                    if *si < self.sessions.sessions.len() {
+                        let title = &self.sessions.sessions[*si].title;
+                        lines.push(Line::from(vec![
+                            Span::styled("  Session: ", Style::default().fg(Color::DarkGray)),
+                            Span::styled(title.clone(), Style::default().fg(Color::White)),
+                        ]));
+                    }
+                }
+                _ => {
+                    lines.push(Line::from("  Delete selected item?"));
+                }
+            }
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled(
+                "  y",
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("=delete  ", Style::default().fg(Color::Yellow)),
+            Span::styled(
+                "n",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("=cancel", Style::default().fg(Color::Yellow)),
+        ]));
+
+        frame.render_widget(Clear, popup_area);
+        frame.render_widget(
+            Paragraph::new(lines)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(" Delete ")
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                         .border_style(Style::default().fg(Color::Red)),
                 )
