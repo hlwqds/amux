@@ -869,7 +869,7 @@ impl Keybinds {
     /// One-line hint string for the status bar.
     pub fn status_hint(&self) -> String {
         format!(
-            "Enter:new/resume {}:{} {}:{} {}:{} Tab:toggle Ctrl+J/K:switch {}:quit",
+            "Enter:new {}:{} {}:{} o:open {}:{} Tab:toggle {}:quit",
             self.expand.display(),
             "exp",
             self.refresh.display(),
