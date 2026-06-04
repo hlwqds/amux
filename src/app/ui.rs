@@ -1570,21 +1570,92 @@ impl super::App {
     }
 
     fn render_keybind_view(&mut self, frame: &mut Frame, area: Rect) {
-        let popup_area = centered_rect(45, 22, area);
+        let popup_area = centered_rect(58, 38, area);
         let kb = &self.view.keybinds;
-        let mut lines: Vec<Line> = vec![
-            Line::from(Span::styled(
-                "  Current Keybindings",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-        ];
+        let mut lines: Vec<Line> = Vec::new();
+        // Section: Configurable bindings
+        lines.push(Line::from(Span::styled(
+            "  Sidebar",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
         for line in kb.display_lines() {
             lines.push(Line::from(format!("  {}", line)));
         }
-        // Show conflicts if any
+        // Section: Navigation
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Navigation",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from("  Tab / Alt+l      Sidebar → Chat"));
+        lines.push(Line::from("  Tab / Alt+h      Chat → Sidebar"));
+        lines.push(Line::from("  Ctrl+J/K         Switch active PTY tab"));
+        lines.push(Line::from("  Ctrl+Shift+J/K   Reorder PTY tabs"));
+        lines.push(Line::from("  Alt+h / Alt+l    Cycle popup panels"));
+        // Section: Sidebar extra
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Sidebar Extra",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from(
+            "  c/x/g/o          Quick create Claude/Codex/GSD/OMP",
+        ));
+        lines.push(Line::from("  1/2/3/4          Filter by agent type"));
+        lines.push(Line::from("  s                Cycle sort mode"));
+        lines.push(Line::from("  S                Semantic search (BM25)"));
+        lines.push(Line::from("  o                Open workspace directory"));
+        lines.push(Line::from("  p                Template select"));
+        lines.push(Line::from("  G                Toggle archived sessions"));
+        // Section: Chat/PTY
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Chat / PTY",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from("  Ctrl+Q           Kill current session"));
+        lines.push(Line::from("  Ctrl+Y           Copy session title"));
+        lines.push(Line::from("  PgUp/PgDn        Scroll PTY output"));
+        lines.push(Line::from(
+            "  Ctrl+B/F         Scroll page up/down (vi-style)",
+        ));
+        lines.push(Line::from("  Home/End         Scroll to top/bottom"));
+        lines.push(Line::from(
+            "  y                Copy visible screen (when scrolled)",
+        ));
+        lines.push(Line::from("  /                Enter scrollback search"));
+        lines.push(Line::from("  o                Cycle detected file paths"));
+        lines.push(Line::from(
+            "  g                Open selected path in editor",
+        ));
+        // Section: Panels & info
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Panels & Info",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from("  Ctrl+S           Activity statistics"));
+        lines.push(Line::from("  Ctrl+T           Token usage"));
+        lines.push(Line::from("  Ctrl+G           Session timeline"));
+        lines.push(Line::from("  Ctrl+W           Agent recommendations"));
+        lines.push(Line::from("  Ctrl+F           Cross-session search"));
+        lines.push(Line::from("  Ctrl+R           Remote sessions"));
+        lines.push(Line::from("  Ctrl+P           Plugin list"));
+        lines.push(Line::from("  Ctrl+A           Automation select"));
+        lines.push(Line::from("  Ctrl+E           Chain select"));
+        lines.push(Line::from("  B                Git branch"));
+        lines.push(Line::from("  X                Diff view"));
+        // Conflicts
         let conflicts = kb.validate();
         if !conflicts.is_empty() {
             lines.push(Line::from(""));
@@ -1598,14 +1669,13 @@ impl super::App {
         }
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
-            "  Edit config.json keybinds to customize",
+            "  Edit config.json keybinds to customize configurable bindings",
             Style::default().fg(Color::DarkGray),
         )));
         lines.push(Line::from(Span::styled(
-            "  Press any key to close",
+            "  Alt+h/Alt+l cycle panels · Any other key closes",
             Style::default().fg(Color::DarkGray),
         )));
-
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
             Paragraph::new(lines)
