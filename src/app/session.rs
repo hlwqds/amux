@@ -278,6 +278,7 @@ impl super::App {
                 self.rebuild_tree();
             }
             Some(TreeNode::ArchivedSession(_, _)) => {}
+            Some(TreeNode::PinnedWorkspace) => {}
             None => {}
         }
         Ok(())

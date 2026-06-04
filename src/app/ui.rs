@@ -138,6 +138,27 @@ impl super::App {
             .tree
             .iter()
             .map(|node| match node {
+                TreeNode::PinnedWorkspace => {
+                    let count = self.sessions.sessions.iter().filter(|s| s.pinned).count();
+                    ListItem::new(vec![
+                        Line::from(vec![
+                            Span::styled(
+                                "▼ 📌 ",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                            Span::styled(
+                                "Pinned",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                        ]),
+                        Line::from(format!("   {} pinned sessions", count))
+                            .style(Style::default().fg(Color::DarkGray)),
+                    ])
+                }
                 TreeNode::Workspace(wi) => {
                     let ws = &self.sessions.workspaces[*wi];
                     let icon = if ws.expanded { "\u{25bc}" } else { "\u{25b6}" };
@@ -708,6 +729,25 @@ impl super::App {
                 lines.push(
                     Line::from("Press Enter to switch to this session")
                         .style(Style::default().fg(Color::Yellow)),
+                );
+            }
+            Some(&TreeNode::PinnedWorkspace) => {
+                let count = self.sessions.sessions.iter().filter(|s| s.pinned).count();
+                lines.push(
+                    Line::from("📌 Pinned Sessions").style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                );
+                lines.push(Line::from(format!(
+                    "{} pinned session(s) from all workspaces",
+                    count
+                )));
+                lines.push(Line::from(""));
+                lines.push(
+                    Line::from("Press ! on a session to unpin it")
+                        .style(Style::default().fg(Color::DarkGray)),
                 );
             }
             Some(TreeNode::WorkspaceWarning(_, msg)) => {

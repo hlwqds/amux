@@ -1262,24 +1262,56 @@ impl App {
             .map(crate::util::parse_search_query);
         let query = parsed.as_ref().and_then(|p| p.text.as_deref());
         let date_cutoff = parsed.as_ref().and_then(|p| p.min_last_active);
-
-        for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
-            let sess_idxs: Vec<usize> =
-                self.sessions
+        // Collect pinned session indices first — they go into a virtual "Pinned" workspace
+        let pinned_idxs: Vec<usize> = self
+            .sessions
+            .sessions
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.pinned)
+            .map(|(i, _)| i)
+            .collect();
+        if !pinned_idxs.is_empty() {
+            tree.push(TreeNode::PinnedWorkspace);
+            // Render pinned sessions (no workspace path check needed)
+            let mut sorted_pins = pinned_idxs;
+            sorted_pins.sort_by(|&a, &b| {
+                self.sessions.sessions[b]
+                    .last_active
+                    .cmp(&self.sessions.sessions[a].last_active)
+            });
+            for &si in &sorted_pins {
+                // Find the real workspace index for the session
+                let ws_path = &self.sessions.sessions[si].workspace_path;
+                let wi = self
                     .sessions
+                    .workspaces
                     .iter()
-                    .enumerate()
-                    .filter(|(_, s)| {
-                        self.ws_matches_path(wi, &s.workspace_path)
+                    .position(|w| {
+                        w.path.as_deref() == Some(ws_path)
+                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                    })
+                    .unwrap_or(0);
+                tree.push(TreeNode::Session(wi, si));
+            }
+        }
+        for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
+            let sess_idxs: Vec<usize> = self
+                .sessions
+                .sessions
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| {
+                    self.ws_matches_path(wi, &s.workspace_path)
+                            && !s.pinned  // pinned sessions shown in virtual workspace above
                             && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
                             && self.view.tag_filter.as_ref().is_none_or(|tag| {
                                 s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
                             })
                             && date_cutoff.is_none_or(|cutoff| s.last_active >= cutoff)
-                    })
-                    .map(|(i, _)| i)
-                    .collect();
-
+                })
+                .map(|(i, _)| i)
+                .collect();
             if let Some(q) = query {
                 // Fuzzy-filter sessions for this workspace
                 let mut matching_sessions: Vec<usize> = sess_idxs
@@ -1292,7 +1324,6 @@ impl App {
                     })
                     .collect();
                 self.sort_session_indices(&mut matching_sessions);
-
                 // Fuzzy-filter active PTYs for this workspace
                 let matching_ptys: Vec<usize> = self
                     .ptys
@@ -1307,7 +1338,6 @@ impl App {
                     })
                     .map(|(pi, _)| pi)
                     .collect();
-
                 // Include workspace only if it matches itself or has matching children
                 let ws_matches = session_fuzzy_score(&self.sessions.workspaces[wi].name, "", q);
                 if ws_matches || !matching_sessions.is_empty() || !matching_ptys.is_empty() {
@@ -2496,6 +2526,7 @@ impl App {
                 self.view.focus = Focus::Chat;
             }
             Some(TreeNode::AgentHeader(_)) => {}
+            Some(TreeNode::PinnedWorkspace) => {}
             Some(TreeNode::ArchivedHeader) => {}
             Some(TreeNode::WorkspaceWarning(_, _)) => {}
             Some(TreeNode::ArchivedSession(_wi, ai))

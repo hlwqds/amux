@@ -367,6 +367,8 @@ pub struct Session {
 #[derive(Clone, Debug)]
 pub enum TreeNode {
     Workspace(usize),
+    /// Virtual workspace for pinned sessions (contains session indices).
+    PinnedWorkspace,
     /// Warning about a workspace (e.g. path not found). Contains (workspace_index, message).
     WorkspaceWarning(usize, String),
     Session(usize, usize),
