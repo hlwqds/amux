@@ -79,7 +79,7 @@ impl super::App {
                         return Ok(Action::Continue);
                     }
                     if kb.help.matches_event(&key) {
-                        self.view.input_mode = InputMode::Help;
+                        self.view.input_mode = InputMode::KeybindView;
                         return Ok(Action::Continue);
                     }
                     if kb.preview.matches_event(&key) {
@@ -413,7 +413,7 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if kb.help.matches_event(&key) {
-            self.view.input_mode = InputMode::Help;
+            self.view.input_mode = InputMode::KeybindView;
             return Ok(Action::Continue);
         }
         if kb.preview.matches_event(&key) {
@@ -664,9 +664,8 @@ impl super::App {
             || key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT)
         {
             let panels: Vec<InputMode> = vec![
-                InputMode::Help,
-                InputMode::Settings,
                 InputMode::KeybindView,
+                InputMode::Settings,
                 InputMode::ThemeSelect,
                 InputMode::Stats,
                 InputMode::TokenStats,
