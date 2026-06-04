@@ -67,7 +67,7 @@ impl super::App {
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(4), Constraint::Length(3)])
+            .constraints([Constraint::Min(4), Constraint::Length(1)])
             .split(area);
 
         let cols = Layout::default()
@@ -501,11 +501,6 @@ impl super::App {
             })
             .collect();
 
-        let border_color = if self.view.focus == Focus::Sidebar {
-            self.view.theme.sidebar_highlight
-        } else {
-            self.view.theme.chat_border
-        };
 
         let is_searching = self.view.input_mode == InputMode::Search;
         let search_query = self.view.search_query.as_deref().unwrap_or("");
@@ -555,12 +550,12 @@ impl super::App {
         };
 
         let block = Block::default()
-            .borders(Borders::ALL)
+            .borders(Borders::RIGHT)
             .title(title)
             .style(Style::default().bg(self.view.theme.sidebar_bg))
             .border_style(
                 Style::default()
-                    .fg(border_color)
+                    .fg(self.view.theme.chat_border)
                     .bg(self.view.theme.sidebar_bg),
             );
 
@@ -658,11 +653,11 @@ impl super::App {
         };
 
         let block = Block::default()
-            .borders(Borders::ALL)
+            .borders(Borders::NONE)
             .title(title)
             .border_style(Style::default().fg(border_color));
 
-        // When PTYs are active, split inner area into [tab_bar(1)] + [pty_content]
+        // When PTYs are active, split area into [tab_bar(1)] + [pty_content]
         if !self.ptys.ptys.is_empty() {
             let inner = block.inner(area);
             let chunks = Layout::default()
@@ -1207,6 +1202,7 @@ impl super::App {
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                 .title(title)
                 .border_style(Style::default().fg(Color::Yellow)),
         );
@@ -1240,6 +1236,7 @@ impl super::App {
 
         let block = Block::default()
             .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
             .title(" Select Agent ")
             .border_style(Style::default().fg(Color::Yellow));
 
@@ -1314,6 +1311,7 @@ impl super::App {
 
         let block = Block::default()
             .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
             .title(title)
             .border_style(Style::default().fg(Color::Yellow));
 
@@ -1502,15 +1500,6 @@ impl super::App {
             Span::raw("")
         };
 
-        let border_color = if self.popup.budget_alert.is_some() {
-            if self.popup.budget_flash_on {
-                self.view.theme.status_error
-            } else {
-                self.view.theme.chat_border
-            }
-        } else {
-            self.view.theme.chat_border
-        };
 
         let chain_span = if let Some(ref chain) = self.chains.active_chain {
             let agent_label = if chain.current_step < chain.total_steps {
@@ -1594,14 +1583,7 @@ impl super::App {
 
         frame.render_widget(
             Paragraph::new(line)
-                .style(Style::default().bg(self.view.theme.sidebar_bg))
-                .block(
-                    Block::default().borders(Borders::ALL).border_style(
-                        Style::default()
-                            .fg(border_color)
-                            .bg(self.view.theme.sidebar_bg),
-                    ),
-                ),
+                .style(Style::default().bg(self.view.theme.sidebar_bg)),
             area,
         );
     }
@@ -1648,6 +1630,7 @@ impl super::App {
                     Block::default()
                         .title(" Budget Warning ")
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .border_style(Style::default().fg(Color::Red))
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
                 )
@@ -1711,6 +1694,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Help ")
                         .title_style(
                             Style::default()
@@ -1838,6 +1822,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Settings ")
                         .title_style(
                             Style::default()
@@ -1882,6 +1867,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Themes ")
                     .title_style(
                         Style::default()
@@ -2028,6 +2014,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(format!(
                             " Keybindings ({}/{}) ",
                             scroll + visible_height.min(total_lines),
@@ -2072,6 +2059,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Templates (p) ")
                     .title_style(
                         Style::default()
@@ -2111,6 +2099,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Automations (Ctrl+A) ")
                     .title_style(
                         Style::default()
@@ -2161,6 +2150,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Chains (Ctrl+E) ")
                     .title_style(
                         Style::default()
@@ -2201,6 +2191,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Branch Points (B) ")
                     .title_style(
                         Style::default()
@@ -2345,6 +2336,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Activity Stats (Ctrl+S) ")
                     .title_style(
                         Style::default()
@@ -2467,6 +2459,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Token Usage (Ctrl+T) ")
                     .title_style(
                         Style::default()
@@ -2511,6 +2504,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Session Diff (- left, + right) ")
                     .title_style(
                         Style::default()
@@ -2551,6 +2545,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Remote Sessions (Ctrl+R) ")
                     .title_style(
                         Style::default()
@@ -2593,6 +2588,7 @@ impl super::App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Plugins (Ctrl+P) ")
                     .title_style(
                         Style::default()
@@ -2616,6 +2612,7 @@ impl super::App {
         let inner = {
             let b = Block::default()
                 .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                 .title(" Plugin Output (Esc/q=close, j/k=scroll) ")
                 .title_style(
                     Style::default()
@@ -2673,6 +2670,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(format!(
                         " Plugin Output [{}/{}] (Esc/q=close, j/k=scroll) ",
                         scroll + 1,
@@ -2742,6 +2740,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Timeline (Ctrl+G) ")
                     .title_style(
                         Style::default()
@@ -2806,6 +2805,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Conflict Detection ")
                     .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                     .border_style(Style::default().fg(Color::Red)),
@@ -2871,6 +2871,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Recommendations (Ctrl+W) ")
                     .title_style(
                         Style::default()
@@ -2941,6 +2942,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Search Results (Ctrl+F) ")
                     .title_style(
                         Style::default()
@@ -3037,6 +3039,7 @@ impl super::App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Semantic Search (Shift+S) ")
                     .title_style(
                         Style::default()
@@ -3199,6 +3202,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(title)
                         .title_style(
                             Style::default()
@@ -3290,6 +3294,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Pre-flight ")
                         .title_style(
                             Style::default()
@@ -3369,6 +3374,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Rollback ")
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                         .border_style(Style::default().fg(Color::Red)),
@@ -3455,6 +3461,7 @@ impl super::App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Delete ")
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                         .border_style(Style::default().fg(Color::Red)),
