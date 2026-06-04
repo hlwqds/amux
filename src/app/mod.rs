@@ -2718,17 +2718,9 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            // SGR mouse sequence (for agents that request mouse tracking)
-                            let rect = app.view.last_chat_area;
-                            let col = mouse.column.saturating_sub(rect.x) + 1;
-                            let row = mouse.row.saturating_sub(rect.y).saturating_sub(1) + 1;
-                            if col > 0 && row > 0 && col <= rect.width && row <= rect.height {
-                                let _ = slot.handle.write_input(
-                                    format!("\x1b[<64;{};{}M", col, row).as_bytes(),
-                                );
-                            }
-                            // Also send ArrowUp as fallback for agents without mouse support
-                            let _ = slot.handle.write_input(&[27, 91, 65]); // \x1b[A
+                            // Forward as PageUp (\x1b[5~) — most agents interpret this as scroll.
+                            // ArrowUp would trigger command history in REPL-style agents.
+                            let _ = slot.handle.write_input(&[27, 91, 53, 126]);
                         }
                     }
                     crossterm::event::MouseEventKind::ScrollDown => {
@@ -2736,16 +2728,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            let rect = app.view.last_chat_area;
-                            let col = mouse.column.saturating_sub(rect.x) + 1;
-                            let row = mouse.row.saturating_sub(rect.y).saturating_sub(1) + 1;
-                            if col > 0 && row > 0 && col <= rect.width && row <= rect.height {
-                                let _ = slot.handle.write_input(
-                                    format!("\x1b[<65;{};{}M", col, row).as_bytes(),
-                                );
-                            }
-                            // Also send ArrowDown as fallback
-                            let _ = slot.handle.write_input(&[27, 91, 66]); // \x1b[B
+                            let _ = slot.handle.write_input(&[27, 91, 54, 126]);
                         }
                     }
                     _ => {}
