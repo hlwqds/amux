@@ -1303,6 +1303,15 @@ impl App {
             .filter(|(_, s)| {
                 !s.pinned
                     && !active_session_ids.iter().any(|sid| sid == &s.id)
+                    && s.last_active > 0
+                    && {
+                        // Only sessions active within the last 7 days
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        now.saturating_sub(s.last_active) < 7 * 24 * 3600
+                    }
                     && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
                     && self.view.tag_filter.as_ref().is_none_or(|tag| {
                         s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
@@ -1339,10 +1348,10 @@ impl App {
                 .sessions
                 .iter()
                 .enumerate()
-                .filter(|(i, s)| {
+                .filter(|(_i, s)| {
                     self.ws_matches_path(wi, &s.workspace_path)
                             && !s.pinned  // pinned sessions shown in virtual workspace above
-                            && !recent_idxs.contains(i) // recent sessions shown in virtual workspace above
+                            // recent sessions are ALSO shown in their normal workspaces (per spec)
                             && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
                             && self.view.tag_filter.as_ref().is_none_or(|tag| {
                                 s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
