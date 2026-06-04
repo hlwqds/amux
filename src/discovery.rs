@@ -311,6 +311,7 @@ fn discover_gsd_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                         last_active,
                         agent: Agent::Gsd,
                         tags: Vec::new(),
+                        pinned: false,
                     });
                 }
             }
@@ -379,6 +380,7 @@ fn discover_omp_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                         last_active,
                         agent: Agent::Omp,
                         tags: Vec::new(),
+                        pinned: false,
                     });
                 }
             }
@@ -575,6 +577,9 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             .or_else(|| extract_claude_title(path))
             .unwrap_or_else(|| format!("Session {}", &id[..8.min(id.len())]));
 
+        let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
+            .map(|m| m.pinned)
+            .unwrap_or(false);
         Some(Session {
             id,
             workspace_path: ws_path,
@@ -582,6 +587,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             last_active,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned,
         })
     } else if is_gsd || is_omp {
         let agent = if is_gsd { Agent::Gsd } else { Agent::Omp };
@@ -594,6 +600,9 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
                 .unwrap_or_else(|| PathBuf::from(cwd_str)),
             None => return None,
         };
+        let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
+            .map(|m| m.pinned)
+            .unwrap_or(false);
         Some(Session {
             id,
             workspace_path: ws_path,
@@ -601,6 +610,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             last_active,
             agent,
             tags: Vec::new(),
+            pinned,
         })
     } else if is_codex {
         let (id, title, cwd) = parse_codex_session(path)?;
@@ -609,6 +619,9 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             .find(|p| cwd == p.to_string_lossy().as_ref())
             .cloned()
             .unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
+        let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
+            .map(|m| m.pinned)
+            .unwrap_or(false);
         Some(Session {
             id,
             workspace_path: ws_path,
@@ -616,6 +629,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             last_active,
             agent: Agent::Codex,
             tags: Vec::new(),
+            pinned,
         })
     } else {
         None
@@ -724,7 +738,9 @@ fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
             let title = load_session_title(&id, Some(&ws_path))
                 .or_else(|| extract_claude_title(&path))
                 .unwrap_or_else(|| format!("Session {}", &id[..8.min(id.len())]));
-
+            let pinned = load_session_meta(&id, Some(&ws_path))
+                .map(|m| m.pinned)
+                .unwrap_or(false);
             out.push(Session {
                 id,
                 workspace_path: ws_path.clone(),
@@ -732,6 +748,7 @@ fn discover_claude_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                 last_active,
                 agent: Agent::Claude,
                 tags: Vec::new(),
+                pinned,
             });
         }
     }
@@ -818,7 +835,9 @@ fn discover_codex_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                                         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
                                         .map(|d| d.as_secs())
                                         .unwrap_or(0);
-
+                                    let pinned = load_session_meta(&id, Some(&ws_path))
+                                        .map(|m| m.pinned)
+                                        .unwrap_or(false);
                                     out.push(Session {
                                         id,
                                         workspace_path: ws_path,
@@ -826,6 +845,7 @@ fn discover_codex_sessions(workspaces: &[Workspace], out: &mut Vec<Session>) {
                                         last_active,
                                         agent: Agent::Codex,
                                         tags: Vec::new(),
+                                        pinned,
                                     });
                                 }
                             }

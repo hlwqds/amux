@@ -157,11 +157,11 @@ pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> Pa
 
 pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
     let existing = load_session_meta(session_id, None);
-    let (tags, note) = match existing {
-        Some(m) => (m.tags, m.note),
-        None => (Vec::new(), None),
+    let (tags, note, pinned) = match existing {
+        Some(m) => (m.tags, m.note, m.pinned),
+        None => (Vec::new(), None, false),
     };
-    save_session_meta(session_id, title, &tags, note.as_deref())
+    save_session_meta(session_id, title, &tags, note.as_deref(), pinned)
 }
 
 pub fn save_session_meta(
@@ -169,12 +169,13 @@ pub fn save_session_meta(
     title: &str,
     tags: &[String],
     note: Option<&str>,
+    pinned: bool,
 ) -> io::Result<()> {
     let path = title_override_path(session_id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    if tags.is_empty() && note.is_none_or(|s| s.is_empty()) {
+    if tags.is_empty() && note.is_none_or(|s| s.is_empty()) && !pinned {
         fs::write(path, title)
     } else {
         let mut meta = serde_json::json!({"title": title});
@@ -186,6 +187,9 @@ pub fn save_session_meta(
         {
             meta["note"] = serde_json::json!(n);
         }
+        if pinned {
+            meta["pinned"] = serde_json::json!(true);
+        }
         fs::write(path, meta.to_string())
     }
 }
@@ -193,11 +197,21 @@ pub fn save_session_meta(
 /// Save only the note for a session, preserving existing title/tags.
 pub fn save_session_note(session_id: &str, note: &str) -> io::Result<()> {
     let existing = load_session_meta(session_id, None);
-    let (title, tags) = match existing {
-        Some(m) => (m.title, m.tags),
-        None => (session_id.to_string(), Vec::new()),
+    let (title, tags, pinned) = match existing {
+        Some(m) => (m.title, m.tags, m.pinned),
+        None => (session_id.to_string(), Vec::new(), false),
     };
-    save_session_meta(session_id, &title, &tags, Some(note))
+    save_session_meta(session_id, &title, &tags, Some(note), pinned)
+}
+
+/// Toggle the pinned state for a session, preserving existing title/tags/note.
+pub fn save_session_pinned(session_id: &str, pinned: bool) -> io::Result<()> {
+    let existing = load_session_meta(session_id, None);
+    let (title, tags, note) = match existing {
+        Some(m) => (m.title, m.tags, m.note),
+        None => (session_id.to_string(), Vec::new(), None),
+    };
+    save_session_meta(session_id, &title, &tags, note.as_deref(), pinned)
 }
 
 /// Save the snapshot commit hash to a standalone file for the session.
@@ -220,6 +234,7 @@ pub struct SessionMeta {
     pub title: String,
     pub tags: Vec<String>,
     pub note: Option<String>,
+    pub pinned: bool,
 }
 
 pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Option<SessionMeta> {
@@ -244,13 +259,20 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
                     })
                     .unwrap_or_default();
                 let note = obj.get("note").and_then(|v| v.as_str()).map(String::from);
-                return Some(SessionMeta { title, tags, note });
+                let pinned = obj.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+                return Some(SessionMeta {
+                    title,
+                    tags,
+                    note,
+                    pinned,
+                });
             }
             // Fallback: plain text (backward compat)
             return Some(SessionMeta {
                 title: trimmed.to_string(),
                 tags: Vec::new(),
                 note: None,
+                pinned: false,
             });
         }
     }
@@ -258,13 +280,14 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
     // Legacy path
     if let Some(wp) = workspace_path {
         let legacy = legacy_title_override_path(wp, session_id);
-        if let Ok(title) = fs::read_to_string(&legacy) {
-            let title = title.trim().to_string();
+        if let Ok(raw) = fs::read_to_string(&legacy) {
+            let title = raw.trim().to_string();
             if !title.is_empty() {
                 return Some(SessionMeta {
                     title,
                     tags: Vec::new(),
                     note: None,
+                    pinned: false,
                 });
             }
         }

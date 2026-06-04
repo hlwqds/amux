@@ -418,6 +418,11 @@ impl super::App {
             self.cycle_theme();
             return Ok(Action::Continue);
         }
+        // '!': Toggle pin on selected session
+        if key.code == KeyCode::Char('!') {
+            self.toggle_pin();
+            return Ok(Action::Continue);
+        }
         // 'o': Open selected session's workspace directory in file manager
         if key.code == KeyCode::Char('o') && key.modifiers == KeyModifiers::NONE {
             self.open_workspace_dir();

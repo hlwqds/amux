@@ -361,6 +361,7 @@ pub struct Session {
     pub last_active: u64,
     pub agent: Agent,
     pub tags: Vec<String>,
+    pub pinned: bool,
 }
 
 #[derive(Clone, Debug)]

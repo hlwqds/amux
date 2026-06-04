@@ -225,6 +225,9 @@ impl super::App {
                             state_tag,
                         ];
                         spans.push(agent_tag.clone());
+                        if session.pinned {
+                            spans.push(Span::styled(" 📌", Style::default().fg(Color::Yellow)));
+                        }
                         // Show note indicator if present
                         if let Some(meta) = crate::config::load_session_meta(&session.id, None)
                             && meta.note.as_ref().is_some_and(|n| !n.is_empty())
@@ -1604,6 +1607,7 @@ impl super::App {
         lines.push(Line::from("  s                Cycle sort mode"));
         lines.push(Line::from("  S                Semantic search (BM25)"));
         lines.push(Line::from("  o                Open workspace directory"));
+        lines.push(Line::from("  !                Pin/unpin session"));
         lines.push(Line::from("  p                Template select"));
         lines.push(Line::from("  G                Toggle archived sessions"));
         // Section: Session Preview

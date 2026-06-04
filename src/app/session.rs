@@ -481,6 +481,28 @@ impl super::App {
         });
     }
 
+    /// Toggle pinned state for the selected session.
+    pub(super) fn toggle_pin(&mut self) {
+        if let Some(TreeNode::Session(_, si)) = self.selected_node().cloned()
+            && si < self.sessions.sessions.len()
+        {
+            let session = &mut self.sessions.sessions[si];
+            session.pinned = !session.pinned;
+            let pinned = session.pinned;
+            let id = session.id.clone();
+            if let Err(e) = crate::config::save_session_pinned(&id, pinned) {
+                self.view.status = format!("Failed to save pin: {}", e);
+            } else {
+                self.view.status = if pinned {
+                    "📌 Pinned".into()
+                } else {
+                    "Unpinned".into()
+                };
+            }
+            self.rebuild_tree();
+        }
+    }
+
     /// Capture the current git HEAD commit hash for rollback snapshots.
     fn capture_snapshot_commit(workspace_path: &Path) -> Option<String> {
         std::process::Command::new("git")

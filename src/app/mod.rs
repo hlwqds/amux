@@ -427,38 +427,31 @@ impl App {
     }
 
     fn sort_session_indices(&self, indices: &mut [usize]) {
+        let ss = &self.sessions.sessions;
+        // Pinned sessions always come first, regardless of sort mode
+        let pin_cmp = |a: usize, b: usize| ss[b].pinned.cmp(&ss[a].pinned);
         match self.view.sort_mode {
             SortMode::TimeDesc => indices.sort_by(|&a, &b| {
-                self.sessions.sessions[b]
-                    .last_active
-                    .cmp(&self.sessions.sessions[a].last_active)
+                pin_cmp(a, b).then_with(|| ss[b].last_active.cmp(&ss[a].last_active))
             }),
             SortMode::TimeAsc => indices.sort_by(|&a, &b| {
-                self.sessions.sessions[a]
-                    .last_active
-                    .cmp(&self.sessions.sessions[b].last_active)
+                pin_cmp(a, b).then_with(|| ss[a].last_active.cmp(&ss[b].last_active))
             }),
             SortMode::NameAsc => indices.sort_by(|&a, &b| {
-                self.sessions.sessions[a]
-                    .title
-                    .to_lowercase()
-                    .cmp(&self.sessions.sessions[b].title.to_lowercase())
+                pin_cmp(a, b)
+                    .then_with(|| ss[a].title.to_lowercase().cmp(&ss[b].title.to_lowercase()))
             }),
             SortMode::NameDesc => indices.sort_by(|&a, &b| {
-                self.sessions.sessions[b]
-                    .title
-                    .to_lowercase()
-                    .cmp(&self.sessions.sessions[a].title.to_lowercase())
+                pin_cmp(a, b)
+                    .then_with(|| ss[b].title.to_lowercase().cmp(&ss[a].title.to_lowercase()))
             }),
             SortMode::AgentGroup => indices.sort_by(|&a, &b| {
-                self.sessions.sessions[a]
-                    .agent
-                    .cmp(&self.sessions.sessions[b].agent)
-                    .then_with(|| {
-                        self.sessions.sessions[b]
-                            .last_active
-                            .cmp(&self.sessions.sessions[a].last_active)
-                    })
+                pin_cmp(a, b).then_with(|| {
+                    ss[a]
+                        .agent
+                        .cmp(&ss[b].agent)
+                        .then_with(|| ss[b].last_active.cmp(&ss[a].last_active))
+                })
             }),
         }
     }
@@ -2771,6 +2764,7 @@ mod tests {
             last_active: 1000,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned: false,
         }
     }
 
@@ -2782,6 +2776,7 @@ mod tests {
             last_active: 1000,
             agent,
             tags: Vec::new(),
+            pinned: false,
         }
     }
 
@@ -2793,6 +2788,7 @@ mod tests {
             last_active,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned: false,
         }
     }
 
@@ -3492,6 +3488,7 @@ mod tests {
                 last_active: old_time,
                 agent: Agent::Claude,
                 tags: Vec::new(),
+                pinned: false,
             },
             Session {
                 id: "new1".into(),
@@ -3500,6 +3497,7 @@ mod tests {
                 last_active: recent_time,
                 agent: Agent::Claude,
                 tags: Vec::new(),
+                pinned: false,
             },
         ];
         let mut app = test_app(workspaces, sessions);
@@ -3535,6 +3533,7 @@ mod tests {
             last_active: old_time,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned: false,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
@@ -3580,6 +3579,7 @@ mod tests {
             last_active: old_time,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned: false,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(3);
@@ -3607,6 +3607,7 @@ mod tests {
             last_active: old_time,
             agent: Agent::Claude,
             tags: Vec::new(),
+            pinned: false,
         }];
         let mut app = test_app(workspaces, sessions);
         app.sessions.archive_days = Some(7);
