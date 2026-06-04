@@ -116,7 +116,6 @@ impl PtyHandle {
                             let mut p = parser.write();
                             p.process(data);
                             // Snapshot screen periodically for scrollback.
-                            // Works for alternate screen (Codex) and normal screen (OMP).
                             snap_counter += 1;
                             if snap_counter >= 4 {
                                 snap_counter = 0;
@@ -267,6 +266,9 @@ impl PtyHandle {
     }
     pub fn snap_count(&self) -> usize {
         self.snapshots.read().len()
+    }
+    pub fn snap_scroll_pos(&self) -> usize {
+        self.snap_scroll.load(Ordering::Relaxed)
     }
 
     pub fn is_alternate_screen(&self) -> bool {
