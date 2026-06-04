@@ -115,6 +115,8 @@ struct PopupState {
     preflight_agent: Option<Agent>,
     /// Pending session name for pre-flight confirm.
     preflight_session_name: Option<String>,
+    /// Scroll offset for the KeybindView popup.
+    keybind_scroll: u16,
 }
 
 #[derive(Clone, Default)]

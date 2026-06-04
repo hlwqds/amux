@@ -1570,16 +1570,18 @@ impl super::App {
     }
 
     fn render_keybind_view(&mut self, frame: &mut Frame, area: Rect) {
-        let popup_area = centered_rect(58, 38, area);
+        // Use 80% width, 80% height — big but not fullscreen
+        let popup_area = centered_rect(80, 80, area);
         let kb = &self.view.keybinds;
         let mut lines: Vec<Line> = Vec::new();
         // Section: Configurable bindings
         lines.push(Line::from(Span::styled(
-            "  Sidebar",
+            "  Configurable (edit config.json to customize)",
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
+        lines.push(Line::from(""));
         for line in kb.display_lines() {
             lines.push(Line::from(format!("  {}", line)));
         }
@@ -1595,7 +1597,7 @@ impl super::App {
         lines.push(Line::from("  Alt+h            Chat → Sidebar"));
         lines.push(Line::from("  Ctrl+J/K         Switch active PTY tab"));
         lines.push(Line::from("  Ctrl+Shift+J/K   Reorder PTY tabs"));
-        lines.push(Line::from("  Alt+k/Alt+l      Cycle popup panels"));
+        lines.push(Line::from("  Alt+h/Alt+l      Cycle popup panels"));
         // Section: Sidebar extra
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -1683,20 +1685,28 @@ impl super::App {
         }
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
-            "  Edit config.json keybinds to customize configurable bindings",
+            "  ↑/↓ or j/k scroll · Alt+h/Alt+l cycle panels · Esc close",
             Style::default().fg(Color::DarkGray),
         )));
-        lines.push(Line::from(Span::styled(
-            "  Alt+h/Alt+l cycle panels · Any other key closes",
-            Style::default().fg(Color::DarkGray),
-        )));
+        let total_lines = lines.len() as u16;
+        let visible_height = popup_area.height.saturating_sub(2); // minus borders
+        let max_scroll = total_lines.saturating_sub(visible_height);
+        if self.popup.keybind_scroll > max_scroll {
+            self.popup.keybind_scroll = max_scroll;
+        }
+        let scroll = self.popup.keybind_scroll;
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
             Paragraph::new(lines)
+                .scroll((scroll, 0))
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(" Keybindings ")
+                        .title(format!(
+                            " Keybindings ({}/{}) ",
+                            scroll + visible_height.min(total_lines),
+                            total_lines,
+                        ))
                         .title_style(
                             Style::default()
                                 .fg(self.view.theme.popup_border)

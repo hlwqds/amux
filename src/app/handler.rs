@@ -627,9 +627,28 @@ impl super::App {
         if self.view.input_mode == InputMode::ChainSelect {
             return self.handle_chain_select_key(key);
         }
-        // Panel cycling: Alt+k / Alt+l to switch between popup panels
+        // KeybindView: scroll with ↑/↓ or j/k, Esc to close
+        if self.view.input_mode == InputMode::KeybindView {
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.popup.keybind_scroll = self.popup.keybind_scroll.saturating_sub(1);
+                    return Ok(Action::Continue);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.popup.keybind_scroll += 1;
+                    return Ok(Action::Continue);
+                }
+                KeyCode::Esc => {
+                    self.popup.keybind_scroll = 0;
+                    self.view.input_mode = InputMode::None;
+                    return Ok(Action::Continue);
+                }
+                _ => {} // fall through to panel cycling
+            }
+        }
+        // Panel cycling: Alt+h / Alt+l to switch between popup panels
         if key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT)
-            || key.code == KeyCode::Char('k') && key.modifiers.contains(KeyModifiers::ALT)
+            || key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT)
         {
             let panels: Vec<InputMode> = vec![
                 InputMode::KeybindView,
@@ -834,10 +853,6 @@ impl super::App {
             self.view.input_mode = InputMode::None;
             self.popup.preview_lines.clear();
             self.popup.preview_show_summary = false;
-            return Ok(Action::Continue);
-        }
-        if self.view.input_mode == InputMode::KeybindView {
-            self.view.input_mode = InputMode::None;
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::ScrollSearch {
