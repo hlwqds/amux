@@ -856,7 +856,7 @@ impl Keybinds {
             format!("  delete:        {}", self.delete.display()),
             format!("  new_session:   {}", self.new_session.display()),
             format!("  search:        {}", self.search.display()),
-            format!("  help:          {}", self.help.display()),
+            format!("  keybinds:      {}", self.help.display()),
             format!("  settings:      {}", self.settings.display()),
             format!("  theme:         {}", self.theme.display()),
             format!("  export:        {}", self.export.display()),
