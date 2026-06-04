@@ -221,8 +221,11 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Ctrl+B: page up
-                if key.code == KeyCode::Char('b') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                // Alt+Shift+B: page up
+                if key.code == KeyCode::Char('B')
+                    && key.modifiers.contains(KeyModifiers::ALT)
+                    && key.modifiers.contains(KeyModifiers::SHIFT)
+                {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let _ = slot.handle.write_input(&[27, 91, 53, 126]);
@@ -234,8 +237,11 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Ctrl+F: scrollback search or page-down
-                if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                // Alt+Shift+F: scrollback search or page-down
+                if key.code == KeyCode::Char('F')
+                    && key.modifiers.contains(KeyModifiers::ALT)
+                    && key.modifiers.contains(KeyModifiers::SHIFT)
+                {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let _ = slot.handle.write_input(&[27, 91, 54, 126]);
@@ -464,13 +470,15 @@ impl super::App {
                 self.view.status = "No templates saved. Add templates to config.json.".into();
             } else {
                 self.view.input_mode = InputMode::TemplateSelect;
-                self.template_state.select(Some(0));
                 self.view.status = "Select template (Enter=launch, Esc=cancel)".into();
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+P: Plugin list
-        if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+P: Plugin list
+        if key.code == KeyCode::Char('P')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             if self.plugins.is_empty() {
                 self.view.status = "No plugins configured. Add plugins to config.json.".into();
             } else {
@@ -480,8 +488,11 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+A: Automation select
-        if key.code == KeyCode::Char('a') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+A: Automation select
+        if key.code == KeyCode::Char('A')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             if self.automations.is_empty() {
                 self.view.status = "No automations saved. Add automations to config.json.".into();
             } else {
@@ -496,25 +507,37 @@ impl super::App {
             self.start_branch()?;
             return Ok(Action::Continue);
         }
-        // Ctrl+S: Stats
-        if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+S: Stats
+        if key.code == KeyCode::Char('S')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             self.view.input_mode = InputMode::Stats;
             self.view.status = "Activity Statistics (any key to close)".into();
             return Ok(Action::Continue);
         }
-        // Ctrl+T: Token stats
-        if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+T: Token stats
+        if key.code == KeyCode::Char('T')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             self.view.input_mode = InputMode::TokenStats;
             self.view.status = "Token Usage (any key to close)".into();
             return Ok(Action::Continue);
         }
-        // Shift+X: Diff
-        if key.code == KeyCode::Char('X') {
+        // Alt+Shift+X: Diff
+        if key.code == KeyCode::Char('X')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             self.start_diff()?;
             return Ok(Action::Continue);
         }
-        // Shift+G: Toggle archived sessions visibility
-        if key.code == KeyCode::Char('G') {
+        // Alt+Shift+G: Toggle archived sessions visibility
+        if key.code == KeyCode::Char('G')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             self.sessions.show_archived = !self.sessions.show_archived;
             self.rebuild_tree();
             self.view.status = if self.sessions.show_archived {
@@ -527,8 +550,11 @@ impl super::App {
             };
             return Ok(Action::Continue);
         }
-        // Ctrl+R: Remote view
-        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+R: Remote view
+        if key.code == KeyCode::Char('R')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             if self.remote_hosts.is_empty() {
                 self.view.status =
                     "No remote hosts configured. Add to config.json remote_hosts.".into();
@@ -550,8 +576,11 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+G: Timeline
-        if key.code == KeyCode::Char('g') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+G: Timeline
+        if key.code == KeyCode::Char('G')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             use crate::discovery::extract_timeline;
             let timeline = extract_timeline(&self.sessions.sessions);
             if timeline.is_empty() {
@@ -566,8 +595,11 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+W: Agent recommendations
-        if key.code == KeyCode::Char('w') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+W: Agent recommendations
+        if key.code == KeyCode::Char('W')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             use crate::discovery::compute_agent_recommendations;
             let recs = compute_agent_recommendations(&self.sessions.sessions);
             if recs.is_empty() {
@@ -579,11 +611,14 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+F: Cross-session search
-        if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+F: Cross-session search
+        if key.code == KeyCode::Char('F')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             if self.input_buffer.is_empty() {
                 self.view.status =
-                    "Type a search query first (/), then Ctrl+F to search all sessions.".into();
+                    "Type a search query first (/), then Alt+Shift+F to search all sessions.".into();
             } else {
                 use crate::discovery::cross_session_search;
                 let results = cross_session_search(&self.sessions.sessions, &self.input_buffer);
@@ -601,8 +636,11 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-        // Ctrl+E: Chain select
-        if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // Alt+Shift+E: Chain select
+        if key.code == KeyCode::Char('E')
+            && key.modifiers.contains(KeyModifiers::ALT)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+        {
             if self.chains.chains.is_empty() {
                 self.view.status = "No chains configured. Add chains to config.json.".into();
             } else {
@@ -1094,7 +1132,7 @@ impl super::App {
         Ok(Action::Continue)
     }
 
-    /// Handle keys in ScrollbackSearch mode (Ctrl+F in PTY chat).
+    /// Handle keys in ScrollbackSearch mode (Alt+Shift+F in PTY chat).
     fn handle_scrollback_search_key(&mut self, key: KeyEvent) -> Result<Action> {
         match key.code {
             KeyCode::Esc => {

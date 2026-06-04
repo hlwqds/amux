@@ -459,8 +459,8 @@ pub enum Focus {
 ///   are intercepted by amux. The agent program handles its own keybindings,
 ///   scrolling, and cursor. This is the default for normal interaction.
 ///
-/// - `Amux`: amux intercepts Ctrl+B/F (scrollback), PageUp/Down, Home/End, `y`
-///   (copy), Ctrl+F (search), etc. for its own features. Use when you want amux
+/// - `Amux`: amux intercepts Alt+Shift+B/F (scrollback), PageUp/Down, Home/End, `y`
+///   (copy), Alt+Shift+F (search), etc. for its own features. Use when you want amux
 ///   scrollback/search and the agent is idle.
 ///
 /// Toggle with `F12`.

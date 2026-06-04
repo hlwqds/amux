@@ -1613,14 +1613,14 @@ impl super::App {
         lines.push(Line::from(vec![
             Span::styled("  Scroll: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
-                "PgUp/Dn  Ctrl+B/F  Home/End",
+                "PgUp/Dn  Alt+Shift+B/F  Home/End",
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
         lines.push(Line::from(vec![
             Span::styled("  Extra: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
-                "s=sort  o=open dir  c/x/g/o=quick-agent  G=archived",
+                "s=sort  o=open dir  c/x/g/o=quick-agent",
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
@@ -1882,7 +1882,7 @@ impl super::App {
         lines.push(Line::from("  o                Open workspace directory"));
         lines.push(Line::from("  !                Pin/unpin session"));
         lines.push(Line::from("  p                Template select"));
-        lines.push(Line::from("  G                Toggle archived sessions"));
+        lines.push(Line::from("  Alt+Shift+G      Toggle archived sessions"));
         // Section: Session Preview
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -1907,7 +1907,7 @@ impl super::App {
         lines.push(Line::from("  Ctrl+Y           Copy session title"));
         lines.push(Line::from("  PgUp/PgDn        Scroll PTY output"));
         lines.push(Line::from(
-            "  Ctrl+B/F         Scroll page up/down (vi-style)",
+            "  Alt+Shift+B/F    Scroll page up/down (vi-style)",
         ));
         lines.push(Line::from("  Home/End         Scroll to top/bottom"));
         lines.push(Line::from(
@@ -1921,17 +1921,17 @@ impl super::App {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
-        lines.push(Line::from("  Ctrl+S           Activity statistics"));
-        lines.push(Line::from("  Ctrl+T           Token usage"));
-        lines.push(Line::from("  Ctrl+G           Session timeline"));
-        lines.push(Line::from("  Ctrl+W           Agent recommendations"));
-        lines.push(Line::from("  Ctrl+F           Cross-session search"));
-        lines.push(Line::from("  Ctrl+R           Remote sessions"));
-        lines.push(Line::from("  Ctrl+P           Plugin list"));
-        lines.push(Line::from("  Ctrl+A           Automation select"));
-        lines.push(Line::from("  Ctrl+E           Chain select"));
+        lines.push(Line::from("  Alt+Shift+S      Activity statistics"));
+        lines.push(Line::from("  Alt+Shift+T      Token usage"));
+        lines.push(Line::from("  Alt+Shift+G      Session timeline"));
+        lines.push(Line::from("  Alt+Shift+W      Agent recommendations"));
+        lines.push(Line::from("  Alt+Shift+F      Cross-session search"));
+        lines.push(Line::from("  Alt+Shift+R      Remote sessions"));
+        lines.push(Line::from("  Alt+Shift+P      Plugin list"));
+        lines.push(Line::from("  Alt+Shift+A      Automation select"));
+        lines.push(Line::from("  Alt+Shift+E      Chain select"));
         lines.push(Line::from("  B                Git branch"));
-        lines.push(Line::from("  X                Diff view"));
+        lines.push(Line::from("  Alt+Shift+X      Diff view"));
         // Conflicts
         let conflicts = kb.validate();
         if !conflicts.is_empty() {
@@ -2049,7 +2049,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Automations (Ctrl+A) ")
+                    .title(" Automations (Alt+Shift+A) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2100,7 +2100,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Chains (Ctrl+E) ")
+                    .title(" Chains (Alt+Shift+E) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2286,7 +2286,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Activity Stats (Ctrl+S) ")
+                    .title(" Activity Stats (Alt+Shift+S) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2409,7 +2409,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Token Usage (Ctrl+T) ")
+                    .title(" Token Usage (Alt+Shift+T) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2495,7 +2495,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Remote Sessions (Ctrl+R) ")
+                    .title(" Remote Sessions (Alt+Shift+R) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2538,7 +2538,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Plugins (Ctrl+P) ")
+                    .title(" Plugins (Alt+Shift+P) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2690,7 +2690,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Timeline (Ctrl+G) ")
+                    .title(" Timeline (Alt+Shift+G) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2821,7 +2821,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Recommendations (Ctrl+W) ")
+                    .title(" Recommendations (Alt+Shift+W) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2892,7 +2892,7 @@ impl super::App {
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Search Results (Ctrl+F) ")
+                    .title(" Search Results (Alt+Shift+F) ")
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)

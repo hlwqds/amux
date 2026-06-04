@@ -41,7 +41,7 @@ struct AppView {
     screen_changed: bool,
     /// Previous input_mode to detect mode transitions requiring re-render.
     prev_input_mode: InputMode,
-    /// Active query for PTY scrollback search (Ctrl+F).
+    /// Active query for PTY scrollback search (Alt+Shift+F).
     scrollback_query: String,
     /// Match positions from scrollback search: (row, col, length).
     scrollback_matches: Vec<(u16, u16, usize)>,
