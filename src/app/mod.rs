@@ -2646,11 +2646,11 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
             terminal.draw(|frame| app.render(frame))?;
             app.view.screen_changed = false;
             // Move cursor to PTY input position so IME candidate window
-            // follows the actual typing position. Only in Amux mode — in
-            // Passthrough mode the agent program manages cursor itself.
+            // follows the actual typing position. Required after every
+            // frame because ratatui's full-screen redraw displaces the
+            // real cursor.
             if app.view.focus == Focus::Chat
                 && app.view.input_mode == InputMode::None
-                && app.view.chat_mode == ChatMode::Amux
                 && let Some(idx) = app.ptys.active_pty
                 && let Some(slot) = app.ptys.ptys.get(idx)
             {
