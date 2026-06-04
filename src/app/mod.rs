@@ -2702,7 +2702,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                         shape,
                         crossterm::cursor::MoveTo(
                             rect.x + cursor_col,
-                            rect.y + cursor_row,
+                            rect.y + cursor_row + 2,
                         ),
                         crossterm::cursor::Show,
                     );
