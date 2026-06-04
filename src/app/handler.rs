@@ -236,40 +236,6 @@ impl super::App {
                         return Ok(Action::Continue);
                     }
                 }
-                // P19: 'o' cycles through detected file paths in PTY output
-                if key.code == KeyCode::Char('o') && key.modifiers.is_empty() {
-                    self.detect_paths_from_screen();
-                    self.cycle_detected_path();
-                    return Ok(Action::Continue);
-                }
-                // P19: 'g' opens the selected file in editor (vi-style goto)
-                if key.code == KeyCode::Char('g') && key.modifiers.is_empty() {
-                    if self.ptys.selected_path_idx.is_some() || !self.ptys.detected_paths.is_empty()
-                    {
-                        if self.ptys.selected_path_idx.is_none() {
-                            self.ptys.selected_path_idx = Some(0);
-                        }
-                        self.open_file_in_editor();
-                    } else {
-                        // No paths detected — forward 'g' to PTY
-                        let bytes = key_to_bytes(&key);
-                        if !bytes.is_empty()
-                            && let Some(slot) = self.ptys.ptys.get(idx)
-                        {
-                            let _ = slot.handle.write_input(&bytes);
-                        }
-                    }
-                    return Ok(Action::Continue);
-                }
-                // P19: Enter opens file when a path is selected
-                if key.code == KeyCode::Enter && self.ptys.selected_path_idx.is_some() {
-                    self.open_file_in_editor();
-                    return Ok(Action::Continue);
-                }
-                // Any other key clears the path selection
-                if self.ptys.selected_path_idx.is_some() {
-                    self.ptys.selected_path_idx = None;
-                }
                 let bytes = key_to_bytes(&key);
                 if !bytes.is_empty()
                     && let Some(slot) = self.ptys.ptys.get(idx)

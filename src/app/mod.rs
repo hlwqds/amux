@@ -49,10 +49,6 @@ struct PtyManager {
     prev_states: Vec<PtyState>,
     /// Pending input steps queued for the active PTY.
     pending_inputs: Vec<PendingInput>,
-    /// File paths detected in the active PTY screen, with optional line numbers.
-    detected_paths: Vec<(String, Option<u32>)>,
-    /// Index into detected_paths for the currently highlighted path.
-    selected_path_idx: Option<usize>,
     /// Current search query for PTY scrollback search.
     scroll_search_query: String,
     /// Line indices (absolute row positions in full buffer) matching the query.
@@ -2251,147 +2247,6 @@ impl App {
         }
     }
 
-    /// Scan the active PTY screen for file paths and update detected_paths.
-    /// Only re-scans when the screen content hash has changed since last scan.
-    fn detect_paths_from_screen(&mut self) {
-        let Some(idx) = self.ptys.active_pty else {
-            return;
-        };
-        let Some(slot) = self.ptys.ptys.get(idx) else {
-            return;
-        };
-        // Reuse last_screen_hash from poll_states to skip unchanged screens
-        let parser = slot.handle.screen();
-        let guard = parser.read();
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        guard.screen().contents().hash(&mut hasher);
-        let hash = hasher.finish();
-        drop(guard);
-        if hash == slot.last_screen_hash && !self.ptys.detected_paths.is_empty() {
-            return; // Screen unchanged, skip regex scan
-        }
-        let text = {
-            let guard = parser.read();
-            guard.screen().contents()
-        };
-        self.ptys.detected_paths = crate::util::extract_file_paths_with_lines(&text, 20);
-        // Clamp selected_path_idx
-        if let Some(si) = self.ptys.selected_path_idx
-            && si >= self.ptys.detected_paths.len()
-        {
-            self.ptys.selected_path_idx = if self.ptys.detected_paths.is_empty() {
-                None
-            } else {
-                Some(self.ptys.detected_paths.len() - 1)
-            };
-        }
-    }
-
-    /// Cycle through detected file paths in the PTY screen.
-    fn cycle_detected_path(&mut self) {
-        if self.ptys.detected_paths.is_empty() {
-            self.view.status = "No file paths detected in output.".into();
-            return;
-        }
-        let next = match self.ptys.selected_path_idx {
-            Some(i) => (i + 1) % self.ptys.detected_paths.len(),
-            None => 0,
-        };
-        self.ptys.selected_path_idx = Some(next);
-        let (path, line) = &self.ptys.detected_paths[next];
-        self.view.status = if let Some(l) = line {
-            format!("▶ {}:{} [Enter/g to open, o to cycle]", path, l)
-        } else {
-            format!("▶ {} [Enter/g to open, o to cycle]", path)
-        };
-    }
-
-    /// Open the currently selected file path in the user's editor.
-    /// Suspends the TUI, runs the editor, then resumes.
-    fn open_file_in_editor(&mut self) {
-        let (path, line) = match self
-            .ptys
-            .selected_path_idx
-            .and_then(|i| self.ptys.detected_paths.get(i))
-        {
-            Some(p) => p.clone(),
-            None => {
-                self.view.status = "No file selected. Press o to select a path.".into();
-                return;
-            }
-        };
-
-        // Resolve relative path against active PTY workspace
-        let workspace = self
-            .ptys
-            .active_pty
-            .and_then(|idx| self.ptys.ptys.get(idx))
-            .map(|slot| slot.info.workspace_path.clone());
-
-        let resolved = if Path::new(&path).is_absolute() {
-            PathBuf::from(&path)
-        } else if let Some(ref ws) = workspace {
-            ws.join(&path)
-        } else {
-            PathBuf::from(&path)
-        };
-
-        if !resolved.exists() {
-            self.view.status = format!("File not found: {}", resolved.display());
-            return;
-        }
-
-        let editor = std::env::var("EDITOR")
-            .or_else(|_| std::env::var("VISUAL"))
-            .unwrap_or_else(|_| "vi".to_string());
-
-        // Parse editor into command + args (support EDITOR="code -w" etc.)
-        let mut parts = editor.split_whitespace();
-        let cmd = parts.next().unwrap_or("vi");
-        let mut extra_args: Vec<String> = parts.map(String::from).collect();
-
-        let line_arg = line.map(|l| format!("+{}", l));
-        if let Some(ref arg) = line_arg {
-            extra_args.push(arg.clone());
-        }
-
-        // Suspend the TUI: restore terminal to cooked mode, run editor, re-init
-        // Use crossterm to disable raw mode and show cursor
-        let _ = crossterm::execute!(
-            std::io::stdout(),
-            crossterm::terminal::LeaveAlternateScreen,
-            crossterm::cursor::Show,
-        );
-        let _ = crossterm::terminal::disable_raw_mode();
-
-        // Run the editor
-        let mut command = std::process::Command::new(cmd);
-        command.args(&extra_args).arg(&resolved);
-
-        let status = command.status();
-
-        // Re-initialize the terminal
-        let _ = crossterm::terminal::enable_raw_mode();
-        let _ = crossterm::execute!(
-            std::io::stdout(),
-            crossterm::terminal::EnterAlternateScreen,
-            crossterm::cursor::Hide,
-        );
-
-        match status {
-            Ok(s) if s.success() => {
-                self.view.status = format!("Opened {}", path);
-            }
-            Ok(s) => {
-                self.view.status = format!("Editor exited with: {}", s);
-            }
-            Err(e) => {
-                self.view.status = format!("Failed to open editor: {}", e);
-            }
-        }
-    }
-
     /// Open the selected session's workspace directory in the system file manager.
     fn open_workspace_dir(&mut self) {
         let node = self.selected_node();
@@ -2669,7 +2524,6 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     let result = loop {
         app.poll_states();
         app.flush_pending_inputs();
-        app.detect_paths_from_screen();
 
         // Detect mode transitions that require re-render
         let mode_changed = app.view.input_mode != app.view.prev_input_mode;

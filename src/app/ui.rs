@@ -553,58 +553,48 @@ impl super::App {
             .title(title)
             .border_style(Style::default().fg(border_color));
 
-        // When PTYs are active, split inner area into [tab_bar(1)] + [pty_content] + [paths_bar(1)]
+        // When PTYs are active, split inner area into [tab_bar(1)] + [pty_content]
         if !self.ptys.ptys.is_empty() {
             let inner = block.inner(area);
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(1),
-                    Constraint::Min(1),
-                    Constraint::Length(1),
-                ])
+                .constraints([Constraint::Length(1), Constraint::Min(1)])
                 .split(inner);
-
             self.view.tab_bar_rect = chunks[0];
-
             // Render tab bar
             let tab_line = self.build_tab_bar(chunks[0].width as usize);
             frame.render_widget(Paragraph::new(tab_line), chunks[0]);
-
             // Render PTY content
             if let Some(idx) = self.ptys.active_pty
                 && let Some(slot) = self.ptys.ptys.get(idx)
             {
                 let pty_area = chunks[1];
                 slot.handle.resize((pty_area.width, pty_area.height));
-
                 let parser = slot.handle.screen();
                 let guard = parser.read();
                 let term = PseudoTerminal::new(guard.screen());
                 frame.render_widget(term, pty_area);
             }
-
-            // Bottom bar: show search bar in ScrollSearch mode, else file paths
-            if chunks.len() > 2 {
-                if self.view.input_mode == InputMode::ScrollSearch {
-                    let search_text = format!("/{}", self.ptys.scroll_search_query);
-                    let match_info = if self.ptys.scroll_search_results.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" [{} matches]", self.ptys.scroll_search_results.len())
-                    };
-                    frame.render_widget(
-                        Paragraph::new(format!("{search_text}{match_info}"))
-                            .style(Style::default().fg(Color::Yellow)),
-                        chunks[2],
-                    );
+            // Scroll search overlay on bottom of PTY area
+            if self.view.input_mode == InputMode::ScrollSearch {
+                let search_text = format!("/{}", self.ptys.scroll_search_query);
+                let match_info = if self.ptys.scroll_search_results.is_empty() {
+                    String::new()
                 } else {
-                    // Show detected file paths with line numbers, highlight selected
-                    let spans = self.build_path_bar();
-                    frame.render_widget(Paragraph::new(Line::from(spans)), chunks[2]);
-                }
+                    format!(" [{} matches]", self.ptys.scroll_search_results.len())
+                };
+                let search_area = Rect {
+                    x: chunks[1].x,
+                    y: chunks[1].bottom().saturating_sub(1),
+                    width: chunks[1].width,
+                    height: 1,
+                };
+                frame.render_widget(
+                    Paragraph::new(format!("{search_text}{match_info}"))
+                        .style(Style::default().fg(Color::Yellow)),
+                    search_area,
+                );
             }
-
             frame.render_widget(block, area);
             return;
         }
@@ -1104,62 +1094,6 @@ impl super::App {
         }
 
         Line::from(spans)
-    }
-
-    /// Build the bottom path bar with highlighted selection for PTY output.
-    fn build_path_bar(&self) -> Vec<Span<'static>> {
-        let paths = &self.ptys.detected_paths;
-        if paths.is_empty() {
-            return Vec::new();
-        }
-
-        let mut spans: Vec<Span<'static>> = Vec::new();
-        spans.push(Span::styled(
-            " \u{1f4c2} ",
-            Style::default().fg(Color::DarkGray),
-        ));
-
-        for (i, (path, line)) in paths.iter().enumerate().take(5) {
-            if i > 0 {
-                spans.push(Span::styled(
-                    " \u{00b7} ",
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-
-            let label = if let Some(l) = line {
-                format!("{}:{}", path, l)
-            } else {
-                path.clone()
-            };
-
-            let is_selected = self.ptys.selected_path_idx == Some(i);
-            let style = if is_selected {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-            } else {
-                Style::default().fg(Color::Cyan)
-            };
-
-            spans.push(Span::styled(label, style));
-        }
-
-        if paths.len() > 5 {
-            spans.push(Span::styled(
-                format!(" +{} more", paths.len() - 5),
-                Style::default().fg(Color::DarkGray),
-            ));
-        }
-
-        if self.ptys.selected_path_idx.is_some() {
-            spans.push(Span::styled(
-                " [Enter=open]",
-                Style::default().fg(Color::DarkGray),
-            ));
-        }
-
-        spans
     }
 
     fn render_status(&mut self, frame: &mut Frame, area: Rect) {
@@ -1681,10 +1615,6 @@ impl super::App {
             "  y                Copy visible screen (when scrolled)",
         ));
         lines.push(Line::from("  /                Enter scrollback search"));
-        lines.push(Line::from("  o                Cycle detected file paths"));
-        lines.push(Line::from(
-            "  g                Open selected path in editor",
-        ));
         // Section: Panels & info
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
