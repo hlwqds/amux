@@ -2708,7 +2708,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             std::io::stdout(),
                             shape,
                             crossterm::cursor::MoveTo(
-                                rect.x + cursor_col,
+                                rect.x + 1 + cursor_col,
                                 rect.y + cursor_row + 2,
                             ),
                             crossterm::cursor::Show,
@@ -2717,7 +2717,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
                             crossterm::cursor::MoveTo(
-                                rect.x + cursor_col,
+                                rect.x + 1 + cursor_col,
                                 rect.y + cursor_row + 2,
                             ),
                             crossterm::cursor::Show,
