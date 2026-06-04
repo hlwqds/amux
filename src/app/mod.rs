@@ -2718,9 +2718,9 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            // Forward as PageUp (\x1b[5~) — most agents interpret this as scroll.
-                            // ArrowUp would trigger command history in REPL-style agents.
-                            let _ = slot.handle.write_input(&[27, 91, 53, 126]);
+                            // Scroll vt100 scrollback buffer — same as what the
+                            // real terminal (Kitty/etc) does with mouse wheel.
+                            slot.handle.scroll_page_up(3);
                         }
                     }
                     crossterm::event::MouseEventKind::ScrollDown => {
@@ -2728,7 +2728,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            let _ = slot.handle.write_input(&[27, 91, 54, 126]);
+                            slot.handle.scroll_page_down(3);
                         }
                     }
                     _ => {}
