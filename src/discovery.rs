@@ -147,16 +147,16 @@ pub fn discover_sessions_cached(
             sessions.push(session);
         }
     }
-
-    // Load tags from title override files
+    // Reload title/pinned/tags from override files (may have changed since cache)
     for session in &mut sessions {
-        if let Some(meta) = load_session_meta(&session.id, Some(&session.workspace_path))
-            && !meta.tags.is_empty()
-        {
-            session.tags = meta.tags;
+        if let Some(meta) = load_session_meta(&session.id, Some(&session.workspace_path)) {
+            if !meta.tags.is_empty() {
+                session.tags = meta.tags;
+            }
+            session.title = meta.title;
+            session.pinned = meta.pinned;
         }
     }
-
     sessions.sort_by_key(|b| std::cmp::Reverse(b.last_active));
     sessions
 }
