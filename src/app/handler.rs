@@ -11,7 +11,24 @@ impl super::App {
 
         if self.view.focus == Focus::Chat {
             if let Some(idx) = self.ptys.active_pty {
-                // Tab / Alt+h: go to sidebar
+                // ── Shared: always intercept these regardless of ChatMode ──
+
+                // F12: toggle between Passthrough and Amux mode
+                if key.code == KeyCode::F(12) {
+                    self.view.chat_mode = match self.view.chat_mode {
+                        ChatMode::Passthrough => {
+                            self.view.status = "AMUX mode: scrollback/search keys active. F12=back to RAW.".into();
+                            ChatMode::Amux
+                        }
+                        ChatMode::Amux => {
+                            self.view.status = "RAW mode: all keys go to agent. F12=back to AMUX.".into();
+                            ChatMode::Passthrough
+                        }
+                    };
+                    return Ok(Action::Continue);
+                }
+
+                // Tab / Alt+h: go to sidebar (always)
                 if (key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT))
                     || (key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT))
                 {
@@ -20,7 +37,8 @@ impl super::App {
                     self.view.status = "Sessions refreshed.".into();
                     return Ok(Action::Continue);
                 }
-                // Alt+key: amux operations (intercept before forwarding to PTY)
+
+                // Alt+key: amux operations (always intercepted, never forwarded)
                 if key.modifiers.contains(KeyModifiers::ALT)
                     && !key.modifiers.contains(KeyModifiers::CONTROL)
                 {
@@ -28,15 +46,12 @@ impl super::App {
                     if kb.quit.matches_event(&key) {
                         return Ok(Action::Quit);
                     }
-                    // move_up/move_down in chat: skip — ↑/↓ forwarded to PTY
-                    // Tab switching uses Ctrl+J/K below
                     if kb.refresh.matches_event(&key) {
                         self.refresh_sessions();
                         self.view.status = "Sessions refreshed.".into();
                         return Ok(Action::Continue);
                     }
                     if kb.new_session.matches_event(&key) {
-                        // Switch to sidebar and start new session flow
                         self.view.focus = Focus::Sidebar;
                         self.refresh_sessions();
                         self.activate_selection()?;
@@ -91,8 +106,10 @@ impl super::App {
                         }
                         return Ok(Action::Continue);
                     }
-                    // Alt+key with no match: forward to PTY
+                    // Alt+key with no match: fall through to PTY forward
                 }
+
+                // Ctrl+Q: terminate session (always)
                 if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         self.unregister_pty(&slot.id);
@@ -104,16 +121,8 @@ impl super::App {
                     self.view.status = "Session terminated. Sessions refreshed.".into();
                     return Ok(Action::Continue);
                 }
-                if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
-                        match clipboard_copy(&text) {
-                            Ok(()) => self.view.status = format!("Copied: {}", text),
-                            Err(e) => self.view.status = format!("Copy failed: {}", e),
-                        }
-                    }
-                    return Ok(Action::Continue);
-                }
+
+                // Ctrl+J/K: tab switching (always)
                 if key.modifiers.contains(KeyModifiers::CONTROL)
                     && !key.modifiers.contains(KeyModifiers::SHIFT)
                     && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
@@ -141,7 +150,8 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Ctrl+Shift+J/K: reorder tabs
+
+                // Ctrl+Shift+J/K: reorder tabs (always)
                 if key.modifiers.contains(KeyModifiers::CONTROL)
                     && key.modifiers.contains(KeyModifiers::SHIFT)
                     && (key.code == KeyCode::Char('J') || key.code == KeyCode::Char('K'))
@@ -162,7 +172,33 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Scrollback / alternate screen forwarding: Page Up/Down
+
+                // Ctrl+Y: copy session info (always)
+                if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    if let Some(slot) = self.ptys.ptys.get(idx) {
+                        let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
+                        match clipboard_copy(&text) {
+                            Ok(()) => self.view.status = format!("Copied: {}", text),
+                            Err(e) => self.view.status = format!("Copy failed: {}", e),
+                        }
+                    }
+                    return Ok(Action::Continue);
+                }
+
+                // ── Passthrough mode: forward everything else to PTY ──
+                if self.view.chat_mode == ChatMode::Passthrough {
+                    let bytes = key_to_bytes(&key);
+                    if !bytes.is_empty()
+                        && let Some(slot) = self.ptys.ptys.get(idx)
+                    {
+                        let _ = slot.handle.write_input(&bytes);
+                    }
+                    return Ok(Action::Continue);
+                }
+
+                // ── Amux mode: intercept scrollback/search/copy keys ──
+
+                // Page Up/Down
                 if key.code == KeyCode::PageUp || key.code == KeyCode::PageDown {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
@@ -180,8 +216,7 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // P2: Vi-style scrollback keys (also forward in alternate screen)
-                // Ctrl+B: page up (vi backward)
+                // Ctrl+B: page up
                 if key.code == KeyCode::Char('b') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
@@ -194,7 +229,7 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Ctrl+F: scrollback search (normal screen) or page-down (alternate screen)
+                // Ctrl+F: scrollback search or page-down
                 if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
@@ -208,7 +243,7 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Home: scroll to top / forward in alternate screen
+                // Home
                 if key.code == KeyCode::Home {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
@@ -220,7 +255,7 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // End: scroll to bottom / forward in alternate screen
+                // End
                 if key.code == KeyCode::End {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
@@ -232,14 +267,13 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // P2: `y` copies visible screen when scrolled up
+                // `y` copies visible screen when scrolled up
                 if key.code == KeyCode::Char('y')
                     && key.modifiers.is_empty()
                     && let Some(slot) = self.ptys.ptys.get(idx)
                 {
                     let offset = slot.handle.scrollback_offset();
                     if offset > 0 {
-                        // Copy visible screen content
                         let parser = slot.handle.screen();
                         let guard = parser.read();
                         let text = guard.screen().contents();
@@ -251,6 +285,7 @@ impl super::App {
                         return Ok(Action::Continue);
                     }
                 }
+                // Amux mode fallback: forward to PTY
                 let bytes = key_to_bytes(&key);
                 if !bytes.is_empty()
                     && let Some(slot) = self.ptys.ptys.get(idx)
@@ -261,6 +296,8 @@ impl super::App {
                 return Ok(Action::Continue);
             }
 
+
+            // Chat focus but no active PTY
             match key.code {
                 KeyCode::Tab => {
                     self.view.focus = Focus::Sidebar;

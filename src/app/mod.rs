@@ -23,6 +23,7 @@ use ratatui::{layout::Rect, widgets::ListState};
 struct AppView {
     focus: Focus,
     input_mode: InputMode,
+    chat_mode: ChatMode,
     status: String,
     sort_mode: SortMode,
     agent_filter: Option<Agent>,
@@ -128,6 +129,7 @@ impl Default for AppView {
         Self {
             focus: Focus::default(),
             input_mode: InputMode::default(),
+            chat_mode: ChatMode::default(),
             status: String::new(),
             sort_mode: SortMode::default(),
             agent_filter: None,
@@ -318,6 +320,7 @@ impl App {
             view: AppView {
                 focus: Focus::Sidebar,
                 input_mode: InputMode::None,
+                chat_mode: ChatMode::default(),
                 status: Default::default(),
                 sort_mode: SortMode::default(),
                 agent_filter: None,
@@ -2649,9 +2652,11 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
             terminal.draw(|frame| app.render(frame))?;
             app.view.screen_changed = false;
             // Move cursor to PTY input position so IME candidate window
-            // follows the actual typing position, not the last rendered widget.
+            // follows the actual typing position. Only in Amux mode — in
+            // Passthrough mode the agent program manages cursor itself.
             if app.view.focus == Focus::Chat
                 && app.view.input_mode == InputMode::None
+                && app.view.chat_mode == ChatMode::Amux
                 && let Some(idx) = app.ptys.active_pty
                 && let Some(slot) = app.ptys.ptys.get(idx)
             {

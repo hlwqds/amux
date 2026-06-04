@@ -453,6 +453,26 @@ pub enum Focus {
     Chat,
 }
 
+/// Chat panel input mode — controls how keyboard/mouse events are dispatched.
+///
+/// - `Passthrough`: All keys forwarded directly to the PTY. Only `Alt+` sequences
+///   are intercepted by amux. The agent program handles its own keybindings,
+///   scrolling, and cursor. This is the default for normal interaction.
+///
+/// - `Amux`: amux intercepts Ctrl+B/F (scrollback), PageUp/Down, Home/End, `y`
+///   (copy), Ctrl+F (search), etc. for its own features. Use when you want amux
+///   scrollback/search and the agent is idle.
+///
+/// Toggle with `F12`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ChatMode {
+    /// All keys go straight to PTY (default).
+    #[default]
+    Passthrough,
+    /// amux intercepts keys for scrollback, search, copy.
+    Amux,
+}
+
 // EVALUATION: InputMode consolidation
 // ─────────────────────────────────────────────
 // Current state: 36 variants (including `None`), flat C-like enum with `Copy + Clone`.
@@ -843,7 +863,7 @@ impl Keybinds {
     /// One-line hint string for the status bar.
     pub fn status_hint(&self) -> String {
         format!(
-            "Enter:new {}:{} {}:{} o:open {}:{} Tab:toggle {}:quit",
+            "Enter:new {}:{} {}:{} o:open {}:{} Tab:toggle {}:quit F12:chat-mode",
             self.expand.display(),
             "exp",
             self.refresh.display(),

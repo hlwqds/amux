@@ -1343,7 +1343,13 @@ impl super::App {
             }
         };
 
+        let mode_span = if self.view.focus == Focus::Chat && self.view.chat_mode == ChatMode::Passthrough {
+            Span::styled(" RAW", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        } else {
+            Span::raw("")
+        };
         let line = Line::from(vec![
+            mode_span,
             Span::styled(self.view.status.clone(), Style::default().fg(Color::White)),
             chain_span,
             pty_status,
