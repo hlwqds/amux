@@ -2376,6 +2376,57 @@ impl App {
         }
         Ok(())
     }
+    /// Ctrl+Click on PTY area: extract URL from the clicked line and open it.
+    fn ctrl_click_open(&mut self, col: u16, row: u16) {
+        let rect = self.view.last_chat_area;
+        if col < rect.x || col >= rect.x + rect.width || row < rect.y + 1 || row >= rect.y + rect.height {
+            return;
+        }
+        let Some(idx) = self.ptys.active_pty else { return };
+        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+
+        let screen = slot.handle.screen();
+        let guard = screen.read();
+        let s = guard.screen();
+        let (term_rows, _term_cols) = s.size();
+        let pty_row = (row - rect.y).saturating_sub(1);
+        if pty_row >= term_rows {
+            return;
+        }
+        let mut line = String::new();
+        for c in 0..rect.width.saturating_sub(2) {
+            match s.cell(pty_row, c) {
+                Some(cell) => line.push_str(cell.contents()),
+                None => line.push(' '),
+            }
+        }
+        drop(guard);
+
+        let click_in_line = (col - rect.x) as usize;
+        if let Some(url) = extract_url_from_line(&line, click_in_line) {
+            let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+            match std::process::Command::new(opener).arg(&url).spawn() {
+                Ok(_) => self.view.status = format!("Opened {}", url),
+                Err(e) => self.view.status = format!("Failed to open: {}", e),
+            }
+        }
+    }
+}
+
+use std::sync::LazyLock;
+static URL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r#"https?://[^\s)'"<>]+"#).unwrap()
+});
+
+/// Extract a URL from a line of text containing the given column position.
+fn extract_url_from_line(line: &str, click_col: usize) -> Option<String> {
+    for mat in URL_RE.find_iter(line) {
+        if mat.start() <= click_col && click_col <= mat.end() {
+            let url = mat.as_str().trim_end_matches([',', '.', ';', ':']);
+            return Some(url.to_string());
+        }
+    }
+    None
 }
 
 /// Returns true if any of the `haystacks` fuzzy-matches `query` using code_fuzzy_match.
@@ -2575,7 +2626,11 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
 
                 Event::Mouse(mouse) => match mouse.kind {
                     crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
-                        app.handle_mouse_click(mouse.column, mouse.row);
+                        if mouse.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                            app.ctrl_click_open(mouse.column, mouse.row);
+                        } else {
+                            app.handle_mouse_click(mouse.column, mouse.row);
+                        }
                     }
                     crossterm::event::MouseEventKind::Down(
                         crossterm::event::MouseButton::Right,
