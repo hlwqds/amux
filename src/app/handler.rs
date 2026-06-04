@@ -274,10 +274,7 @@ impl super::App {
                 {
                     let offset = slot.handle.scrollback_offset();
                     if offset > 0 {
-                        let parser = slot.handle.screen();
-                        let guard = parser.read();
-                        let text = guard.screen().contents();
-                        drop(guard);
+                        let text = slot.handle.screen_contents();
                         match crate::util::clipboard_copy(&text) {
                             Ok(()) => self.view.status = "Screen copied to clipboard".into(),
                             Err(e) => self.view.status = format!("Clipboard error: {e}"),
@@ -1144,18 +1141,15 @@ impl super::App {
         let Some(idx) = self.ptys.active_pty else { return };
         let Some(slot) = self.ptys.ptys.get(idx) else { return };
 
-        let screen = slot.handle.screen();
-        let guard = screen.read();
-        let s = guard.screen();
-        let (term_rows, term_cols) = s.size();
+        let (term_rows, term_cols) = slot.handle.grid_size();
 
         let query_lower = query.to_lowercase();
 
         for row in 0..term_rows {
             let mut line = String::new();
             for col in 0..term_cols {
-                match s.cell(row, col) {
-                    Some(cell) => line.push_str(cell.contents()),
+                match slot.handle.cell_contents(row, col) {
+                    Some(t) => line.push_str(&t),
                     None => line.push(' '),
                 }
             }
@@ -1163,7 +1157,7 @@ impl super::App {
             let mut start = 0;
             while let Some(pos) = line_lower[start..].find(&query_lower) {
                 let abs_pos = start + pos;
-                self.view.scrollback_matches.push((row, abs_pos as u16, query.len()));
+                self.view.scrollback_matches.push((row as u16, abs_pos as u16, query.len()));
                 start = abs_pos + query.len();
                 if start >= line_lower.len() {
                     break;
@@ -1171,7 +1165,6 @@ impl super::App {
             }
         }
 
-        drop(guard);
 
         if !self.view.scrollback_matches.is_empty() {
             self.scroll_to_current_match();
@@ -1187,11 +1180,7 @@ impl super::App {
         let Some(idx) = self.ptys.active_pty else { return };
         let Some(slot) = self.ptys.ptys.get(idx) else { return };
 
-        let screen = slot.handle.screen();
-        let guard = screen.read();
-        let (term_rows, _) = guard.screen().size();
-        drop(guard);
-        let term_rows = term_rows as usize;
+        let (term_rows, _) = slot.handle.grid_size();
 
         let page_size = self.view.last_chat_area.height.saturating_sub(2) as usize;
         let current_offset = slot.handle.scrollback_offset();

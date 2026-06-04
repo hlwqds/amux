@@ -511,10 +511,7 @@ impl App {
                 // Record screen frame (throttled to max every 200ms)
                 if slot.last_recording_at.elapsed() >= std::time::Duration::from_millis(200) {
                     use std::hash::{Hash, Hasher};
-                    let parser = slot.handle.screen();
-                    let guard = parser.read();
-                    let content = guard.screen().contents();
-                    drop(guard);
+                    let content = slot.handle.screen_contents();
                     let mut hasher = std::collections::hash_map::DefaultHasher::new();
                     content.hash(&mut hasher);
                     let hash = hasher.finish();
@@ -2456,22 +2453,19 @@ impl App {
         let Some(idx) = self.ptys.active_pty else { return };
         let Some(slot) = self.ptys.ptys.get(idx) else { return };
 
-        let screen = slot.handle.screen();
-        let guard = screen.read();
-        let s = guard.screen();
-        let (term_rows, _term_cols) = s.size();
+
+        let (term_rows, _term_cols) = slot.handle.grid_size();
         let pty_row = (row - rect.y).saturating_sub(1);
-        if pty_row >= term_rows {
+        if pty_row as usize >= term_rows {
             return;
         }
         let mut line = String::new();
         for c in 0..rect.width.saturating_sub(2) {
-            match s.cell(pty_row, c) {
-                Some(cell) => line.push_str(cell.contents()),
+            match slot.handle.cell_contents(pty_row as usize, c as usize) {
+                Some(t) => line.push_str(&t),
                 None => line.push(' '),
             }
         }
-        drop(guard);
 
         let click_in_line = (col - rect.x) as usize;
         if let Some(url) = extract_url_from_line(&line, click_in_line) {
@@ -2660,17 +2654,20 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 && let Some(idx) = app.ptys.active_pty
                 && let Some(slot) = app.ptys.ptys.get(idx)
             {
-                let screen = slot.handle.screen();
-                let guard = screen.read();
-                let cursor = guard.screen().cursor_position();
+                let term = slot.handle.term();
+                let guard = term.lock();
+                let grid = guard.grid();
+                let cursor_point = grid.cursor.point;
+                let cursor_col = cursor_point.column.0 as u16;
+                let cursor_row = (grid.display_offset() as i32 + cursor_point.line.0) as u16;
                 drop(guard);
                 let rect = app.view.last_chat_area;
-                if cursor.1 < rect.height && cursor.0 < rect.width {
+                if cursor_row < rect.height && cursor_col < rect.width {
                     let _ = crossterm::execute!(
                         std::io::stdout(),
                         crossterm::cursor::MoveTo(
-                            rect.x + cursor.0,
-                            rect.y + cursor.1 + 1, // +1 for tab bar
+                            rect.x + cursor_col,
+                            rect.y + cursor_row + 1, // +1 for tab bar
                         )
                     );
                 }

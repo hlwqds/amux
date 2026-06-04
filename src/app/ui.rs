@@ -5,12 +5,53 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
-use tui_term::widget::PseudoTerminal;
+use alacritty_terminal::grid::Dimensions;
+use alacritty_terminal::index::{Column, Line as AlacLine, Point};
+use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor};
 
 use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::{PARENT_DIR, SELECT_CURRENT, SELECT_VIRTUAL, centered_rect, relative_time};
 
+fn ansi_to_ratatui_color(c: AnsiColor) -> Option<Color> {
+    match c {
+        AnsiColor::Spec(rgb) => Some(Color::Rgb(rgb.r, rgb.g, rgb.b)),
+        AnsiColor::Indexed(i) => Some(Color::Indexed(i)),
+        AnsiColor::Named(named) => named_to_ratatui_color(named),
+    }
+}
+
+fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
+    use NamedColor::*;
+    match n {
+        Foreground | Background | Cursor | DimForeground | BrightForeground => None,
+        Black => Some(Color::Black),
+        Red => Some(Color::Red),
+        Green => Some(Color::Green),
+        Yellow => Some(Color::Yellow),
+        Blue => Some(Color::Blue),
+        Magenta => Some(Color::Magenta),
+        Cyan => Some(Color::Cyan),
+        White => Some(Color::Gray),
+        BrightBlack => Some(Color::DarkGray),
+        BrightRed => Some(Color::LightRed),
+        BrightGreen => Some(Color::LightGreen),
+        BrightYellow => Some(Color::LightYellow),
+        BrightBlue => Some(Color::LightBlue),
+        BrightMagenta => Some(Color::LightMagenta),
+        BrightCyan => Some(Color::LightCyan),
+        BrightWhite => Some(Color::White),
+        DimBlack => Some(Color::Black),
+        DimRed => Some(Color::Red),
+        DimGreen => Some(Color::Green),
+        DimYellow => Some(Color::Yellow),
+        DimBlue => Some(Color::Blue),
+        DimMagenta => Some(Color::Magenta),
+        DimCyan => Some(Color::Cyan),
+        DimWhite => Some(Color::Gray),
+    }
+}
 impl super::App {
     pub(super) fn chat_size(&self) -> (u16, u16) {
         (
@@ -660,19 +701,54 @@ impl super::App {
                     ]));
                     frame.render_widget(indicator, Rect { x: pty_area.x, y: pty_area.y, width: 5, height: 1 });
                 } else {
-                    let parser = slot.handle.screen();
-                    let guard = parser.read();
-                    let term = PseudoTerminal::new(guard.screen());
-                    frame.render_widget(term, pty_area);
+                    let term = slot.handle.term();
+                    let guard = term.lock();
+                    let display_offset = guard.grid().display_offset();
+                    let grid = guard.grid();
+                    let screen_rows = guard.screen_lines() as u16;
+                    let screen_cols = guard.columns() as u16;
+                    let max_rows = pty_area.height.min(screen_rows);
+                    let max_cols = pty_area.width.min(screen_cols);
+                    for y in 0..max_rows {
+                        let line_idx = y as i32 - display_offset as i32;
+                        for x in 0..max_cols {
+                            let p = Point::new(AlacLine(line_idx), Column(x as usize));
+                            let cell = &grid[p];
+                            let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                            let mut style = Style::default();
+                            if let Some(c) = ansi_to_ratatui_color(cell.fg) {
+                                style = style.fg(c);
+                            }
+                            if let Some(c) = ansi_to_ratatui_color(cell.bg) {
+                                style = style.bg(c);
+                            }
+                            let flags = cell.flags;
+                            if flags.contains(Flags::BOLD) {
+                                style = style.add_modifier(Modifier::BOLD);
+                            }
+                            if flags.contains(Flags::ITALIC) {
+                                style = style.add_modifier(Modifier::ITALIC);
+                            }
+                            if flags.intersects(Flags::ALL_UNDERLINES) {
+                                style = style.add_modifier(Modifier::UNDERLINED);
+                            }
+                            if flags.contains(Flags::INVERSE) {
+                                style = style.add_modifier(Modifier::REVERSED);
+                            }
+                            let target_x = pty_area.x + x;
+                            let target_y = pty_area.y + y;
+                            if let Some(buf_cell) = frame.buffer_mut().cell_mut((target_x, target_y)) {
+                                let mut tmp = [0u8; 4];
+                                buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
+                                buf_cell.set_style(style);
+                            }
+                        }
+                    }
                     drop(guard);
                     // Highlight scrollback search matches
                     if is_searching && !self.view.scrollback_matches.is_empty() {
                         let offset = slot.handle.scrollback_offset();
-                        let (term_rows, _term_cols) = {
-                            let guard = parser.read();
-                            guard.screen().size()
-                        };
-                        let term_rows = term_rows as usize;
+                        let (term_rows, _term_cols) = slot.handle.grid_size();
                         let page_height = pty_area.height as usize;
                         let vis_end = term_rows.saturating_sub(offset);
                         let vis_start = vis_end.saturating_sub(page_height);
@@ -694,16 +770,13 @@ impl super::App {
                             } else {
                                 Style::default().bg(Color::DarkGray).fg(Color::White)
                             };
-                            let guard = parser.read();
-                            let s = guard.screen();
                             let mut text = String::new();
                             for c in col..col + len as u16 {
-                                match s.cell(row as u16, c) {
-                                    Some(cell) => text.push_str(cell.contents()),
+                                match slot.handle.cell_contents(row, c as usize) {
+                                    Some(t) => text.push_str(&t),
                                     None => text.push(' '),
                                 }
                             }
-                            drop(guard);
                             let span = Span::styled(text, highlight_style);
                             let highlight_area = Rect {
                                 x: screen_x,
@@ -730,10 +803,51 @@ impl super::App {
             let inner = block.inner(area);
             slot.handle.resize((inner.width, inner.height));
 
-            let parser = slot.handle.screen();
-            let guard = parser.read();
-            let term = PseudoTerminal::new(guard.screen()).block(block);
-            frame.render_widget(term, area);
+            let term_arc = slot.handle.term();
+            let guard = term_arc.lock();
+            let display_offset = guard.grid().display_offset();
+            let grid = guard.grid();
+            let screen_rows = guard.screen_lines() as u16;
+            let screen_cols = guard.columns() as u16;
+            let max_rows = inner.height.min(screen_rows);
+            let max_cols = inner.width.min(screen_cols);
+            for y in 0..max_rows {
+                let line_idx = y as i32 - display_offset as i32;
+                for x in 0..max_cols {
+                    let p = Point::new(AlacLine(line_idx), Column(x as usize));
+                    let cell = &grid[p];
+                    let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                    let mut style = Style::default();
+                    if let Some(c) = ansi_to_ratatui_color(cell.fg) {
+                        style = style.fg(c);
+                    }
+                    if let Some(c) = ansi_to_ratatui_color(cell.bg) {
+                        style = style.bg(c);
+                    }
+                    let flags = cell.flags;
+                    if flags.contains(Flags::BOLD) {
+                        style = style.add_modifier(Modifier::BOLD);
+                    }
+                    if flags.contains(Flags::ITALIC) {
+                        style = style.add_modifier(Modifier::ITALIC);
+                    }
+                    if flags.intersects(Flags::ALL_UNDERLINES) {
+                        style = style.add_modifier(Modifier::UNDERLINED);
+                    }
+                    if flags.contains(Flags::INVERSE) {
+                        style = style.add_modifier(Modifier::REVERSED);
+                    }
+                    let target_x = inner.x + x;
+                    let target_y = inner.y + y;
+                    if let Some(buf_cell) = frame.buffer_mut().cell_mut((target_x, target_y)) {
+                        let mut tmp = [0u8; 4];
+                        buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
+                        buf_cell.set_style(style);
+                    }
+                }
+            }
+            drop(guard);
+            frame.render_widget(block, area);
             return;
         }
 

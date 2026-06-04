@@ -34,11 +34,7 @@ async fn handle_pty_ws(
     };
 
     // Send initial screen content as Binary to match subsequent updates
-    let initial = {
-        let parser = handle.screen();
-        let guard = parser.read();
-        guard.screen().contents()
-    };
+    let initial = handle.screen_contents();
     let _ = socket.send(Message::Binary(initial.into())).await;
 
     // Drain any raw output that arrived between spawn and now
