@@ -46,23 +46,7 @@ impl super::App {
                 self.view.status = "Keybindings (any key to close)".into();
             }
             KeyCode::Char('t') => {
-                // Build theme list: built-in + custom
-                let mut themes = vec![
-                    crate::theme::ThemeName::Dark,
-                    crate::theme::ThemeName::Light,
-                ];
-                if let Some(customs) = crate::theme::discover_custom_themes() {
-                    themes.extend(customs);
-                }
-                // Select current theme in list
-                let sel = themes
-                    .iter()
-                    .position(|t| t == &self.view.theme_name)
-                    .unwrap_or(0);
-                self.theme_list = themes;
-                self.theme_list_state.select(Some(sel));
-                self.view.input_mode = InputMode::ThemeSelect;
-                self.view.status = "Select theme (Enter=apply, Esc=cancel)".into();
+                self.open_theme_panel();
             }
             KeyCode::Char('b') => {
                 // Toggle token budget: set a default daily 100k token budget if none set,

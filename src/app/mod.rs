@@ -72,6 +72,10 @@ struct SessionStore {
     /// Whether to show archived sessions in the sidebar.
     show_archived: bool,
     archive_days: Option<u64>,
+    /// Whether the virtual "Pinned" workspace is expanded.
+    pinned_expanded: bool,
+    /// Whether the virtual "Recent" workspace is expanded.
+    recent_expanded: bool,
     /// Cache for incremental session discovery — maps file path to (mtime, Session).
     session_cache: SessionCache,
     /// Per-project configs keyed by workspace path, loaded from `.amux.json`.
@@ -157,6 +161,8 @@ impl Default for AppView {
 struct App {
     view: AppView,
     ptys: PtyManager,
+    /// Bottom terminal split — a shell PTY in the active session's cwd.
+    terminal: Option<PtySlot>,
     sessions: SessionStore,
     popup: PopupState,
     chains: ChainState,
@@ -229,6 +235,7 @@ impl Default for App {
         Self {
             view: AppView::default(),
             ptys: PtyManager::default(),
+            terminal: None,
             sessions: SessionStore::default(),
             popup: PopupState::default(),
             chains: ChainState::default(),
@@ -345,6 +352,7 @@ impl App {
                 scrollback_match_idx: 0,
             },
             ptys: PtyManager::default(),
+            terminal: None,
             sessions: SessionStore {
                 workspaces: config.workspaces,
                 sessions: sessions_list,
@@ -354,6 +362,8 @@ impl App {
                 archived_sessions: Vec::new(),
                 show_archived: false,
                 archive_days: config.archive_days,
+                pinned_expanded: false,
+                recent_expanded: false,
                 session_cache: SessionCache::new(),
                 project_configs: std::collections::HashMap::new(),
                 project_config_mtimes: std::collections::HashMap::new(),
@@ -837,6 +847,28 @@ impl App {
         }
 
         self.ptys.prev_states = self.ptys.ptys.iter().map(|s| s.handle.state()).collect();
+        // Auto-close terminal split when shell exits
+        // Auto-close terminal split when shell exits
+        if let Some(term) = &self.terminal
+            && term.handle.state() == PtyState::Completed
+        {
+            self.terminal = None;
+            self.view.screen_changed = true;
+        }
+        // Detect terminal split screen changes
+        if let Some(term) = &mut self.terminal
+            && term.handle.state() == PtyState::Running
+        {
+            use std::hash::{Hash, Hasher};
+            let content = term.handle.screen_contents();
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            content.hash(&mut hasher);
+            let hash = hasher.finish();
+            if hash != term.last_screen_hash {
+                term.last_screen_hash = hash;
+                any_screen_changed = true;
+            }
+        }
         if any_screen_changed {
             self.view.screen_changed = true;
         }
@@ -1278,26 +1310,26 @@ impl App {
             .collect();
         if !pinned_idxs.is_empty() {
             tree.push(TreeNode::PinnedWorkspace);
-            // Render pinned sessions (no workspace path check needed)
-            let mut sorted_pins = pinned_idxs;
-            sorted_pins.sort_by(|&a, &b| {
-                self.sessions.sessions[b]
-                    .last_active
-                    .cmp(&self.sessions.sessions[a].last_active)
-            });
-            for &si in &sorted_pins {
-                // Find the real workspace index for the session
-                let ws_path = &self.sessions.sessions[si].workspace_path;
-                let wi = self
-                    .sessions
-                    .workspaces
-                    .iter()
-                    .position(|w| {
-                        w.path.as_deref() == Some(ws_path)
-                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
-                    })
-                    .unwrap_or(0);
-                tree.push(TreeNode::Session(wi, si));
+            if self.sessions.pinned_expanded {
+                let mut sorted_pins = pinned_idxs;
+                sorted_pins.sort_by(|&a, &b| {
+                    self.sessions.sessions[b]
+                        .last_active
+                        .cmp(&self.sessions.sessions[a].last_active)
+                });
+                for &si in &sorted_pins {
+                    let ws_path = &self.sessions.sessions[si].workspace_path;
+                    let wi = self
+                        .sessions
+                        .workspaces
+                        .iter()
+                        .position(|w| {
+                            w.path.as_deref() == Some(ws_path)
+                                || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                        })
+                        .unwrap_or(0);
+                    tree.push(TreeNode::Session(wi, si));
+                }
             }
         }
         // Collect recent sessions: non-pinned, non-active, sorted by last_active desc, top 10
@@ -1340,18 +1372,20 @@ impl App {
         recent_idxs.truncate(10);
         if !recent_idxs.is_empty() {
             tree.push(TreeNode::RecentWorkspace);
-            for &si in &recent_idxs {
-                let ws_path = &self.sessions.sessions[si].workspace_path;
-                let wi = self
-                    .sessions
-                    .workspaces
-                    .iter()
-                    .position(|w| {
-                        w.path.as_deref() == Some(ws_path)
-                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
-                    })
-                    .unwrap_or(0);
-                tree.push(TreeNode::Session(wi, si));
+            if self.sessions.recent_expanded {
+                for &si in &recent_idxs {
+                    let ws_path = &self.sessions.sessions[si].workspace_path;
+                    let wi = self
+                        .sessions
+                        .workspaces
+                        .iter()
+                        .position(|w| {
+                            w.path.as_deref() == Some(ws_path)
+                                || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                        })
+                        .unwrap_or(0);
+                    tree.push(TreeNode::Session(wi, si));
+                }
             }
         }
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
@@ -1606,12 +1640,22 @@ impl App {
             );
         }
     }
-
     fn toggle_expand(&mut self) {
-        if let Some(TreeNode::Workspace(wi)) = self.selected_node() {
-            let wi = *wi;
-            self.sessions.workspaces[wi].expanded = !self.sessions.workspaces[wi].expanded;
-            self.rebuild_tree();
+        match self.selected_node() {
+            Some(TreeNode::Workspace(wi)) => {
+                let wi = *wi;
+                self.sessions.workspaces[wi].expanded = !self.sessions.workspaces[wi].expanded;
+                self.rebuild_tree();
+            }
+            Some(TreeNode::PinnedWorkspace) => {
+                self.sessions.pinned_expanded = !self.sessions.pinned_expanded;
+                self.rebuild_tree();
+            }
+            Some(TreeNode::RecentWorkspace) => {
+                self.sessions.recent_expanded = !self.sessions.recent_expanded;
+                self.rebuild_tree();
+            }
+            _ => {}
         }
     }
 
@@ -2367,11 +2411,24 @@ impl App {
         }
     }
 
-    fn cycle_theme(&mut self) {
-        self.view.theme_name = self.view.theme_name.cycle();
-        self.view.theme = self.view.theme_name.theme();
-        self.view.status = format!("Theme: {}", self.view.theme_name.label());
-        self.save_config();
+    fn open_theme_panel(&mut self) {
+        let mut themes = vec![
+            crate::theme::ThemeName::Dark,
+            crate::theme::ThemeName::Light,
+            crate::theme::ThemeName::Mocha,
+            crate::theme::ThemeName::TokyoNight,
+        ];
+        if let Some(customs) = crate::theme::discover_custom_themes() {
+            themes.extend(customs);
+        }
+        let sel = themes
+            .iter()
+            .position(|t| t == &self.view.theme_name)
+            .unwrap_or(0);
+        self.theme_list = themes;
+        self.theme_list_state.select(Some(sel));
+        self.view.input_mode = InputMode::ThemeSelect;
+        self.view.status = "Select theme (Enter=apply, Esc=cancel)".into();
     }
 
     fn workspace_cwd(&self, wi: usize) -> PathBuf {

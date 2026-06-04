@@ -77,7 +77,21 @@ impl super::App {
 
         self.render_sidebar(frame, cols[0]);
         self.view.last_chat_area = cols[1];
-        self.render_chat(frame, cols[1]);
+        if self.terminal.is_some() {
+            let term_height = (cols[1].height / 3).max(5);
+            let chat_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(4),
+                    Constraint::Length(term_height),
+                ])
+                .split(cols[1]);
+            self.view.last_chat_area = chat_chunks[0];
+            self.render_chat(frame, chat_chunks[0]);
+            self.render_terminal(frame, chat_chunks[1]);
+        } else {
+            self.render_chat(frame, cols[1]);
+        }
         self.render_status(frame, chunks[1]);
 
         if self.view.input_mode == InputMode::Help {
@@ -160,7 +174,6 @@ impl super::App {
             Agent,
             CheckStatus,
             DiffSummary,
-            Option<crate::procfs::ProcessStats>,
         )> = self
             .ptys
             .ptys
@@ -173,7 +186,6 @@ impl super::App {
                     s.info.agent,
                     s.info.check_status.clone(),
                     s.info.diff_summary.clone(),
-                    s.process_stats.clone(),
                 )
             })
             .collect();
@@ -185,10 +197,11 @@ impl super::App {
             .map(|node| match node {
                 TreeNode::PinnedWorkspace => {
                     let count = self.sessions.sessions.iter().filter(|s| s.pinned).count();
+                    let arrow = if self.sessions.pinned_expanded { "▼" } else { "▶" };
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                "▼ 📌 ",
+                                format!("{} 📌 ", arrow),
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                             Span::styled(
@@ -201,7 +214,6 @@ impl super::App {
                     ])
                 }
                 TreeNode::RecentWorkspace => {
-                    // Count sessions in the Recent virtual workspace from the tree
                     let count = self
                         .sessions
                         .tree
@@ -210,10 +222,11 @@ impl super::App {
                         .skip(1)
                         .take_while(|n| matches!(n, TreeNode::Session(_, _)))
                         .count();
+                    let arrow = if self.sessions.recent_expanded { "▼" } else { "▶" };
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                "▼ 🕐 ",
+                                format!("{} 🕐 ", arrow),
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                             Span::styled(
@@ -369,14 +382,13 @@ impl super::App {
                     }
                 }
                 TreeNode::ActiveTab(pi) => {
-                    let (state, title, agent, check, diff_summary, proc_stats) =
+                    let (state, title, agent, check, diff_summary) =
                         active_tab_data.get(*pi).cloned().unwrap_or((
                             PtyState::Running,
                             "New Session".into(),
                             Agent::Claude,
                             CheckStatus::Pending,
                             DiffSummary::default(),
-                            None,
                         ));
                     let (dot_color, state_text) = match state {
                         PtyState::Running => (self.view.theme.status_running, " [running]".into()),
@@ -397,16 +409,6 @@ impl super::App {
                         },
                     };
                     let state_color = dot_color;
-                    let stats_span = if let Some(ref stats) = proc_stats {
-                        let cpu = format!("{:.1}%", stats.cpu_percent);
-                        let mem = crate::procfs::format_bytes(stats.mem_rss_kb * 1024);
-                        Span::styled(
-                            format!(" CPU:{} MEM:{}", cpu, mem),
-                            Style::default().fg(self.view.theme.sidebar_dim),
-                        )
-                    } else {
-                        Span::raw("")
-                    };
                     let title_spans = vec![
                         Span::styled("  \u{258c} ", Style::default().fg(dot_color)),
                         Span::styled(title, Style::default().fg(self.view.theme.sidebar_text)),
@@ -419,7 +421,6 @@ impl super::App {
                                 Agent::Omp => self.view.theme.agent_omp,
                             }),
                         ),
-                        stats_span,
                     ];
                     let detail = if state == PtyState::Completed {
                         let ds = &diff_summary;
@@ -427,16 +428,22 @@ impl super::App {
                             Line::from("     no changes detected")
                                 .style(Style::default().fg(self.view.theme.sidebar_dim))
                         } else {
-                            let info = format!(
-                                "     +{}/-{} in {} file(s)",
-                                ds.insertions,
-                                ds.deletions,
-                                ds.files_changed.len()
-                            );
-                            Line::from(vec![Span::styled(
-                                info,
-                                Style::default().fg(self.view.theme.sidebar_dim),
-                            )])
+                            Line::from(vec![
+                                Span::raw("     "),
+                                Span::styled(
+                                    format!("+{}", ds.insertions),
+                                    Style::default().fg(Color::Green),
+                                ),
+                                Span::raw("/"),
+                                Span::styled(
+                                    format!("-{}", ds.deletions),
+                                    Style::default().fg(Color::Red),
+                                ),
+                                Span::styled(
+                                    format!(" in {} file(s)", ds.files_changed.len()),
+                                    Style::default().fg(self.view.theme.sidebar_dim),
+                                ),
+                            ])
                         }
                     } else {
                         Line::from("     waiting for session file...")
@@ -920,6 +927,73 @@ impl super::App {
                 .wrap(Wrap { trim: false }),
             area,
         );
+    }
+
+    fn render_terminal(&self, frame: &mut Frame, area: Rect) {
+        let Some(slot) = &self.terminal else {
+            return;
+        };
+        // Border with title
+        let block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(self.view.theme.accent))
+            .title(" Shell ")
+            .title_style(
+                Style::default()
+                    .fg(self.view.theme.accent)
+                    .add_modifier(Modifier::BOLD),
+            );
+        let inner = block.inner(area);
+
+        slot.handle.resize((inner.width, inner.height));
+        let term_arc = slot.handle.term();
+        let guard = term_arc.lock();
+        let display_offset = guard.grid().display_offset();
+        let grid = guard.grid();
+        let screen_rows = guard.screen_lines() as u16;
+        let screen_cols = guard.columns() as u16;
+        let max_rows = inner.height.min(screen_rows);
+        let max_cols = inner.width.min(screen_cols);
+        for y in 0..max_rows {
+            let line_idx = y as i32 - display_offset as i32;
+            for x in 0..max_cols {
+                let p = Point::new(AlacLine(line_idx), Column(x as usize));
+                let cell = &grid[p];
+                if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                    continue;
+                }
+                let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                let mut style = Style::default();
+                if let Some(c) = ansi_to_ratatui_color(cell.fg) {
+                    style = style.fg(c);
+                }
+                if let Some(c) = ansi_to_ratatui_color(cell.bg) {
+                    style = style.bg(c);
+                }
+                let flags = cell.flags;
+                if flags.contains(Flags::BOLD) {
+                    style = style.add_modifier(Modifier::BOLD);
+                }
+                if flags.contains(Flags::ITALIC) {
+                    style = style.add_modifier(Modifier::ITALIC);
+                }
+                if flags.intersects(Flags::ALL_UNDERLINES) {
+                    style = style.add_modifier(Modifier::UNDERLINED);
+                }
+                if flags.contains(Flags::INVERSE) {
+                    style = style.add_modifier(Modifier::REVERSED);
+                }
+                let target_x = inner.x + x;
+                let target_y = inner.y + y;
+                if let Some(buf_cell) = frame.buffer_mut().cell_mut((target_x, target_y)) {
+                    let mut tmp = [0u8; 4];
+                    buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
+                    buf_cell.set_style(style);
+                }
+            }
+        }
+        drop(guard);
+        frame.render_widget(block, area);
     }
 
     fn render_placeholder(&self) -> Vec<Line<'static>> {
@@ -1449,7 +1523,7 @@ impl super::App {
                 Span::styled(
                     format!(" {} ", msg),
                     Style::default()
-                        .fg(Color::White)
+                        .fg(self.view.theme.bold_text)
                         .bg(self.view.theme.status_error)
                         .add_modifier(Modifier::BOLD),
                 )
@@ -1478,11 +1552,14 @@ impl super::App {
         };
 
         let stats_span = {
-            let stats = self
-                .ptys
-                .active_pty
-                .and_then(|idx| self.ptys.ptys.get(idx))
-                .and_then(|s| s.process_stats.clone());
+            let stats = if self.view.focus == Focus::Chat {
+                self.ptys
+                    .active_pty
+                    .and_then(|idx| self.ptys.ptys.get(idx))
+                    .and_then(|s| s.process_stats.clone())
+            } else {
+                None
+            };
             if let Some(ref stats) = stats {
                 if stats.cpu_percent > 0.0 || stats.mem_rss_kb > 0 {
                     Span::styled(
@@ -1491,7 +1568,7 @@ impl super::App {
                             stats.cpu_percent as u32,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
-                        Style::default().fg(self.view.theme.sidebar_dim),
+                        Style::default().fg(self.view.theme.status_text),
                     )
                 } else {
                     Span::raw("")
@@ -1515,24 +1592,40 @@ impl super::App {
         let left = Line::from(vec![
             Span::styled(
                 status_text,
-                Style::default().fg(self.view.theme.sidebar_text),
+                Style::default().fg(self.view.theme.status_text),
             ),
             budget_span,
         ]);
 
-        // Right side: stable content (chain, resource usage)
-        let right = Line::from(vec![chain_span, stats_span]);
+        // Focus indicator
+        let focus_label = match self.view.focus {
+            Focus::Sidebar => "◂ SIDEBAR",
+            Focus::Chat => "CHAT ▸",
+        };
+        let focus_span = Span::styled(
+            format!(" {} ", focus_label),
+            Style::default()
+                .fg(Color::Black)
+                .bg(self.view.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        );
+        // Right side: stable content (chain, resource usage, focus)
+        let right = Line::from(vec![chain_span, stats_span, focus_span]);
+
+        let base_style = Style::default()
+            .fg(self.view.theme.status_text)
+            .bg(self.view.theme.status_bg);
 
         frame.render_widget(
             Paragraph::new(right)
-                .style(Style::default().bg(self.view.theme.sidebar_bg))
+                .style(base_style)
                 .right_aligned(),
             area,
         );
         // Render left on top (overwrites the left portion)
         frame.render_widget(
             Paragraph::new(left)
-                .style(Style::default().bg(self.view.theme.sidebar_bg)),
+                .style(base_style),
             area,
         );
     }
@@ -1861,8 +1954,7 @@ impl super::App {
         )));
         lines.push(Line::from("  Tab              Sidebar ↔ Chat"));
         lines.push(Line::from("  Alt+h            Chat → Sidebar"));
-        lines.push(Line::from("  Ctrl+J/K         Switch active PTY tab"));
-        lines.push(Line::from("  Ctrl+Shift+J/K   Reorder PTY tabs"));
+        lines.push(Line::from("  Alt+h/Alt+l      Cycle popup panels"));
         lines.push(Line::from("  Alt+h/Alt+l      Cycle popup panels"));
         // Section: Sidebar extra
         lines.push(Line::from(""));
@@ -1882,6 +1974,9 @@ impl super::App {
         lines.push(Line::from("  o                Open workspace directory"));
         lines.push(Line::from("  !                Pin/unpin session"));
         lines.push(Line::from("  p                Template select"));
+        lines.push(Line::from("  Alt+Shift+P      Plugin list"));
+        lines.push(Line::from("  Alt+Shift+A      Automation select"));
+        lines.push(Line::from("  B                Git branch"));
         lines.push(Line::from("  Alt+Shift+G      Toggle archived sessions"));
         // Section: Session Preview
         lines.push(Line::from(""));
@@ -1941,25 +2036,6 @@ impl super::App {
             "  (Ctrl/Alt/Shift modified keys still forward to PTY)",
             Style::default().fg(Color::DarkGray),
         )));
-        // Section: Panels & info
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Panels & Info",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )));
-        lines.push(Line::from("  s                Activity statistics"));
-        lines.push(Line::from("  t                Token usage"));
-        lines.push(Line::from("  g                Session timeline"));
-        lines.push(Line::from("  w                Agent recommendations"));
-        lines.push(Line::from("  f                Cross-session search"));
-        lines.push(Line::from("  r                Remote sessions"));
-        lines.push(Line::from("  Alt+Shift+P      Plugin list"));
-        lines.push(Line::from("  Alt+Shift+A      Automation select"));
-        lines.push(Line::from("  e                Chain select"));
-        lines.push(Line::from("  B                Git branch"));
-        lines.push(Line::from("  x                Diff view"));
         // Conflicts
         let conflicts = kb.validate();
         if !conflicts.is_empty() {

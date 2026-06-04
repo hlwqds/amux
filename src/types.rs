@@ -467,9 +467,9 @@ pub enum Focus {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ChatMode {
     /// All keys go straight to PTY.
-    Passthrough,
-    /// amux intercepts keys for scrollback, search, copy (default).
     #[default]
+    Passthrough,
+    /// amux intercepts keys for scrollback, search, copy.
     Amux,
 }
 

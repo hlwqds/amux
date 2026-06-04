@@ -12,11 +12,12 @@ pub enum ThemeName {
     Dark,
     Light,
     Mocha,
+    TokyoNight,
     Custom(String),
 }
 impl ThemeName {
     pub fn cycle(&self) -> Self {
-        let mut themes = vec![ThemeName::Dark, ThemeName::Light, ThemeName::Mocha];
+        let mut themes = vec![ThemeName::Dark, ThemeName::Light, ThemeName::Mocha, ThemeName::TokyoNight];
         // Append discovered custom themes
         if let Some(customs) = discover_custom_themes() {
             themes.extend(customs);
@@ -30,6 +31,7 @@ impl ThemeName {
             ThemeName::Dark => "Dark",
             ThemeName::Light => "Light",
             ThemeName::Mocha => "Catppuccin Mocha",
+            ThemeName::TokyoNight => "Tokyo Night",
             ThemeName::Custom(name) => name,
         }
     }
@@ -39,6 +41,7 @@ impl ThemeName {
             ThemeName::Dark => Theme::dark(),
             ThemeName::Light => Theme::light(),
             ThemeName::Mocha => Theme::mocha(),
+            ThemeName::TokyoNight => Theme::tokyo_night(),
             ThemeName::Custom(name) => load_custom_theme(name).unwrap_or_else(Theme::dark),
         }
     }
@@ -60,6 +63,9 @@ pub struct ThemeFile {
     pub agent_claude: Option<String>,
     pub agent_codex: Option<String>,
     pub agent_omp: Option<String>,
+    pub status_bg: Option<String>,
+    pub status_text: Option<String>,
+    pub status_dim: Option<String>,
     pub status_running: Option<String>,
     pub status_done: Option<String>,
     pub status_error: Option<String>,
@@ -222,6 +228,22 @@ impl ThemeFile {
                 .and_then(parse_color)
                 .unwrap_or(base.agent_omp),
 
+            status_bg: self
+                .status_bg
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_bg),
+            status_text: self
+                .status_text
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_text),
+            status_dim: self
+                .status_dim
+                .as_deref()
+                .and_then(parse_color)
+                .unwrap_or(base.status_dim),
+
             status_running: self
                 .status_running
                 .as_deref()
@@ -304,11 +326,15 @@ pub struct Theme {
     pub agent_codex: Color,
     pub agent_omp: Color,
 
-    // Status
+    // Status bar
+    pub status_bg: Color,
+    pub status_text: Color,
+    pub status_dim: Color,
+
+    // Status indicators (running/done/error)
     pub status_running: Color,
     pub status_done: Color,
     pub status_error: Color,
-
     // Popups
     pub popup_border: Color,
     pub popup_title: Color,
@@ -338,6 +364,10 @@ impl Theme {
             agent_claude: Color::Cyan,
             agent_codex: Color::Green,
             agent_omp: Color::Blue,
+
+            status_bg: Color::Reset,
+            status_text: Color::Cyan,
+            status_dim: Color::Yellow,
 
             status_running: Color::Yellow,
             status_done: Color::Green,
@@ -370,6 +400,10 @@ impl Theme {
             agent_claude: Color::Blue,
             agent_codex: Color::Green,
             agent_omp: Color::Cyan,
+
+            status_bg: Color::Reset,
+            status_text: Color::Blue,
+            status_dim: Color::Magenta,
 
             status_running: Color::Yellow,
             status_done: Color::Green,
@@ -406,6 +440,10 @@ impl Theme {
             agent_codex: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
             agent_omp: Color::Rgb(0xcb, 0xa6, 0xf7),     // Mauve
 
+            status_bg: Color::Rgb(0x18, 0x18, 0x25),   // Mantle
+            status_text: Color::Rgb(0xcb, 0xa6, 0xf7),  // Mauve
+            status_dim: Color::Rgb(0xfa, 0xb3, 0x87),   // Peach
+
             status_running: Color::Rgb(0xf9, 0xe2, 0xaf), // Yellow
             status_done: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
             status_error: Color::Rgb(0xf3, 0x8b, 0xa8),  // Red
@@ -419,6 +457,45 @@ impl Theme {
             dim: Color::Rgb(0x6c, 0x70, 0x86),            // Overlay0
             bold_text: Color::Rgb(0xcd, 0xd6, 0xf4),      // Text
             input_cursor: Color::Rgb(0x45, 0x47, 0x5a),   // Surface1
+        }
+    }
+
+    /// Tokyo Night — deep blue-black with vibrant neon accents.
+    /// https://github.com/tokyo-night/tokyo-night-vscode-theme
+    pub fn tokyo_night() -> Self {
+        Theme {
+            // Backgrounds
+            sidebar_bg: Color::Rgb(0x1a, 0x1b, 0x26),      // Editor Background
+            sidebar_title: Color::Rgb(0x7d, 0xcf, 0xff),    // Terminal Cyan
+            sidebar_text: Color::Rgb(0xc0, 0xca, 0xf5),     // Terminal White / Variables
+            sidebar_dim: Color::Rgb(0x56, 0x5f, 0x89),      // Comments
+            sidebar_highlight: Color::Rgb(0xe0, 0xaf, 0x68), // Yellow
+            sidebar_selected: Color::Rgb(0x7d, 0xcf, 0xff), // Terminal Cyan
+
+            chat_border: Color::Rgb(0x41, 0x48, 0x68),      // Terminal Black
+            chat_title: Color::Rgb(0x7a, 0xa2, 0xf7),       // Terminal Blue
+
+            agent_claude: Color::Rgb(0x7a, 0xa2, 0xf7),     // Terminal Blue
+            agent_codex: Color::Rgb(0x9e, 0xce, 0x6a),      // Green
+            agent_omp: Color::Rgb(0xbb, 0x9a, 0xf7),        // Terminal Magenta
+
+            status_bg: Color::Rgb(0x1a, 0x1b, 0x26),        // Editor Background
+            status_text: Color::Rgb(0x2a, 0xc3, 0xde),      // Cyan accent
+            status_dim: Color::Rgb(0xff, 0x9e, 0x64),       // Orange
+
+            status_running: Color::Rgb(0xe0, 0xaf, 0x68),   // Yellow
+            status_done: Color::Rgb(0x9e, 0xce, 0x6a),      // Green
+            status_error: Color::Rgb(0xf7, 0x76, 0x8e),     // Red
+
+            popup_border: Color::Rgb(0x7a, 0xa2, 0xf7),     // Terminal Blue
+            popup_title: Color::Rgb(0x7a, 0xa2, 0xf7),      // Terminal Blue
+            popup_text: Color::Rgb(0xc0, 0xca, 0xf5),       // Terminal White
+            popup_hint: Color::Rgb(0xe0, 0xaf, 0x68),       // Yellow
+
+            accent: Color::Rgb(0x7a, 0xa2, 0xf7),           // Terminal Blue
+            dim: Color::Rgb(0x56, 0x5f, 0x89),              // Comments
+            bold_text: Color::Rgb(0xc0, 0xca, 0xf5),        // Terminal White
+            input_cursor: Color::Rgb(0x33, 0x37, 0x5f),     // Selection-ish
         }
     }
 }

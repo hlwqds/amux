@@ -85,7 +85,7 @@ impl super::App {
                         return Ok(Action::Continue);
                     }
                     if kb.theme.matches_event(&key) {
-                        self.cycle_theme();
+                        self.open_theme_panel();
                         return Ok(Action::Continue);
                     }
                     if kb.settings.matches_event(&key) {
@@ -313,6 +313,49 @@ impl super::App {
                                 self.start_diff()?;
                                 return Ok(Action::Continue);
                             }
+                            // c: toggle bottom terminal split
+                            KeyCode::Char('c') => {
+                                if self.terminal.is_some() {
+                                    self.terminal = None;
+                                    self.view.status = "Terminal closed".into();
+                                } else {
+                                    let cwd = slot.info.workspace_path.clone();
+                                    let size = self.chat_size();
+                                    // Terminal takes bottom third
+                                    let term_size = (size.0, (size.1 / 3).max(5));
+                                    match crate::pty::PtyHandle::spawn_shell(&cwd, term_size) {
+                                        Ok(handle) => {
+                                            let id = self.next_pty_id();
+                                            self.terminal = Some(PtySlot {
+                                                id,
+                                                handle,
+                                                info: RunningInfo {
+                                                    workspace_path: cwd,
+                                                    title: "Shell".into(),
+                                                    session_id: None,
+                                                    started_at: crate::util::now_secs(),
+                                                    completed: false,
+                                                    agent: Agent::Omp, // placeholder
+                                                    git_info: GitInfo::default(),
+                                                    check_status: CheckStatus::Pending,
+                                                    diff_summary: DiffSummary::default(),
+                                                    project_type: crate::discovery::ProjectType::Unknown,
+                                                    worktree_branch: None,
+                                                    snapshot_commit: None,
+                                                },
+                                                last_screen_hash: 0,
+                                                last_recording_at: std::time::Instant::now(),
+                                                process_stats: None,
+                                            });
+                                            self.view.status = "Terminal opened (c to close)".into();
+                                        }
+                                        Err(e) => {
+                                            self.view.status = format!("Failed to open terminal: {}", e);
+                                        }
+                                    }
+                                }
+                                return Ok(Action::Continue);
+                            }
                             // y: copy visible screen when scrolled up
                             KeyCode::Char('y') => {
                                 let offset = slot.handle.scrollback_offset();
@@ -374,11 +417,14 @@ impl super::App {
 
                 // Amux mode fallback: forward to PTY (non-letter keys, modified keys)
                 let bytes = key_to_bytes(&key);
-                if !bytes.is_empty()
-                    && let Some(slot) = self.ptys.ptys.get(idx)
-                {
-                    slot.handle.reset_scroll();
-                    let _ = slot.handle.write_input(&bytes);
+                if !bytes.is_empty() {
+                    // When terminal split is open, forward to shell instead of main PTY
+                    if let Some(term) = &self.terminal {
+                        let _ = term.handle.write_input(&bytes);
+                    } else if let Some(slot) = self.ptys.ptys.get(idx) {
+                        slot.handle.reset_scroll();
+                        let _ = slot.handle.write_input(&bytes);
+                    }
                 }
                 return Ok(Action::Continue);
             }
@@ -516,7 +562,7 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if kb.theme.matches_event(&key) {
-            self.cycle_theme();
+            self.open_theme_panel();
             return Ok(Action::Continue);
         }
         // '!': Toggle pin on selected session
@@ -810,19 +856,9 @@ impl super::App {
                         "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
                 }
                 InputMode::ThemeSelect => {
-                    let mut themes = vec![
-                        crate::theme::ThemeName::Dark,
-                        crate::theme::ThemeName::Light,
-                    ];
-                    if let Some(customs) = crate::theme::discover_custom_themes() {
-                        themes.extend(customs);
-                    }
-                    let sel = themes
-                        .iter()
-                        .position(|t| t == &self.view.theme_name)
-                        .unwrap_or(0);
-                    self.theme_list = themes;
-                    self.theme_list_state.select(Some(sel));
+                    // Re-sync list in case custom themes changed
+                    self.open_theme_panel();
+                    return Ok(Action::Continue);
                 }
                 InputMode::Stats => {
                     self.view.status = "Activity Statistics (any key to close)".into();

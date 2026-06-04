@@ -298,6 +298,189 @@ impl PtyHandle {
         })
     }
 
+    /// Spawn a shell PTY ($SHELL or /bin/sh) in the given directory.
+    pub fn spawn_shell(
+        workspace_path: &std::path::Path,
+        size: (u16, u16),
+    ) -> Result<Self> {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
+        let mut cmd = portable_pty::CommandBuilder::new(shell);
+        cmd.cwd(workspace_path);
+        cmd.env("TERM", "xterm-256color");
+        cmd.env_remove("KITTY_WINDOW_ID");
+        cmd.env_remove("KITTY_LISTEN_ON");
+        cmd.env_remove("TERM_PROGRAM");
+        cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+
+        let pty_system = NativePtySystem::default();
+        let pty_size = PtySize {
+            rows: size.1,
+            cols: size.0,
+            pixel_width: 0,
+            pixel_height: 0,
+        };
+        let pair = pty_system.openpty(pty_size).context("failed to open PTY")?;
+
+        let mut child = pair
+            .slave
+            .spawn_command(cmd)
+            .context("failed to spawn shell")?;
+        let child_pid = child.process_id();
+
+        let master = pair.master;
+        let mut reader = master
+            .try_clone_reader()
+            .context("failed to clone PTY reader")?;
+
+        let last_raw_output: Arc<RwLock<Vec<u8>>> =
+            Arc::new(RwLock::new(Vec::with_capacity(8192)));
+        let alive = Arc::new(AtomicBool::new(true));
+        let last_output_at = Arc::new(AtomicU64::new(now_secs()));
+        let output_notify = Arc::new(Notify::new());
+        let snapshots: Arc<RwLock<std::collections::VecDeque<Vec<String>>>> =
+            Arc::new(RwLock::new(std::collections::VecDeque::with_capacity(500)));
+        let snap_scroll = Arc::new(AtomicUsize::new(0));
+
+        let (writer_tx, writer_rx) = std::sync::mpsc::sync_channel::<Bytes>(1024);
+
+        let term_size = TermSize::new(size.0 as usize, size.1 as usize);
+        let term_config = Config {
+            scrolling_history: SCROLLBACK_LINES,
+            ..Config::default()
+        };
+        let size_shared = Arc::new(std::sync::Mutex::new((size.0, size.1)));
+        let (response_tx, response_rx) = std::sync::mpsc::channel::<String>();
+        let listener = PtyEventListener {
+            response_tx: Some(response_tx),
+            size: Some(size_shared),
+        };
+        let term = Term::new(term_config, &term_size, listener);
+        let term = Arc::new(FairMutex::new(term));
+
+        {
+            let writer_tx_resp = writer_tx.clone();
+            thread::spawn(move || {
+                while let Ok(text) = response_rx.recv() {
+                    if writer_tx_resp
+                        .try_send(Bytes::from(text.into_bytes()))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            });
+        }
+
+        {
+            let term = term.clone();
+            let last_output_at = last_output_at.clone();
+            let last_raw_output = last_raw_output.clone();
+            let output_notify = output_notify.clone();
+            let snapshots = snapshots.clone();
+            let snap_scroll = snap_scroll.clone();
+            thread::spawn(move || {
+                let mut processor = Processor::<StdSyncHandler>::new();
+                let mut buf = [0u8; 8192];
+                let mut snap_counter: u32 = 0;
+                loop {
+                    match std::io::Read::read(&mut reader, &mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            let data = &buf[..n];
+                            {
+                                let mut t = term.lock();
+                                processor.advance(&mut *t, data);
+                                snap_counter += 1;
+                                if snap_counter >= 4 {
+                                    snap_counter = 0;
+                                    let grid = t.grid();
+                                    let cols = grid.columns();
+                                    let rows = grid.screen_lines();
+                                    let row_strings: Vec<String> = (0..rows)
+                                        .map(|r| {
+                                            let mut line = String::with_capacity(cols);
+                                            for c in 0..cols {
+                                                let p = Point::new(Line(r as i32), Column(c));
+                                                let cell = &grid[p];
+                                                if cell.flags.contains(
+                                                    alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
+                                                ) {
+                                                    continue;
+                                                }
+                                                if cell.c == '\0' {
+                                                    line.push(' ');
+                                                } else {
+                                                    let mut tmp = [0u8; 4];
+                                                    line.push_str(cell.c.encode_utf8(&mut tmp));
+                                                }
+                                            }
+                                            line
+                                        })
+                                        .collect();
+                                    let mut snaps = snapshots.write();
+                                    if snaps.back() != Some(&row_strings) {
+                                        if snaps.len() == snaps.capacity() {
+                                            snaps.pop_front();
+                                        }
+                                        snaps.push_back(row_strings);
+                                        snap_scroll.store(0, Ordering::Relaxed);
+                                    }
+                                }
+                            }
+                            let mut raw = last_raw_output.write();
+                            raw.extend_from_slice(data);
+                            const MAX_RAW: usize = 1024 * 1024;
+                            if raw.len() > MAX_RAW {
+                                let excess = raw.len() - MAX_RAW;
+                                raw.drain(..excess);
+                            }
+                            last_output_at.store(now_secs(), Ordering::Relaxed);
+                            output_notify.notify_waiters();
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+        }
+
+        {
+            let alive = alive.clone();
+            thread::spawn(move || {
+                let _ = child.wait();
+                alive.store(false, Ordering::Relaxed);
+            });
+        }
+
+        {
+            thread::spawn(move || {
+                let mut writer = match master.take_writer() {
+                    Ok(w) => w,
+                    Err(e) => {
+                        eprintln!("warning: failed to take PTY writer: {e}");
+                        return;
+                    }
+                };
+                while let Ok(bytes) = writer_rx.recv() {
+                    if writer.write_all(&bytes).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+
+        Ok(Self {
+            term,
+            writer_tx,
+            alive,
+            last_output_at,
+            last_raw_output,
+            output_notify,
+            child_pid,
+            snapshots,
+            snap_scroll,
+        })
+    }
+
     pub fn write_input(&self, data: &[u8]) -> Result<(), String> {
         if !self.alive.load(Ordering::Relaxed) {
             return Err("PTY closed".to_string());
