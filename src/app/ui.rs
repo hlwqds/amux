@@ -1502,9 +1502,19 @@ impl super::App {
         };
 
         // Left side: volatile content (status messages, alerts)
+        // Auto-expire status after 3 seconds.
+        // Detect when status string changes and record the timestamp.
+        let status_text = {
+            let elapsed = self.view.status_set_at.elapsed();
+            if elapsed < std::time::Duration::from_secs(3) {
+                self.view.status.clone()
+            } else {
+                String::new()
+            }
+        };
         let left = Line::from(vec![
             Span::styled(
-                self.view.status.clone(),
+                status_text,
                 Style::default().fg(self.view.theme.sidebar_text),
             ),
             budget_span,

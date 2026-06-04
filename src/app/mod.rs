@@ -25,6 +25,8 @@ struct AppView {
     input_mode: InputMode,
     chat_mode: ChatMode,
     status: String,
+    prev_status: String,
+    status_set_at: std::time::Instant,
     sort_mode: SortMode,
     agent_filter: Option<Agent>,
     tag_filter: Option<String>,
@@ -131,6 +133,8 @@ impl Default for AppView {
             input_mode: InputMode::default(),
             chat_mode: ChatMode::default(),
             status: String::new(),
+            prev_status: String::new(),
+            status_set_at: std::time::Instant::now(),
             sort_mode: SortMode::default(),
             agent_filter: None,
             tag_filter: None,
@@ -322,6 +326,8 @@ impl App {
                 input_mode: InputMode::None,
                 chat_mode: ChatMode::default(),
                 status: Default::default(),
+                prev_status: String::new(),
+                status_set_at: std::time::Instant::now(),
                 sort_mode: SortMode::default(),
                 agent_filter: None,
                 tag_filter: None,
@@ -484,6 +490,12 @@ impl App {
     }
 
     fn poll_states(&mut self) {
+        // Track when status string changes for auto-expire in status bar
+        // Track when status string changes for auto-expire in status bar
+        if self.view.status != self.view.prev_status {
+            self.view.prev_status = self.view.status.clone();
+            self.view.status_set_at = std::time::Instant::now();
+        }
         let mut notification = None;
         let pty_count = self.ptys.ptys.len();
         // Deferred chain step to execute after the PTY loop (borrow checker)
