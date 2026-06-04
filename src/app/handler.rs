@@ -28,40 +28,8 @@ impl super::App {
                     if kb.quit.matches_event(&key) {
                         return Ok(Action::Quit);
                     }
-                    if kb.move_up.matches_event(&key) || key.code == KeyCode::Up {
-                        if self.ptys.ptys.len() > 1 {
-                            let cur = self.ptys.active_pty.unwrap_or(0);
-                            let prev = cur.saturating_sub(1);
-                            self.ptys.active_pty = Some(prev);
-                            if let Some(s) = self.ptys.ptys.get(prev) {
-                                s.handle.reset_scroll();
-                            }
-                            self.view.status = format!(
-                                "Switched to: {} ({}/{})",
-                                self.ptys.ptys[prev].info.title,
-                                prev + 1,
-                                self.ptys.ptys.len()
-                            );
-                        }
-                        return Ok(Action::Continue);
-                    }
-                    if kb.move_down.matches_event(&key) || key.code == KeyCode::Down {
-                        if self.ptys.ptys.len() > 1 {
-                            let cur = self.ptys.active_pty.unwrap_or(0);
-                            let next = (cur + 1).min(self.ptys.ptys.len() - 1);
-                            self.ptys.active_pty = Some(next);
-                            if let Some(s) = self.ptys.ptys.get(next) {
-                                s.handle.reset_scroll();
-                            }
-                            self.view.status = format!(
-                                "Switched to: {} ({}/{})",
-                                self.ptys.ptys[next].info.title,
-                                next + 1,
-                                self.ptys.ptys.len()
-                            );
-                        }
-                        return Ok(Action::Continue);
-                    }
+                    // move_up/move_down in chat: skip — ↑/↓ forwarded to PTY
+                    // Tab switching uses Ctrl+J/K below
                     if kb.refresh.matches_event(&key) {
                         self.refresh_sessions();
                         self.view.status = "Sessions refreshed.".into();
@@ -659,9 +627,9 @@ impl super::App {
         if self.view.input_mode == InputMode::ChainSelect {
             return self.handle_chain_select_key(key);
         }
-        // Panel cycling: Alt+h / Alt+l to switch between popup panels
+        // Panel cycling: Alt+k / Alt+l to switch between popup panels
         if key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT)
-            || key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT)
+            || key.code == KeyCode::Char('k') && key.modifiers.contains(KeyModifiers::ALT)
         {
             let panels: Vec<InputMode> = vec![
                 InputMode::KeybindView,

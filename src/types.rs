@@ -756,10 +756,10 @@ impl Default for Keybinds {
 
 impl Keybinds {
     fn default_move_up() -> KeyBinding {
-        KeyBinding::alt("j")
+        KeyBinding::key("up")
     }
     fn default_move_down() -> KeyBinding {
-        KeyBinding::alt("k")
+        KeyBinding::key("down")
     }
     fn default_expand() -> KeyBinding {
         KeyBinding::alt("e")
@@ -783,7 +783,7 @@ impl Keybinds {
         KeyBinding::alt("/")
     }
     fn default_help() -> KeyBinding {
-        KeyBinding::alt("h")
+        KeyBinding::alt("k")
     }
     fn default_settings() -> KeyBinding {
         KeyBinding::alt("s")
