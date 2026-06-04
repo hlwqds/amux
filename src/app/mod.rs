@@ -2529,6 +2529,28 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         if needs_render {
             terminal.draw(|frame| app.render(frame))?;
             app.view.screen_changed = false;
+            // Move cursor to PTY input position so IME candidate window
+            // follows the actual typing position, not the last rendered widget.
+            if app.view.focus == Focus::Chat
+                && app.view.input_mode == InputMode::None
+                && let Some(idx) = app.ptys.active_pty
+                && let Some(slot) = app.ptys.ptys.get(idx)
+            {
+                let screen = slot.handle.screen();
+                let guard = screen.read();
+                let cursor = guard.screen().cursor_position();
+                drop(guard);
+                let rect = app.view.last_chat_area;
+                if cursor.1 < rect.height && cursor.0 < rect.width {
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::cursor::MoveTo(
+                            rect.x + cursor.0,
+                            rect.y + cursor.1 + 1, // +1 for tab bar
+                        )
+                    );
+                }
+            }
         }
 
         // Auto-refresh: either timer-based (5s) or file-system-event-driven
