@@ -1591,11 +1591,11 @@ impl super::App {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
-        lines.push(Line::from("  Tab / Alt+l      Sidebar → Chat"));
-        lines.push(Line::from("  Tab / Alt+h      Chat → Sidebar"));
+        lines.push(Line::from("  Tab              Sidebar ↔ Chat"));
+        lines.push(Line::from("  Alt+h            Chat → Sidebar"));
         lines.push(Line::from("  Ctrl+J/K         Switch active PTY tab"));
         lines.push(Line::from("  Ctrl+Shift+J/K   Reorder PTY tabs"));
-        lines.push(Line::from("  Alt+h / Alt+l    Cycle popup panels"));
+        lines.push(Line::from("  Alt+k/Alt+l      Cycle popup panels"));
         // Section: Sidebar extra
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -1608,11 +1608,25 @@ impl super::App {
             "  c/x/g/o          Quick create Claude/Codex/GSD/OMP",
         ));
         lines.push(Line::from("  1/2/3/4          Filter by agent type"));
+        lines.push(Line::from("  Space            Mark/unmark session"));
+        lines.push(Line::from("  *                Rate session (1-5 stars)"));
         lines.push(Line::from("  s                Cycle sort mode"));
         lines.push(Line::from("  S                Semantic search (BM25)"));
         lines.push(Line::from("  o                Open workspace directory"));
         lines.push(Line::from("  p                Template select"));
         lines.push(Line::from("  G                Toggle archived sessions"));
+        // Section: Session Preview
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Session Preview",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from("  s                Toggle summary view"));
+        lines.push(Line::from("  b                Rollback to snapshot"));
+        lines.push(Line::from("  k                Toggle knowledge view"));
+        lines.push(Line::from("  c                Clear knowledge / copy"));
         // Section: Chat/PTY
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
