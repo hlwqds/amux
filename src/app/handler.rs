@@ -325,7 +325,7 @@ impl super::App {
                                     return Ok(Action::Continue);
                                 }
                             }
-                            _ => {} // fall through to PTY forward
+                            _ => return Ok(Action::Continue), // swallow all plain letters
                         }
                 }
 
