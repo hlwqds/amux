@@ -359,9 +359,7 @@ impl super::App {
             self.request_delete();
             return Ok(Action::Continue);
         }
-        if key.code == KeyCode::Tab
-            || (key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT))
-        {
+        if key.code == KeyCode::Tab {
             if self.ptys.ptys.is_empty() {
                 self.view.status = "No active session. Press Enter to start one.".into();
             } else {
