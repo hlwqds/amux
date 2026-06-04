@@ -295,21 +295,21 @@ impl super::App {
                         let (marker, state_label) = match pty_state {
                             Some(PtyState::Running) => (
                                 Span::styled(
-                                    " \u{25cf} ",
+                                    " \u{258c}", // ▌ left block — running indicator
                                     Style::default().fg(self.view.theme.status_running),
                                 ),
                                 Some("running"),
                             ),
                             Some(PtyState::Completed) => (
                                 Span::styled(
-                                    " \u{25cf} ",
+                                    " \u{258c}", // ▌ left block — done indicator
                                     Style::default().fg(self.view.theme.status_done),
                                 ),
                                 Some("done"),
                             ),
                             None => (
                                 Span::styled(
-                                    " \u{25cb} ",
+                                    " \u{2591}", // ░ light shade — idle indicator
                                     Style::default().fg(self.view.theme.sidebar_dim),
                                 ),
                                 None,
@@ -408,7 +408,7 @@ impl super::App {
                         Span::raw("")
                     };
                     let title_spans = vec![
-                        Span::styled("   \u{25cf} ", Style::default().fg(dot_color)),
+                        Span::styled("  \u{258c} ", Style::default().fg(dot_color)),
                         Span::styled(title, Style::default().fg(self.view.theme.sidebar_text)),
                         Span::styled(state_text, Style::default().fg(state_color)),
                         Span::styled(
@@ -573,7 +573,7 @@ impl super::App {
                         .bg(self.view.theme.input_cursor)
                         .add_modifier(Modifier::BOLD),
                 )
-                .highlight_symbol("\u{203a}");
+                .highlight_symbol("\u{258c} "); // ▌ left block
 
             frame.render_stateful_widget(list, chunks[0], &mut self.sessions.tree_state);
 
@@ -610,7 +610,7 @@ impl super::App {
                         .bg(self.view.theme.input_cursor)
                         .add_modifier(Modifier::BOLD),
                 )
-                .highlight_symbol("\u{203a}");
+                .highlight_symbol("\u{258c} "); // ▌ left block
 
             frame.render_stateful_widget(list, area, &mut self.sessions.tree_state);
         }
@@ -1347,19 +1347,11 @@ impl super::App {
         }
 
         let n_tabs = self.ptys.ptys.len();
-        let sep = "\u{2502}"; // │
-        let sep_width = sep.len();
-        let total_sep_width = n_tabs.saturating_sub(1) * sep_width;
-        let tab_width = if width > total_sep_width {
-            (width - total_sep_width) / n_tabs
-        } else {
-            2
-        };
+        let tab_width = width / n_tabs;
 
-        // Pre-compute pty states to avoid borrowing conflict.
         let states: Vec<PtyState> = (0..n_tabs).map(|i| self.pty_display_state(i)).collect();
 
-        let mut spans = Vec::with_capacity(n_tabs * 4 + n_tabs);
+        let mut spans = Vec::with_capacity(n_tabs * 4);
 
         for (i, slot) in self.ptys.ptys.iter().enumerate() {
             let is_active = self.ptys.active_pty == Some(i);
@@ -1386,21 +1378,28 @@ impl super::App {
                 }
             };
 
-            let fixed_overhead = 4 + state_char.len() + 2;
+            let fixed_overhead = 6;
             let max_title = tab_width.saturating_sub(fixed_overhead);
             let title = truncate_title(&slot.info.title, max_title);
             let agent = slot.info.agent;
+            let agent_color = match agent {
+                Agent::Claude => self.view.theme.agent_claude,
+                Agent::Codex => self.view.theme.agent_codex,
+                Agent::Omp => self.view.theme.agent_omp,
+            };
 
             if is_active {
+                // Active tab: highlighted background, bold
                 let active_bg = self.view.theme.input_cursor;
+                // Left rounded cap
                 spans.push(Span::styled(
-                    format!(" [{}] ", agent.icon()),
+                    "\u{258c}", // ▌ left half block — visual left edge
+                    Style::default().bg(active_bg).fg(active_bg),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", agent.icon()),
                     Style::default()
-                        .fg(match agent {
-                            Agent::Claude => self.view.theme.agent_claude,
-                            Agent::Codex => self.view.theme.agent_codex,
-                            Agent::Omp => self.view.theme.agent_omp,
-                        })
+                        .fg(agent_color)
                         .bg(active_bg)
                         .add_modifier(Modifier::BOLD),
                 ));
@@ -1408,15 +1407,22 @@ impl super::App {
                     format!("{} ", title),
                     Style::default()
                         .fg(self.view.theme.sidebar_text)
-                        .bg(active_bg),
+                        .bg(active_bg)
+                        .add_modifier(Modifier::BOLD),
                 ));
                 spans.push(Span::styled(
-                    format!("{} ", state_char),
+                    state_char.to_string(),
                     Style::default().fg(state_color).bg(active_bg),
                 ));
-            } else {
+                // Right rounded cap
                 spans.push(Span::styled(
-                    format!(" [{}] ", agent.icon()),
+                    "\u{2590}", // ▐ right half block — visual right edge
+                    Style::default().bg(active_bg).fg(active_bg),
+                ));
+            } else {
+                // Inactive tab: dim, no background
+                spans.push(Span::styled(
+                    format!(" {} ", agent.icon()),
                     Style::default().fg(self.view.theme.sidebar_dim),
                 ));
                 spans.push(Span::styled(
@@ -1427,13 +1433,8 @@ impl super::App {
                     format!("{} ", state_char),
                     Style::default().fg(state_color),
                 ));
-            }
-
-            if i < n_tabs - 1 {
-                spans.push(Span::styled(
-                    sep.to_string(),
-                    Style::default().fg(self.view.theme.sidebar_dim),
-                ));
+                // Spacer between inactive tabs
+                spans.push(Span::raw(" "));
             }
         }
 
