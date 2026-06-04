@@ -2631,6 +2631,12 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     // Watch agent session directories for automatic refresh
     let watcher = crate::watch::SessionWatcher::new();
     let result = loop {
+        // Yield to let PTY reader threads process any pending echo output
+        // before rendering.  This ensures cursor position updates from agent
+        // programs are reflected in the alacritty grid when we render.
+        if app.view.screen_changed && !app.ptys.ptys.is_empty() {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
         app.poll_states();
         app.flush_pending_inputs();
 

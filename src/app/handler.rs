@@ -192,6 +192,7 @@ impl super::App {
                         && let Some(slot) = self.ptys.ptys.get(idx)
                     {
                         let _ = slot.handle.write_input(&bytes);
+                        self.view.screen_changed = true;
                     }
                     return Ok(Action::Continue);
                 }

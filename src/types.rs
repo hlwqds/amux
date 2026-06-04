@@ -863,13 +863,9 @@ impl Keybinds {
     /// One-line hint string for the status bar.
     pub fn status_hint(&self) -> String {
         format!(
-            "Enter:new {}:{} {}:{} o:open {}:{} Tab:toggle {}:quit F12:chat-mode",
-            self.expand.display(),
-            "exp",
-            self.refresh.display(),
-            "rfr",
-            self.rename.display(),
-            "ren",
+            "Enter:open Tab:focus {}:search {}:help {}:quit",
+            self.search.display(),
+            self.help.display(),
             self.quit.display(),
         )
     }
@@ -983,6 +979,21 @@ mod tests {
         assert_eq!(parsed.workspaces[1].path, None);
         assert!(!parsed.workspaces[0].expanded);
         assert!(!parsed.workspaces[1].expanded);
+    }
+
+    #[test]
+    fn status_hint_stays_compact_for_footer() {
+        let hint = Keybinds::default().status_hint();
+
+        assert!(
+            hint.len() <= 64,
+            "hint should fit narrow status bars: {hint}"
+        );
+        assert!(hint.contains("Enter:open"));
+        assert!(hint.contains("Tab:focus"));
+        assert!(hint.contains("Alt+k:help"));
+        assert!(!hint.contains("rename"));
+        assert!(!hint.contains("open dir"));
     }
 
     #[test]
