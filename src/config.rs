@@ -157,33 +157,29 @@ pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> Pa
 
 pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
     let existing = load_session_meta(session_id, None);
-    let (tags, rating, note) = match existing {
-        Some(m) => (m.tags, m.rating, m.note),
-        None => (Vec::new(), None, None),
+    let (tags, note) = match existing {
+        Some(m) => (m.tags, m.note),
+        None => (Vec::new(), None),
     };
-    save_session_meta(session_id, title, &tags, rating, note.as_deref())
+    save_session_meta(session_id, title, &tags, note.as_deref())
 }
 
 pub fn save_session_meta(
     session_id: &str,
     title: &str,
     tags: &[String],
-    rating: Option<u8>,
     note: Option<&str>,
 ) -> io::Result<()> {
     let path = title_override_path(session_id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    if tags.is_empty() && rating.is_none() && note.is_none_or(|s| s.is_empty()) {
+    if tags.is_empty() && note.is_none_or(|s| s.is_empty()) {
         fs::write(path, title)
     } else {
         let mut meta = serde_json::json!({"title": title});
         if !tags.is_empty() {
             meta["tags"] = serde_json::json!(tags);
-        }
-        if let Some(r) = rating {
-            meta["rating"] = serde_json::json!(r);
         }
         if let Some(n) = note
             && !n.is_empty()
@@ -194,30 +190,14 @@ pub fn save_session_meta(
     }
 }
 
-/// Save only the rating for a session, preserving existing title/tags/note.
-pub fn save_session_rating(session_id: &str, rating: u8) -> io::Result<()> {
-    let existing = load_session_meta(session_id, None);
-    let (title, tags, note) = match existing {
-        Some(m) => (m.title, m.tags, m.note),
-        None => (session_id.to_string(), Vec::new(), None),
-    };
-    save_session_meta(
-        session_id,
-        &title,
-        &tags,
-        Some(rating.clamp(1, 5)),
-        note.as_deref(),
-    )
-}
-
-/// Save only the note for a session, preserving existing title/tags/rating.
+/// Save only the note for a session, preserving existing title/tags.
 pub fn save_session_note(session_id: &str, note: &str) -> io::Result<()> {
     let existing = load_session_meta(session_id, None);
-    let (title, tags, rating) = match existing {
-        Some(m) => (m.title, m.tags, m.rating),
-        None => (session_id.to_string(), Vec::new(), None),
+    let (title, tags) = match existing {
+        Some(m) => (m.title, m.tags),
+        None => (session_id.to_string(), Vec::new()),
     };
-    save_session_meta(session_id, &title, &tags, rating, Some(note))
+    save_session_meta(session_id, &title, &tags, Some(note))
 }
 
 /// Save the snapshot commit hash to a standalone file for the session.
@@ -239,7 +219,6 @@ pub fn load_snapshot_meta(session_id: &str) -> Option<String> {
 pub struct SessionMeta {
     pub title: String,
     pub tags: Vec<String>,
-    pub rating: Option<u8>,
     pub note: Option<String>,
 }
 
@@ -264,26 +243,13 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
                             .collect()
                     })
                     .unwrap_or_default();
-                let rating = obj.get("rating").and_then(|v| v.as_u64()).and_then(|r| {
-                    if (1..=5).contains(&r) {
-                        Some(r as u8)
-                    } else {
-                        None
-                    }
-                });
                 let note = obj.get("note").and_then(|v| v.as_str()).map(String::from);
-                return Some(SessionMeta {
-                    title,
-                    tags,
-                    rating,
-                    note,
-                });
+                return Some(SessionMeta { title, tags, note });
             }
             // Fallback: plain text (backward compat)
             return Some(SessionMeta {
                 title: trimmed.to_string(),
                 tags: Vec::new(),
-                rating: None,
                 note: None,
             });
         }
@@ -298,7 +264,6 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
                 return Some(SessionMeta {
                     title,
                     tags: Vec::new(),
-                    rating: None,
                     note: None,
                 });
             }

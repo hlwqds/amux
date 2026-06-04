@@ -225,22 +225,12 @@ impl super::App {
                             state_tag,
                         ];
                         spans.push(agent_tag.clone());
-                        // Show star rating and note indicator if present
-                        if let Some(meta) = crate::config::load_session_meta(&session.id, None) {
-                            if let Some(r) = meta.rating {
-                                let stars = "\u{2605}".repeat(r as usize);
-                                let empty = "\u{2606}".repeat(5 - r as usize);
-                                spans.push(Span::styled(
-                                    format!(" {}{}", stars, empty),
-                                    Style::default().fg(Color::Yellow),
-                                ));
-                            }
-                            if meta.note.as_ref().is_some_and(|n| !n.is_empty()) {
-                                spans.push(Span::styled(
-                                    " \u{1f4dd}",
-                                    Style::default().fg(Color::Cyan),
-                                ));
-                            }
+                        // Show note indicator if present
+                        if let Some(meta) = crate::config::load_session_meta(&session.id, None)
+                            && meta.note.as_ref().is_some_and(|n| !n.is_empty())
+                        {
+                            spans
+                                .push(Span::styled(" \u{1f4dd}", Style::default().fg(Color::Cyan)));
                         }
                         // Show diff stat for completed sessions with a running PTY
                         let mut detail_line = if session.tags.is_empty() {
@@ -1611,7 +1601,6 @@ impl super::App {
         ));
         lines.push(Line::from("  1/2/3/4          Filter by agent type"));
         lines.push(Line::from("  Space            Mark/unmark session"));
-        lines.push(Line::from("  *                Rate session (1-5 stars)"));
         lines.push(Line::from("  s                Cycle sort mode"));
         lines.push(Line::from("  S                Semantic search (BM25)"));
         lines.push(Line::from("  o                Open workspace directory"));
@@ -2501,7 +2490,7 @@ impl super::App {
             )]),
             Line::from(""),
             Line::from(Span::styled(
-                "  Ranked by quality (avg rating × sessions):",
+                "  Ranked by sessions:",
                 Style::default().fg(Color::DarkGray),
             )),
             Line::from(""),
@@ -2521,14 +2510,6 @@ impl super::App {
                 "GSD" => Color::Green,
                 _ => Color::White,
             };
-            let rating_str = if m.rated_sessions > 0 {
-                format!(
-                    "avg {:.1} \u{2605} ({} rated)",
-                    m.avg_rating, m.rated_sessions
-                )
-            } else {
-                "no ratings".to_string()
-            };
             lines.push(Line::from(vec![
                 Span::styled(format!(" {} ", medal), Style::default()),
                 Span::styled(
@@ -2541,16 +2522,12 @@ impl super::App {
                     format!("  {} sessions", m.total_sessions),
                     Style::default().fg(Color::DarkGray),
                 ),
-                Span::styled(
-                    format!("  {}", rating_str),
-                    Style::default().fg(Color::Yellow),
-                ),
             ]));
         }
 
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
-            "  Press any key to close. Press * on a session to rate it.",
+            "  Press any key to close.",
             Style::default().fg(Color::DarkGray),
         )));
 

@@ -640,23 +640,6 @@ impl App {
                     {
                         let _ = crate::config::save_snapshot_meta(session_id, snapshot);
                     }
-                    // Auto-rating heuristic based on check results and diff
-                    if let Some(ref session_id) = slot.info.session_id {
-                        // Only auto-rate if no manual rating exists yet
-                        let has_rating = crate::config::load_session_meta(session_id, None)
-                            .and_then(|m| m.rating)
-                            .is_some();
-                        if !has_rating {
-                            let mut auto_rating: u8 = 3; // Base: 3 stars
-                            // Will apply check_status and diff adjustments after check completes
-                            // For now, use diff info immediately
-                            if slot.info.diff_summary.files_changed.is_empty() {
-                                auto_rating = auto_rating.saturating_sub(1);
-                            }
-                            // Store tentative rating; check_status will refine it later
-                            let _ = crate::config::save_session_rating(session_id, auto_rating);
-                        }
-                    }
                     // Auto-generate session summary
                     if let Some(ref session_id) = slot.info.session_id
                         && let Some(session) =
@@ -831,18 +814,7 @@ impl App {
                 if let Ok(content) = std::fs::read_to_string(&marker)
                     && let Ok(status) = serde_json::from_str::<CheckStatus>(&content)
                 {
-                    let passed = status == CheckStatus::Passed;
                     self.ptys.ptys[i].info.check_status = status;
-                    if passed
-                        && let Some(ref session_id) = self.ptys.ptys[i].info.session_id
-                        && let Some(meta) = crate::config::load_session_meta(session_id, None)
-                        && let Some(r) = meta.rating
-                    {
-                        let new_r = r.saturating_add(1).min(5);
-                        if new_r != r {
-                            let _ = crate::config::save_session_rating(session_id, new_r);
-                        }
-                    }
                 }
                 let _ = std::fs::remove_file(&marker);
             }

@@ -1782,66 +1782,31 @@ pub struct AgentMetrics {
     pub completed_sessions: usize,
     pub avg_duration_secs: f64,
     pub success_rate: f64,
-    pub avg_rating: f64,
-    pub rated_sessions: usize,
 }
 
 /// Analyze historical session data to recommend best agent.
 pub fn compute_agent_recommendations(sessions: &[crate::types::Session]) -> Vec<AgentMetrics> {
     use std::collections::HashMap;
     let mut counts: HashMap<String, usize> = HashMap::new();
-    let mut ratings: HashMap<String, (f64, usize)> = HashMap::new(); // (sum, count)
 
     for session in sessions {
         let key = session.agent.label().to_string();
         *counts.entry(key.clone()).or_insert(0) += 1;
-        if let Some(meta) = crate::config::load_session_meta(&session.id, None)
-            && let Some(r) = meta.rating
-        {
-            let entry = ratings.entry(key.clone()).or_insert((0.0, 0));
-            entry.0 += r as f64;
-            entry.1 += 1;
-        }
     }
 
     let mut metrics: Vec<AgentMetrics> = counts
         .into_iter()
-        .map(|(agent, total)| {
-            let (rating_sum, rated_count) = ratings.get(&agent).copied().unwrap_or((0.0, 0));
-            let avg_rating = if rated_count > 0 {
-                rating_sum / rated_count as f64
-            } else {
-                0.0
-            };
-            AgentMetrics {
-                agent,
-                total_sessions: total,
-                completed_sessions: total,
-                avg_duration_secs: 0.0,
-                success_rate: 1.0,
-                avg_rating,
-                rated_sessions: rated_count,
-            }
+        .map(|(agent, total)| AgentMetrics {
+            agent,
+            total_sessions: total,
+            completed_sessions: total,
+            avg_duration_secs: 0.0,
+            success_rate: 1.0,
         })
         .collect();
 
-    // Sort by weighted score: avg_rating * total_sessions (sessions with ratings ranked higher)
-    // For agents without ratings, fall back to total_sessions only
-    metrics.sort_by(|a, b| {
-        let score_a = if a.rated_sessions > 0 {
-            a.avg_rating * a.total_sessions as f64
-        } else {
-            a.total_sessions as f64
-        };
-        let score_b = if b.rated_sessions > 0 {
-            b.avg_rating * b.total_sessions as f64
-        } else {
-            b.total_sessions as f64
-        };
-        score_b
-            .partial_cmp(&score_a)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // Sort by total sessions (most used agents ranked higher)
+    metrics.sort_by(|a, b| b.total_sessions.cmp(&a.total_sessions));
     metrics
 }
 

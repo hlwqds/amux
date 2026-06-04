@@ -455,26 +455,6 @@ impl super::App {
         self.view.status = "Workspace name (Esc = cancel):".into();
     }
 
-    /// Rate the selected session with `*` key. Cycles through 1-5 stars.
-    pub(super) fn rate_selected_session(&mut self) {
-        if let Some(TreeNode::Session(_, si)) = self.selected_node().cloned()
-            && si < self.sessions.sessions.len()
-        {
-            let session = &self.sessions.sessions[si];
-            let current = crate::config::load_session_meta(&session.id, None)
-                .and_then(|m| m.rating)
-                .unwrap_or(0);
-            let new_rating = if current >= 5 { 1 } else { current + 1 };
-            let stars = "★".repeat(new_rating as usize);
-            let empty = "☆".repeat(5 - new_rating as usize);
-            if let Err(e) = crate::config::save_session_rating(&session.id, new_rating) {
-                self.view.status = format!("Failed to save rating: {}", e);
-            } else {
-                self.view.status = format!("Rated: {}{} ({}/5)", stars, empty, new_rating);
-            }
-        }
-    }
-
     /// Inject workspace knowledge into the active PTY if auto_inject_knowledge is enabled.
     fn inject_knowledge(&mut self, workspace_path: &Path) {
         let auto_inject = self
