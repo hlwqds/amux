@@ -11,12 +11,12 @@ pub enum ThemeName {
     #[default]
     Dark,
     Light,
+    Mocha,
     Custom(String),
 }
-
 impl ThemeName {
     pub fn cycle(&self) -> Self {
-        let mut themes = vec![ThemeName::Dark, ThemeName::Light];
+        let mut themes = vec![ThemeName::Dark, ThemeName::Light, ThemeName::Mocha];
         // Append discovered custom themes
         if let Some(customs) = discover_custom_themes() {
             themes.extend(customs);
@@ -29,6 +29,7 @@ impl ThemeName {
         match self {
             ThemeName::Dark => "Dark",
             ThemeName::Light => "Light",
+            ThemeName::Mocha => "Catppuccin Mocha",
             ThemeName::Custom(name) => name,
         }
     }
@@ -37,6 +38,7 @@ impl ThemeName {
         match self {
             ThemeName::Dark => Theme::dark(),
             ThemeName::Light => Theme::light(),
+            ThemeName::Mocha => Theme::mocha(),
             ThemeName::Custom(name) => load_custom_theme(name).unwrap_or_else(Theme::dark),
         }
     }
@@ -382,6 +384,41 @@ impl Theme {
             dim: Color::Gray,
             bold_text: Color::Black,
             input_cursor: Color::Gray,
+        }
+    }
+
+    /// Catppuccin Mocha — warm, soft pastels on dark blue-grey backgrounds.
+    /// https://catppuccin.com/palette/mocha
+    pub fn mocha() -> Self {
+        Theme {
+            // Surface colours
+            sidebar_bg: Color::Rgb(0x18, 0x18, 0x25),   // Mantle
+            sidebar_title: Color::Rgb(0xba, 0xc2, 0xde),  // Subtext1
+            sidebar_text: Color::Rgb(0xcd, 0xd6, 0xf4),   // Text
+            sidebar_dim: Color::Rgb(0x6c, 0x70, 0x86),    // Overlay0
+            sidebar_highlight: Color::Rgb(0xf9, 0xe2, 0xaf), // Yellow
+            sidebar_selected: Color::Rgb(0x89, 0xb4, 0xfa), // Blue
+
+            chat_border: Color::Rgb(0x31, 0x32, 0x44),    // Surface0
+            chat_title: Color::Rgb(0xb4, 0xbe, 0xfe),     // Lavender
+
+            agent_claude: Color::Rgb(0x89, 0xb4, 0xfa),   // Blue
+            agent_codex: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
+            agent_omp: Color::Rgb(0xcb, 0xa6, 0xf7),     // Mauve
+
+            status_running: Color::Rgb(0xf9, 0xe2, 0xaf), // Yellow
+            status_done: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
+            status_error: Color::Rgb(0xf3, 0x8b, 0xa8),  // Red
+
+            popup_border: Color::Rgb(0xb4, 0xbe, 0xfe),   // Lavender
+            popup_title: Color::Rgb(0xb4, 0xbe, 0xfe),    // Lavender
+            popup_text: Color::Rgb(0xcd, 0xd6, 0xf4),     // Text
+            popup_hint: Color::Rgb(0xf9, 0xe2, 0xaf),     // Yellow
+
+            accent: Color::Rgb(0xb4, 0xbe, 0xfe),         // Lavender
+            dim: Color::Rgb(0x6c, 0x70, 0x86),            // Overlay0
+            bold_text: Color::Rgb(0xcd, 0xd6, 0xf4),      // Text
+            input_cursor: Color::Rgb(0x45, 0x47, 0x5a),   // Surface1
         }
     }
 }

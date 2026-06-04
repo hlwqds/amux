@@ -188,18 +188,16 @@ impl super::App {
                             Span::styled(
                                 "▼ 📌 ",
                                 Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                    .fg(self.view.theme.sidebar_highlight)
                             ),
                             Span::styled(
                                 "Pinned",
                                 Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                    .fg(self.view.theme.sidebar_highlight)
                             ),
                         ]),
                         Line::from(format!("   {} pinned sessions", count))
-                            .style(Style::default().fg(Color::DarkGray)),
+                            .style(Style::default().fg(self.view.theme.sidebar_dim)),
                     ])
                 }
                 TreeNode::RecentWorkspace => {
@@ -210,18 +208,16 @@ impl super::App {
                             Span::styled(
                                 "▼ 🕐 ",
                                 Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                    .fg(self.view.theme.sidebar_highlight)
                             ),
                             Span::styled(
                                 "Recent",
                                 Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                    .fg(self.view.theme.sidebar_highlight)
                             ),
                         ]),
                         Line::from(format!("   {} recent sessions", count))
-                            .style(Style::default().fg(Color::DarkGray)),
+                            .style(Style::default().fg(self.view.theme.sidebar_dim)),
                     ])
                 }
                 TreeNode::Workspace(wi) => {
@@ -237,12 +233,12 @@ impl super::App {
                     let (binding_icon, binding_style, subtitle) = match &ws.path {
                         Some(p) => (
                             "\u{25c6}",
-                            Style::default().fg(Color::Cyan),
+                            Style::default().fg(self.view.theme.sidebar_selected),
                             format!("   {} sessions \u{00b7} {}", count, p.display()),
                         ),
                         None => (
                             "\u{25c7}",
-                            Style::default().fg(Color::Yellow),
+                            Style::default().fg(self.view.theme.sidebar_highlight),
                             format!("   {} sessions \u{00b7} virtual", count),
                         ),
                     };
@@ -256,11 +252,11 @@ impl super::App {
                             Span::styled(
                                 ws.name.clone(),
                                 Style::default()
-                                    .fg(Color::Cyan)
+                                    .fg(self.view.theme.sidebar_selected)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]),
-                        Line::from(subtitle).style(Style::default().fg(Color::DarkGray)),
+                        Line::from(subtitle).style(Style::default().fg(self.view.theme.sidebar_dim)),
                     ])
                 }
                 TreeNode::Session(_wi, si) => {
@@ -273,27 +269,31 @@ impl super::App {
 
                         let agent_tag = Span::styled(
                             format!(" [{}]", session.agent.icon()),
-                            Style::default().fg(session.agent.color()),
+                            Style::default().fg(match session.agent {
+                                Agent::Claude => self.view.theme.agent_claude,
+                                Agent::Codex => self.view.theme.agent_codex,
+                                Agent::Omp => self.view.theme.agent_omp,
+                            }),
                         );
 
                         let is_selected = self.view.selected_set.contains(si);
                         let check = if is_selected {
-                            Span::styled("\u{2611} ", Style::default().fg(Color::Green)) // ☑
+                            Span::styled("\u{2611} ", Style::default().fg(self.view.theme.status_done)) // ☑
                         } else {
                             Span::raw("  ")
                         };
 
                         let (marker, state_tag) = match pty_state {
                             Some(PtyState::Running) => (
-                                Span::styled(" \u{25cf} ", Style::default().fg(Color::Yellow)),
-                                Span::styled(" [running]", Style::default().fg(Color::Yellow)),
+                                Span::styled(" \u{25cf} ", Style::default().fg(self.view.theme.status_running)),
+                                Span::styled(" [running]", Style::default().fg(self.view.theme.status_running)),
                             ),
                             Some(PtyState::Completed) => (
-                                Span::styled(" \u{25cf} ", Style::default().fg(Color::Green)),
-                                Span::styled(" \u{2714} done", Style::default().fg(Color::Green)),
+                                Span::styled(" \u{25cf} ", Style::default().fg(self.view.theme.status_done)),
+                                Span::styled(" \u{2714} done", Style::default().fg(self.view.theme.status_done)),
                             ),
                             None => (
-                                Span::styled(" \u{25cb} ", Style::default().fg(Color::DarkGray)),
+                                Span::styled(" \u{25cb} ", Style::default().fg(self.view.theme.sidebar_dim)),
                                 Span::raw(""),
                             ),
                         };
@@ -302,24 +302,24 @@ impl super::App {
                             marker,
                             Span::styled(
                                 relative_time(session.last_active),
-                                Style::default().fg(Color::White),
+                                Style::default().fg(self.view.theme.sidebar_text),
                             ),
                             Span::styled(
                                 format!(" ({})", short_id),
-                                Style::default().fg(Color::DarkGray),
+                                Style::default().fg(self.view.theme.sidebar_dim),
                             ),
                             state_tag,
                         ];
                         spans.push(agent_tag.clone());
                         if session.pinned {
-                            spans.push(Span::styled(" 📌", Style::default().fg(Color::Yellow)));
+                            spans.push(Span::styled(" 📌", Style::default().fg(self.view.theme.sidebar_highlight)));
                         }
                         // Show note indicator if present
                         if let Some(meta) = crate::config::load_session_meta(&session.id, None)
                             && meta.note.as_ref().is_some_and(|n| !n.is_empty())
                         {
                             spans
-                                .push(Span::styled(" \u{1f4dd}", Style::default().fg(Color::Cyan)));
+                                .push(Span::styled(" \u{1f4dd}", Style::default().fg(self.view.theme.accent)));
                         }
                         // Show diff stat for completed sessions with a running PTY
                         let mut detail_line = if session.tags.is_empty() {
@@ -347,12 +347,12 @@ impl super::App {
                         }
                         let mut item_lines = vec![
                             Line::from(spans),
-                            Line::from(detail_line).style(Style::default().fg(Color::Gray)),
+                            Line::from(detail_line).style(Style::default().fg(self.view.theme.sidebar_dim)),
                         ];
                         if let Some(ref msg) = session.last_message {
                             item_lines.push(
                                 Line::from(format!("     {}", msg))
-                                    .style(Style::default().fg(Color::DarkGray))
+                                    .style(Style::default().fg(self.view.theme.sidebar_dim))
                             );
                         }
                         ListItem::new(item_lines)
@@ -371,12 +371,12 @@ impl super::App {
                             None,
                         ));
                     let (dot_color, state_text) = match state {
-                        PtyState::Running => (Color::Yellow, " [running]".into()),
+                        PtyState::Running => (self.view.theme.status_running, " [running]".into()),
                         PtyState::Completed => match &check {
-                            CheckStatus::Failed(e) => (Color::Red, format!(" \u{26a0} {}", e)),
-                            CheckStatus::Running => (Color::Yellow, " \u{23f3} checking...".into()),
-                            CheckStatus::Passed => (Color::Green, " \u{2714} done".into()),
-                            CheckStatus::Pending => (Color::Green, " \u{2714} done".into()),
+                            CheckStatus::Failed(e) => (self.view.theme.status_error, format!(" \u{26a0} {}", e)),
+                            CheckStatus::Running => (self.view.theme.status_running, " \u{23f3} checking...".into()),
+                            CheckStatus::Passed => (self.view.theme.status_done, " \u{2714} done".into()),
+                            CheckStatus::Pending => (self.view.theme.status_done, " \u{2714} done".into()),
                         },
                     };
                     let state_color = dot_color;
@@ -385,18 +385,22 @@ impl super::App {
                         let mem = crate::procfs::format_bytes(stats.mem_rss_kb * 1024);
                         Span::styled(
                             format!(" CPU:{} MEM:{}", cpu, mem),
-                            Style::default().fg(Color::DarkGray),
+                            Style::default().fg(self.view.theme.sidebar_dim),
                         )
                     } else {
                         Span::raw("")
                     };
                     let title_spans = vec![
                         Span::styled("   \u{25cf} ", Style::default().fg(dot_color)),
-                        Span::styled(title, Style::default().fg(Color::White)),
+                        Span::styled(title, Style::default().fg(self.view.theme.sidebar_text)),
                         Span::styled(state_text, Style::default().fg(state_color)),
                         Span::styled(
                             format!(" [{}]", agent.icon()),
-                            Style::default().fg(agent.color()),
+                            Style::default().fg(match agent {
+                                Agent::Claude => self.view.theme.agent_claude,
+                                Agent::Codex => self.view.theme.agent_codex,
+                                Agent::Omp => self.view.theme.agent_omp,
+                            }),
                         ),
                         stats_span,
                     ];
@@ -404,7 +408,7 @@ impl super::App {
                         let ds = &diff_summary;
                         if ds.files_changed.is_empty() {
                             Line::from("     no changes detected")
-                                .style(Style::default().fg(Color::DarkGray))
+                                .style(Style::default().fg(self.view.theme.sidebar_dim))
                         } else {
                             let info = format!(
                                 "     +{}/-{} in {} file(s)",
@@ -414,25 +418,29 @@ impl super::App {
                             );
                             Line::from(vec![Span::styled(
                                 info,
-                                Style::default().fg(Color::DarkGray),
+                                Style::default().fg(self.view.theme.sidebar_dim),
                             )])
                         }
                     } else {
                         Line::from("     waiting for session file...")
-                            .style(Style::default().fg(Color::DarkGray))
+                            .style(Style::default().fg(self.view.theme.sidebar_dim))
                     };
                     ListItem::new(vec![Line::from(title_spans), detail])
                 }
                 TreeNode::WorkspaceWarning(_, msg) => {
                     ListItem::new(Line::from(vec![Span::styled(
                         format!("  \u{26a0} {}", msg),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(self.view.theme.sidebar_highlight),
                     )]))
                 }
                 TreeNode::AgentHeader(agent) => ListItem::new(Line::from(vec![Span::styled(
                     format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
                     Style::default()
-                        .fg(agent.color())
+                        .fg(match agent {
+                            Agent::Claude => self.view.theme.agent_claude,
+                            Agent::Codex => self.view.theme.agent_codex,
+                            Agent::Omp => self.view.theme.agent_omp,
+                        })
                         .add_modifier(Modifier::DIM),
                 )])),
                 TreeNode::ArchivedHeader => {
@@ -440,8 +448,7 @@ impl super::App {
                     ListItem::new(Line::from(vec![Span::styled(
                         format!("  \u{25b6} Archived ({})", count),
                         Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::DIM),
+                            .fg(self.view.theme.sidebar_dim)
                     )]))
                 }
                 TreeNode::ArchivedSession(_wi, ai) => {
@@ -449,24 +456,24 @@ impl super::App {
                         let short_id = &session.id[..8.min(session.id.len())];
                         ListItem::new(vec![
                             Line::from(vec![
-                                Span::styled(" \u{25cb} ", Style::default().fg(Color::DarkGray)),
+                                Span::styled(" \u{25cb} ", Style::default().fg(self.view.theme.sidebar_dim)),
                                 Span::styled(
                                     relative_time(session.last_active),
-                                    Style::default().fg(Color::DarkGray),
+                                    Style::default().fg(self.view.theme.sidebar_dim),
                                 ),
                                 Span::styled(
                                     format!(" ({})", short_id),
-                                    Style::default().fg(Color::DarkGray),
+                                    Style::default().fg(self.view.theme.sidebar_dim),
                                 ),
                                 Span::styled(
                                     format!(" [{}]", session.agent.icon()),
                                     Style::default()
-                                        .fg(Color::DarkGray)
+                                        .fg(self.view.theme.sidebar_dim)
                                         .add_modifier(Modifier::DIM),
                                 ),
                             ]),
                             Line::from(format!("     {}", session.title))
-                                .style(Style::default().fg(Color::DarkGray)),
+                            .style(Style::default().fg(self.view.theme.sidebar_dim)),
                         ])
                     } else {
                         ListItem::new(Line::from("   \u{25cb} ?"))
@@ -476,9 +483,9 @@ impl super::App {
             .collect();
 
         let border_color = if self.view.focus == Focus::Sidebar {
-            Color::Yellow
+            self.view.theme.sidebar_highlight
         } else {
-            Color::DarkGray
+            self.view.theme.chat_border
         };
 
         let is_searching = self.view.input_mode == InputMode::Search;
@@ -531,7 +538,8 @@ impl super::App {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(title)
-            .border_style(Style::default().fg(border_color));
+            .style(Style::default().bg(self.view.theme.sidebar_bg))
+            .border_style(Style::default().fg(border_color).bg(self.view.theme.sidebar_bg));
 
         if is_searching {
             // Split sidebar into tree area (top) and search prompt (bottom)
@@ -544,7 +552,7 @@ impl super::App {
             let list = List::new(items)
                 .highlight_style(
                     Style::default()
-                        .bg(Color::Rgb(24, 36, 72))
+                        .bg(self.view.theme.input_cursor)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("\u{203a}");
@@ -560,12 +568,12 @@ impl super::App {
             };
 
             let search_line = Line::from(vec![
-                Span::styled(" search: ", Style::default().fg(Color::Cyan).bold()),
-                Span::styled(query.to_string(), Style::default().fg(Color::White)),
-                Span::styled("|", Style::default().fg(Color::Gray)),
+                Span::styled(" search: ", Style::default().fg(self.view.theme.accent).bold()),
+                Span::styled(query.to_string(), Style::default().fg(self.view.theme.sidebar_text)),
+                Span::styled("|", Style::default().fg(self.view.theme.sidebar_dim)),
                 Span::styled(
                     format!(" {}", filter_text),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(self.view.theme.sidebar_dim),
                 ),
             ]);
             frame.render_widget(Paragraph::new(search_line), chunks[1]);
@@ -575,7 +583,7 @@ impl super::App {
                 .block(block)
                 .highlight_style(
                     Style::default()
-                        .bg(Color::Rgb(24, 36, 72))
+                        .bg(self.view.theme.input_cursor)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("\u{203a}");
@@ -586,9 +594,9 @@ impl super::App {
 
     fn render_chat(&mut self, frame: &mut Frame, area: Rect) {
         let border_color = if self.view.focus == Focus::Chat {
-            Color::Yellow
+            self.view.theme.sidebar_highlight
         } else {
-            Color::DarkGray
+            self.view.theme.chat_border
         };
 
         let scroll_offset = self
@@ -664,16 +672,15 @@ impl super::App {
                         search_text,
                         Style::default()
                             .fg(Color::Black)
-                            .bg(Color::Yellow)
+                            .bg(self.view.theme.status_running)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
                         " ".repeat(search_chunks[0].width as usize),
-                        Style::default().bg(Color::Yellow),
+                        Style::default().bg(self.view.theme.status_running),
                     ),
                 ]))
-                .style(Style::default().bg(Color::Yellow));
-                frame.render_widget(Clear, search_chunks[0]);
+                .style(Style::default().bg(self.view.theme.status_running));
                 frame.render_widget(search_bar, search_chunks[0]);
                 search_chunks[1]
             } else {
@@ -692,12 +699,12 @@ impl super::App {
                         .map(|row| Line::from(row.clone()))
                         .collect();
                     let snap_widget = Paragraph::new(lines)
-                        .style(Style::default().fg(Color::White).bg(Color::Rgb(30, 30, 40)));
+                        .style(Style::default().fg(self.view.theme.sidebar_text).bg(self.view.theme.sidebar_bg));
                     frame.render_widget(Clear, pty_area);
                     frame.render_widget(snap_widget, pty_area);
                     // Show scroll indicator
                     let indicator = Paragraph::new(Line::from(vec![
-                        Span::styled(" HIST ", Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::styled(" HIST ", Style::default().fg(Color::Black).bg(self.view.theme.status_running).add_modifier(Modifier::BOLD)),
                     ]));
                     frame.render_widget(indicator, Rect { x: pty_area.x, y: pty_area.y, width: 5, height: 1 });
                 } else {
@@ -764,11 +771,11 @@ impl super::App {
                             }
                             let highlight_style = if mi == self.view.scrollback_match_idx {
                                 Style::default()
-                                    .bg(Color::Cyan)
+                                    .bg(self.view.theme.accent)
                                     .fg(Color::Black)
                                     .add_modifier(Modifier::BOLD)
                             } else {
-                                Style::default().bg(Color::DarkGray).fg(Color::White)
+                                Style::default().bg(self.view.theme.sidebar_dim).fg(self.view.theme.sidebar_text)
                             };
                             let mut text = String::new();
                             for c in col..col + len as u16 {
@@ -869,7 +876,7 @@ impl super::App {
                 lines.push(
                     Line::from(ws.name.clone()).style(
                         Style::default()
-                            .fg(Color::Cyan)
+                            .fg(self.view.theme.sidebar_selected)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
@@ -877,20 +884,20 @@ impl super::App {
                     Some(p) => {
                         lines.push(
                             Line::from(format!("\u{25c6} {}", p.display()))
-                                .style(Style::default().fg(Color::Green)),
+                                .style(Style::default().fg(self.view.theme.status_done)),
                         );
                     }
                     None => {
                         lines.push(
                             Line::from("\u{25c7} Virtual workspace (no directory)")
-                                .style(Style::default().fg(Color::Yellow)),
+                                .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                         );
                     }
                 }
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Press Enter to start a named Claude Code session")
-                        .style(Style::default().fg(Color::Yellow)),
+                        .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                 );
             }
             Some(TreeNode::Session(_wi, si)) => {
@@ -898,13 +905,13 @@ impl super::App {
                 lines.push(
                     Line::from(session.title.clone()).style(
                         Style::default()
-                            .fg(Color::Cyan)
+                            .fg(self.view.theme.sidebar_selected)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
                 lines.push(
                     Line::from(format!("ID: {}", session.id))
-                        .style(Style::default().fg(Color::DarkGray)),
+                        .style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
                 lines.push(Line::from(format!(
                     "Last active: {}",
@@ -913,20 +920,20 @@ impl super::App {
                 if !session.tags.is_empty() {
                     lines.push(
                         Line::from(format!("Tags: {}", session.tags.join(", ")))
-                            .style(Style::default().fg(Color::Magenta)),
+                            .style(Style::default().fg(self.view.theme.agent_omp)),
                     );
                 }
                 if self.pty_index_for_session(&session.id).is_some() {
                     lines.push(Line::from(""));
                     lines.push(
                         Line::from("This session is already running - Enter to switch to it")
-                            .style(Style::default().fg(Color::Green)),
+                            .style(Style::default().fg(self.view.theme.status_done)),
                     );
                 } else {
                     lines.push(Line::from(""));
                     lines.push(
                         Line::from("Press Enter to resume this session")
-                            .style(Style::default().fg(Color::Yellow)),
+                        .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                     );
                 }
             }
@@ -940,17 +947,17 @@ impl super::App {
                 lines.push(
                     Line::from(title).style(
                         Style::default()
-                            .fg(Color::Green)
+                            .fg(self.view.theme.status_done)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
                 lines.push(
-                    Line::from("Session is running...").style(Style::default().fg(Color::DarkGray)),
+                    Line::from("Session is running...").style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Press Enter to switch to this session")
-                        .style(Style::default().fg(Color::Yellow)),
+                        .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                 );
             }
             Some(&TreeNode::PinnedWorkspace) => {
@@ -958,7 +965,7 @@ impl super::App {
                 lines.push(
                     Line::from("📌 Pinned Sessions").style(
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(self.view.theme.sidebar_highlight)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
@@ -969,7 +976,7 @@ impl super::App {
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Press ! on a session to unpin it")
-                        .style(Style::default().fg(Color::DarkGray)),
+                        .style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
             }
             Some(&TreeNode::RecentWorkspace) => {
@@ -977,7 +984,7 @@ impl super::App {
                 lines.push(
                     Line::from("🕐 Recent Sessions").style(
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(self.view.theme.sidebar_highlight)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
@@ -991,30 +998,34 @@ impl super::App {
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Sessions are automatically sorted by last activity")
-                        .style(Style::default().fg(Color::DarkGray)),
+                        .style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
             }
             Some(TreeNode::WorkspaceWarning(_, msg)) => {
                 lines.push(
                     Line::from("Workspace Warning").style(
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(self.view.theme.sidebar_highlight)
                             .add_modifier(Modifier::BOLD),
                     ),
                 );
                 lines.push(Line::from(""));
-                lines.push(Line::from(msg.clone()).style(Style::default().fg(Color::Yellow)));
+                lines.push(Line::from(msg.clone()).style(Style::default().fg(self.view.theme.sidebar_highlight)));
             }
             Some(&TreeNode::AgentHeader(agent)) => {
                 let label = agent.label().to_string();
-                let color = agent.color();
+                let color = match agent {
+                    Agent::Claude => self.view.theme.agent_claude,
+                    Agent::Codex => self.view.theme.agent_codex,
+                    Agent::Omp => self.view.theme.agent_omp,
+                };
                 lines.push(
                     Line::from(label)
                         .style(Style::default().fg(color).add_modifier(Modifier::BOLD)),
                 );
                 lines.push(Line::from(""));
                 lines.push(
-                    Line::from("Agent group header").style(Style::default().fg(Color::DarkGray)),
+                    Line::from("Agent group header").style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
             }
             Some(&TreeNode::ArchivedHeader) => {
@@ -1023,12 +1034,12 @@ impl super::App {
                         "Archived Sessions ({})",
                         self.sessions.archived_sessions.len()
                     ))
-                    .style(Style::default().fg(Color::DarkGray)),
+                    .style(Style::default().fg(self.view.theme.sidebar_dim)),
                 );
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Press G to toggle archived visibility")
-                        .style(Style::default().fg(Color::Yellow)),
+                        .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                 );
             }
             Some(&TreeNode::ArchivedSession(_wi, ai)) => {
@@ -1036,13 +1047,13 @@ impl super::App {
                     lines.push(
                         Line::from(session.title.clone()).style(
                             Style::default()
-                                .fg(Color::DarkGray)
+                                .fg(self.view.theme.sidebar_dim)
                                 .add_modifier(Modifier::BOLD),
                         ),
                     );
                     lines.push(
                         Line::from(format!("ID: {} (archived)", session.id))
-                            .style(Style::default().fg(Color::DarkGray)),
+                            .style(Style::default().fg(self.view.theme.sidebar_dim)),
                     );
                     lines.push(Line::from(format!(
                         "Last active: {}",
@@ -1051,12 +1062,12 @@ impl super::App {
                     lines.push(Line::from(""));
                     lines.push(
                         Line::from("Press Enter to unarchive and resume")
-                            .style(Style::default().fg(Color::Yellow)),
+                            .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                     );
                 }
             }
             None => {
-                lines.push(Line::from("No selection").style(Style::default().fg(Color::DarkGray)));
+                lines.push(Line::from("No selection").style(Style::default().fg(self.view.theme.sidebar_dim)));
             }
         }
 
@@ -1066,7 +1077,7 @@ impl super::App {
                 "── {} → Keybindings for full list ──",
                 self.view.keybinds.settings.display()
             ))
-            .style(Style::default().fg(Color::DarkGray)),
+            .style(Style::default().fg(self.view.theme.sidebar_dim)),
         );
         lines.push(Line::from(format!(
             "  {}     New / Resume / Switch",
@@ -1282,21 +1293,21 @@ impl super::App {
             let state = states[i];
 
             let (state_char, state_color) = match state {
-                PtyState::Running => ("\u{25cf}", Color::Yellow),
+                PtyState::Running => ("\u{25cf}", self.view.theme.status_running),
                 PtyState::Completed => {
                     let check = &slot.info.check_status;
                     if matches!(check, CheckStatus::Failed(_)) {
-                        ("\u{26a0}", Color::Red)
+                        ("\u{26a0}", self.view.theme.status_error)
                     } else if check == &CheckStatus::Running {
-                        ("\u{23f3}", Color::Yellow)
+                        ("\u{23f3}", self.view.theme.status_running)
                     } else {
                         let pt = slot.info.project_type;
                         if pt != crate::discovery::ProjectType::Rust
                             && pt != crate::discovery::ProjectType::Unknown
                         {
-                            (pt.icon(), Color::Green)
+                            (pt.icon(), self.view.theme.status_done)
                         } else {
-                            ("\u{2714}", Color::Green)
+                            ("\u{2714}", self.view.theme.status_done)
                         }
                     }
                 }
@@ -1308,17 +1319,21 @@ impl super::App {
             let agent = slot.info.agent;
 
             if is_active {
-                let active_bg = Color::Rgb(24, 36, 72);
+                let active_bg = self.view.theme.input_cursor;
                 spans.push(Span::styled(
                     format!(" [{}] ", agent.icon()),
                     Style::default()
-                        .fg(agent.color())
+                        .fg(match agent {
+                            Agent::Claude => self.view.theme.agent_claude,
+                            Agent::Codex => self.view.theme.agent_codex,
+                            Agent::Omp => self.view.theme.agent_omp,
+                        })
                         .bg(active_bg)
                         .add_modifier(Modifier::BOLD),
                 ));
                 spans.push(Span::styled(
                     format!("{} ", title),
-                    Style::default().fg(Color::White).bg(active_bg),
+                    Style::default().fg(self.view.theme.sidebar_text).bg(active_bg),
                 ));
                 spans.push(Span::styled(
                     format!("{} ", state_char),
@@ -1327,11 +1342,11 @@ impl super::App {
             } else {
                 spans.push(Span::styled(
                     format!(" [{}] ", agent.icon()),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(self.view.theme.sidebar_dim),
                 ));
                 spans.push(Span::styled(
                     format!("{} ", title),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(self.view.theme.sidebar_dim),
                 ));
                 spans.push(Span::styled(
                     format!("{} ", state_char),
@@ -1342,7 +1357,7 @@ impl super::App {
             if i < n_tabs - 1 {
                 spans.push(Span::styled(
                     sep.to_string(),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(self.view.theme.sidebar_dim),
                 ));
             }
         }
@@ -1381,7 +1396,7 @@ impl super::App {
                 .unwrap_or_default();
             Span::styled(
                 format!(" [{} active: {}{}]", active_count, current, idle_info),
-                Style::default().fg(Color::Green),
+                Style::default().fg(self.view.theme.status_done),
             )
         } else {
             Span::raw("")
@@ -1395,13 +1410,13 @@ impl super::App {
                     format!(" {} ", msg),
                     Style::default()
                         .fg(Color::White)
-                        .bg(Color::Red)
+                        .bg(self.view.theme.status_error)
                         .add_modifier(Modifier::BOLD),
                 )
             } else {
                 Span::styled(
                     format!(" {} ", msg),
-                    Style::default().fg(Color::Red).bg(Color::Black),
+                    Style::default().fg(self.view.theme.status_error).bg(Color::Black),
                 )
             }
         } else {
@@ -1410,12 +1425,12 @@ impl super::App {
 
         let border_color = if self.popup.budget_alert.is_some() {
             if self.popup.budget_flash_on {
-                Color::Red
+                self.view.theme.status_error
             } else {
-                Color::DarkGray
+                self.view.theme.chat_border
             }
         } else {
-            Color::DarkGray
+            self.view.theme.chat_border
         };
 
         let chain_span = if let Some(ref chain) = self.chains.active_chain {
@@ -1438,7 +1453,7 @@ impl super::App {
                     agent_label
                 ),
                 Style::default()
-                    .fg(Color::Magenta)
+                    .fg(self.view.theme.agent_omp)
                     .add_modifier(Modifier::BOLD),
             )
         } else {
@@ -1460,7 +1475,7 @@ impl super::App {
                             stats.cpu_percent,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
-                        Style::default().fg(Color::Cyan),
+                        Style::default().fg(self.view.theme.accent),
                     )
                 } else {
                     Span::raw("")
@@ -1471,13 +1486,13 @@ impl super::App {
         };
 
         let mode_span = if self.view.focus == Focus::Chat && self.view.chat_mode == ChatMode::Passthrough {
-            Span::styled(" RAW", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            Span::styled(" RAW", Style::default().fg(self.view.theme.status_running).add_modifier(Modifier::BOLD))
         } else {
             Span::raw("")
         };
         let line = Line::from(vec![
             mode_span,
-            Span::styled(self.view.status.clone(), Style::default().fg(Color::White)),
+            Span::styled(self.view.status.clone(), Style::default().fg(self.view.theme.sidebar_text)),
             chain_span,
             pty_status,
             stats_span,
@@ -1485,16 +1500,18 @@ impl super::App {
             Span::raw("  "),
             Span::styled(
                 self.view.keybinds.status_hint(),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(self.view.theme.sidebar_dim),
             ),
         ]);
 
         frame.render_widget(
-            Paragraph::new(line).block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(border_color)),
-            ),
+            Paragraph::new(line)
+                .style(Style::default().bg(self.view.theme.sidebar_bg))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(border_color).bg(self.view.theme.sidebar_bg)),
+                ),
             area,
         );
     }
