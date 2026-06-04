@@ -2718,8 +2718,17 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            let seq = format!("\x1b[<64;{};{}M", mouse.column + 1, mouse.row + 1);
-                            let _ = slot.handle.write_input(seq.as_bytes());
+                            // SGR mouse sequence (for agents that request mouse tracking)
+                            let rect = app.view.last_chat_area;
+                            let col = mouse.column.saturating_sub(rect.x) + 1;
+                            let row = mouse.row.saturating_sub(rect.y).saturating_sub(1) + 1;
+                            if col > 0 && row > 0 && col <= rect.width && row <= rect.height {
+                                let _ = slot.handle.write_input(
+                                    format!("\x1b[<64;{};{}M", col, row).as_bytes(),
+                                );
+                            }
+                            // Also send ArrowUp as fallback for agents without mouse support
+                            let _ = slot.handle.write_input(&[27, 91, 65]); // \x1b[A
                         }
                     }
                     crossterm::event::MouseEventKind::ScrollDown => {
@@ -2727,8 +2736,16 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                             && let Some(idx) = app.ptys.active_pty
                             && let Some(slot) = app.ptys.ptys.get(idx)
                         {
-                            let seq = format!("\x1b[<65;{};{}M", mouse.column + 1, mouse.row + 1);
-                            let _ = slot.handle.write_input(seq.as_bytes());
+                            let rect = app.view.last_chat_area;
+                            let col = mouse.column.saturating_sub(rect.x) + 1;
+                            let row = mouse.row.saturating_sub(rect.y).saturating_sub(1) + 1;
+                            if col > 0 && row > 0 && col <= rect.width && row <= rect.height {
+                                let _ = slot.handle.write_input(
+                                    format!("\x1b[<65;{};{}M", col, row).as_bytes(),
+                                );
+                            }
+                            // Also send ArrowDown as fallback
+                            let _ = slot.handle.write_input(&[27, 91, 66]); // \x1b[B
                         }
                     }
                     _ => {}
