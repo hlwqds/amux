@@ -25,6 +25,7 @@
 - [x] `Home`/`End` 跳顶/底,`Ctrl+B`/`Ctrl+F` vi 风格翻页
 - [x] 状态栏显示 idle 时长 (`now - last_output_at > IDLE_THRESHOLD_SECS`)
 - [ ] 搜索功能重设计：1) `Ctrl+F` 触发 PTY scrollback 页内搜索（浏览器直觉），顶部覆盖搜索栏 + 匹配高亮 + n/N 跳转；2) `Ctrl+Shift+F` 触发全局搜索（跨 session 内容搜索，需重新设计交互：搜索框 → 结果列表 → 选中跳转到对应 session）；两者共享搜索栏 UI 组件，只在 Chat focus 且有 PTY 时可用
+- [ ] 最近使用虚拟工作空间：类似 Pinned 的虚拟 workspace，显示最近退出/完成的 N 个 session（按 last_active 倒序），方便快速回到最近的工作；正常 workspace 中这些 session 也仍然显示；从 `.title` 文件或 discovery 数据中读取 last_active 排序
 - [x] 可选:agent 空闲超阈值时触发 `notify-send` 通知 (已有桌面通知)
 
 ### P3: 打通 `amux serve` ↔ 正在运行的 PTY
