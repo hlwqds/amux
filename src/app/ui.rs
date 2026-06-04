@@ -1487,7 +1487,7 @@ impl super::App {
                 if stats.cpu_percent > 0.0 || stats.mem_rss_kb > 0 {
                     Span::styled(
                         format!(
-                            " {}% {}",
+                            " ⚡{}% 🧠{}",
                             stats.cpu_percent as u32,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
