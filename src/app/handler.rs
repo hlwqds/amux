@@ -157,54 +157,72 @@ impl super::App {
                     }
                     return Ok(Action::Continue);
                 }
-                // Scrollback: Page Up/Down
-                if key.code == KeyCode::PageUp {
+                // Scrollback / alternate screen forwarding: Page Up/Down
+                if key.code == KeyCode::PageUp || key.code == KeyCode::PageDown {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_up(
-                            self.view.last_chat_area.height.saturating_sub(2) as usize,
-                        );
+                        if slot.handle.is_alternate_screen() {
+                            let bytes = crate::util::key_to_bytes(&key);
+                            let _ = slot.handle.write_input(&bytes);
+                        } else if key.code == KeyCode::PageUp {
+                            slot.handle.scroll_page_up(
+                                self.view.last_chat_area.height.saturating_sub(2) as usize,
+                            );
+                        } else {
+                            slot.handle.scroll_page_down(
+                                self.view.last_chat_area.height.saturating_sub(2) as usize,
+                            );
+                        }
                     }
                     return Ok(Action::Continue);
                 }
-                if key.code == KeyCode::PageDown {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_down(
-                            self.view.last_chat_area.height.saturating_sub(2) as usize,
-                        );
-                    }
-                    return Ok(Action::Continue);
-                }
-                // P2: Vi-style scrollback keys
+                // P2: Vi-style scrollback keys (also forward in alternate screen)
                 // Ctrl+B: page up (vi backward)
                 if key.code == KeyCode::Char('b') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_up(
-                            self.view.last_chat_area.height.saturating_sub(2) as usize,
-                        );
+                        if slot.handle.is_alternate_screen() {
+                            let _ = slot.handle.write_input(&[27, 91, 53, 126]);
+                        } else {
+                            slot.handle.scroll_page_up(
+                                self.view.last_chat_area.height.saturating_sub(2) as usize,
+                            );
+                        }
                     }
                     return Ok(Action::Continue);
                 }
                 // Ctrl+F: page down (vi forward)
                 if key.code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.scroll_page_down(
-                            self.view.last_chat_area.height.saturating_sub(2) as usize,
-                        );
+                        if slot.handle.is_alternate_screen() {
+                            let _ = slot.handle.write_input(&[27, 91, 54, 126]);
+                        } else {
+                            slot.handle.scroll_page_down(
+                                self.view.last_chat_area.height.saturating_sub(2) as usize,
+                            );
+                        }
                     }
                     return Ok(Action::Continue);
                 }
-                // Home: scroll to top
+                // Home: scroll to top / forward in alternate screen
                 if key.code == KeyCode::Home {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        // Large scroll to reach top
-                        slot.handle.scroll_page_up(99999);
+                        if slot.handle.is_alternate_screen() {
+                            let bytes = crate::util::key_to_bytes(&key);
+                            let _ = slot.handle.write_input(&bytes);
+                        } else {
+                            slot.handle.scroll_page_up(99999);
+                        }
                     }
                     return Ok(Action::Continue);
                 }
-                // End: scroll to bottom (reset scroll)
+                // End: scroll to bottom / forward in alternate screen
                 if key.code == KeyCode::End {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
-                        slot.handle.reset_scroll();
+                        if slot.handle.is_alternate_screen() {
+                            let bytes = crate::util::key_to_bytes(&key);
+                            let _ = slot.handle.write_input(&bytes);
+                        } else {
+                            slot.handle.reset_scroll();
+                        }
                     }
                     return Ok(Action::Continue);
                 }

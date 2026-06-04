@@ -212,6 +212,10 @@ impl PtyHandle {
         self.parser.write().screen_mut().set_scrollback(0);
     }
 
+    pub fn is_alternate_screen(&self) -> bool {
+        self.parser.read().screen().alternate_screen()
+    }
+
     pub fn idle_secs(&self) -> u64 {
         let last = self.last_output_at.load(Ordering::Relaxed);
         now_secs().saturating_sub(last)
