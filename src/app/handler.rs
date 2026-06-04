@@ -11,8 +11,10 @@ impl super::App {
 
         if self.view.focus == Focus::Chat {
             if let Some(idx) = self.ptys.active_pty {
-                // Tab: go to sidebar
-                if key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT) {
+                // Tab / Alt+h: go to sidebar
+                if (key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT))
+                    || (key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT))
+                {
                     self.view.focus = Focus::Sidebar;
                     self.refresh_sessions();
                     self.view.status = "Sessions refreshed.".into();
@@ -357,7 +359,9 @@ impl super::App {
             self.request_delete();
             return Ok(Action::Continue);
         }
-        if key.code == KeyCode::Tab {
+        if key.code == KeyCode::Tab
+            || (key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT))
+        {
             if self.ptys.ptys.is_empty() {
                 self.view.status = "No active session. Press Enter to start one.".into();
             } else {
