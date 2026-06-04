@@ -1554,17 +1554,17 @@ impl super::App {
             }
         };
 
-        let mode_span =
-            if self.view.focus == Focus::Chat && self.view.chat_mode == ChatMode::Passthrough {
-                Span::styled(
-                    " RAW",
-                    Style::default()
-                        .fg(self.view.theme.status_running)
-                        .add_modifier(Modifier::BOLD),
-                )
-            } else {
-                Span::raw("")
-            };
+        let mode_span = if self.view.focus == Focus::Chat
+            && self.view.chat_mode == ChatMode::Passthrough
+        {
+            Span::styled(
+                " RAW",
+                Style::default()
+                    .fg(self.view.theme.status_running),
+            )
+        } else {
+            Span::raw("")
+        };
         let line = Line::from(vec![
             mode_span,
             Span::styled(
