@@ -191,6 +191,10 @@ impl super::App {
                     if !bytes.is_empty()
                         && let Some(slot) = self.ptys.ptys.get(idx)
                     {
+                        // Reset scrollback position so the view snaps back
+                        // to the bottom (live content) when the user types —
+                        // same behaviour as Kitty.
+                        slot.handle.reset_scroll();
                         let _ = slot.handle.write_input(&bytes);
                         self.view.screen_changed = true;
                     }
