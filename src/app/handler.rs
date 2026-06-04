@@ -661,48 +661,57 @@ impl super::App {
         if self.view.input_mode == InputMode::ChainSelect {
             return self.handle_chain_select_key(key);
         }
-        // Panel switching: Alt+key switches between popup panels without dismissing first
-        let kb = &self.view.keybinds;
-        if kb.help.matches_event(&key) {
-            self.view.input_mode = InputMode::Help;
-            return Ok(Action::Continue);
-        }
-        if kb.settings.matches_event(&key) {
-            self.view.input_mode = InputMode::Settings;
-            self.view.status =
-                "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
-            return Ok(Action::Continue);
-        }
-        if kb.theme.matches_event(&key) {
-            self.view.input_mode = InputMode::ThemeSelect;
-            let mut themes = vec![
-                crate::theme::ThemeName::Dark,
-                crate::theme::ThemeName::Light,
+        // Panel cycling: Alt+h / Alt+l to switch between popup panels
+        if key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT)
+            || key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT)
+        {
+            let panels: Vec<InputMode> = vec![
+                InputMode::Help,
+                InputMode::Settings,
+                InputMode::KeybindView,
+                InputMode::ThemeSelect,
+                InputMode::Stats,
+                InputMode::TokenStats,
             ];
-            if let Some(customs) = crate::theme::discover_custom_themes() {
-                themes.extend(customs);
-            }
-            let sel = themes
+            let current = panels
                 .iter()
-                .position(|t| t == &self.view.theme_name)
+                .position(|m| *m == self.view.input_mode)
                 .unwrap_or(0);
-            self.theme_list = themes;
-            self.theme_list_state.select(Some(sel));
-            return Ok(Action::Continue);
-        }
-        if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
-            self.view.input_mode = InputMode::Stats;
-            self.view.status = "Activity Statistics (any key to close)".into();
-            return Ok(Action::Continue);
-        }
-        if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
-            self.view.input_mode = InputMode::TokenStats;
-            self.view.status = "Token Usage (any key to close)".into();
-            return Ok(Action::Continue);
-        }
-        if key.code == KeyCode::Char('k') && key.modifiers.is_empty() {
-            // Switch to keybind view from any popup panel
-            self.view.input_mode = InputMode::KeybindView;
+            let next = if key.code == KeyCode::Char('l') {
+                (current + 1) % panels.len()
+            } else {
+                (current + panels.len() - 1) % panels.len()
+            };
+            let target = panels[next];
+            self.view.input_mode = target;
+            match target {
+                InputMode::Settings => {
+                    self.view.status =
+                        "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
+                }
+                InputMode::ThemeSelect => {
+                    let mut themes = vec![
+                        crate::theme::ThemeName::Dark,
+                        crate::theme::ThemeName::Light,
+                    ];
+                    if let Some(customs) = crate::theme::discover_custom_themes() {
+                        themes.extend(customs);
+                    }
+                    let sel = themes
+                        .iter()
+                        .position(|t| t == &self.view.theme_name)
+                        .unwrap_or(0);
+                    self.theme_list = themes;
+                    self.theme_list_state.select(Some(sel));
+                }
+                InputMode::Stats => {
+                    self.view.status = "Activity Statistics (any key to close)".into();
+                }
+                InputMode::TokenStats => {
+                    self.view.status = "Token Usage (any key to close)".into();
+                }
+                _ => {}
+            }
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::Help {
