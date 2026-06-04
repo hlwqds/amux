@@ -217,6 +217,11 @@ impl PtyHandle {
                                             for c in 0..cols {
                                                 let p = Point::new(Line(r as i32), Column(c));
                                                 let cell = &grid[p];
+                                                if cell.flags.contains(
+                                                    alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
+                                                ) {
+                                                    continue;
+                                                }
                                                 if cell.c == '\0' {
                                                     line.push(' ');
                                                 } else {
@@ -439,6 +444,11 @@ impl PtyHandle {
             for c in 0..cols {
                 let p = Point::new(Line(line_idx), Column(c));
                 let cell = &t.grid()[p];
+                if cell.flags.contains(
+                    alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
+                ) {
+                    continue;
+                }
                 let ch = if cell.c == '\0' { ' ' } else { cell.c };
                 let mut tmp = [0u8; 4];
                 line_buf.push_str(ch.encode_utf8(&mut tmp));

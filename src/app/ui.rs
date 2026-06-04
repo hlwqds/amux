@@ -721,6 +721,12 @@ impl super::App {
                         for x in 0..max_cols {
                             let p = Point::new(AlacLine(line_idx), Column(x as usize));
                             let cell = &grid[p];
+                            // Skip spacer cells — they are the right half of a
+                            // wide (CJK) character.  Rendering them as spaces
+                            // would overwrite the wide glyph.
+                            if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                                continue;
+                            }
                             let ch = if cell.c == '\0' { ' ' } else { cell.c };
                             let mut style = Style::default();
                             if let Some(c) = ansi_to_ratatui_color(cell.fg) {
@@ -823,6 +829,9 @@ impl super::App {
                 for x in 0..max_cols {
                     let p = Point::new(AlacLine(line_idx), Column(x as usize));
                     let cell = &grid[p];
+                    if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                        continue;
+                    }
                     let ch = if cell.c == '\0' { ' ' } else { cell.c };
                     let mut style = Style::default();
                     if let Some(c) = ansi_to_ratatui_color(cell.fg) {
