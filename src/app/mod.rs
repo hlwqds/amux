@@ -2667,45 +2667,62 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 drop(guard);
                 let rect = app.view.last_chat_area;
                 if cursor_row < rect.height && cursor_col < rect.width {
-                    use crossterm::cursor::SetCursorStyle;
-                    let shape = match cursor_style.shape {
-                        alacritty_terminal::vte::ansi::CursorShape::Block => {
-                            if cursor_style.blinking {
-                                SetCursorStyle::BlinkingBlock
-                            } else {
+                    // Only forward cursor shape when the PTY program has
+                    // explicitly changed it from the default (Block, not
+                    // blinking).  This avoids overriding the user's terminal
+                    // cursor preference (e.g. beam) when agents don't set it.
+                    let default_shape = alacritty_terminal::vte::ansi::CursorShape::Block;
+                    let is_explicit = cursor_style.shape != default_shape || cursor_style.blinking;
+                    if is_explicit {
+                        use crossterm::cursor::SetCursorStyle;
+                        let shape = match cursor_style.shape {
+                            alacritty_terminal::vte::ansi::CursorShape::Block => {
+                                if cursor_style.blinking {
+                                    SetCursorStyle::BlinkingBlock
+                                } else {
+                                    SetCursorStyle::SteadyBlock
+                                }
+                            }
+                            alacritty_terminal::vte::ansi::CursorShape::Underline => {
+                                if cursor_style.blinking {
+                                    SetCursorStyle::BlinkingUnderScore
+                                } else {
+                                    SetCursorStyle::SteadyUnderScore
+                                }
+                            }
+                            alacritty_terminal::vte::ansi::CursorShape::Beam => {
+                                if cursor_style.blinking {
+                                    SetCursorStyle::BlinkingBar
+                                } else {
+                                    SetCursorStyle::SteadyBar
+                                }
+                            }
+                            alacritty_terminal::vte::ansi::CursorShape::HollowBlock => {
                                 SetCursorStyle::SteadyBlock
                             }
-                        }
-                        alacritty_terminal::vte::ansi::CursorShape::Underline => {
-                            if cursor_style.blinking {
-                                SetCursorStyle::BlinkingUnderScore
-                            } else {
-                                SetCursorStyle::SteadyUnderScore
+                            alacritty_terminal::vte::ansi::CursorShape::Hidden => {
+                                SetCursorStyle::SteadyBlock
                             }
-                        }
-                        alacritty_terminal::vte::ansi::CursorShape::Beam => {
-                            if cursor_style.blinking {
-                                SetCursorStyle::BlinkingBar
-                            } else {
-                                SetCursorStyle::SteadyBar
-                            }
-                        }
-                        alacritty_terminal::vte::ansi::CursorShape::HollowBlock => {
-                            SetCursorStyle::SteadyBlock
-                        }
-                        alacritty_terminal::vte::ansi::CursorShape::Hidden => {
-                            SetCursorStyle::SteadyBlock
-                        }
-                    };
-                    let _ = crossterm::execute!(
-                        std::io::stdout(),
-                        shape,
-                        crossterm::cursor::MoveTo(
-                            rect.x + cursor_col,
-                            rect.y + cursor_row + 2,
-                        ),
-                        crossterm::cursor::Show,
-                    );
+                        };
+                        let _ = crossterm::execute!(
+                            std::io::stdout(),
+                            shape,
+                            crossterm::cursor::MoveTo(
+                                rect.x + cursor_col,
+                                rect.y + cursor_row + 2,
+                            ),
+                            crossterm::cursor::Show,
+                        );
+                    } else {
+                        let _ = crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::cursor::MoveTo(
+                                rect.x + cursor_col,
+                                rect.y + cursor_row + 2,
+                            ),
+                            crossterm::cursor::Show,
+                        );
+                    }
                 }
                 // Hide cursor when terminal program hides it (e.g. alternate-screen apps).
                 if !cursor_visible {
