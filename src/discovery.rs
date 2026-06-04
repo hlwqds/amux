@@ -99,12 +99,14 @@ pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
     discover_gsd_sessions(workspaces, &mut sessions);
     discover_omp_sessions(workspaces, &mut sessions);
 
-    // Load tags from title override files
+    // Reload title/pinned/tags from override files
     for session in &mut sessions {
-        if let Some(meta) = load_session_meta(&session.id, Some(&session.workspace_path))
-            && !meta.tags.is_empty()
-        {
-            session.tags = meta.tags;
+        if let Some(meta) = load_session_meta(&session.id, Some(&session.workspace_path)) {
+            if !meta.tags.is_empty() {
+                session.tags = meta.tags;
+            }
+            session.title = meta.title;
+            session.pinned = meta.pinned;
         }
     }
 
