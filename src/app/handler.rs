@@ -109,6 +109,122 @@ impl super::App {
                     // Alt+key with no match: fall through to PTY forward
                 }
 
+                // Alt+Shift+key: feature keys (always intercepted, never forwarded)
+                if key.modifiers.contains(KeyModifiers::ALT)
+                    && key.modifiers.contains(KeyModifiers::SHIFT)
+                {
+                    match key.code {
+                        // Alt+Shift+B: scrollback page up
+                        KeyCode::Char('B') => {
+                            if let Some(slot) = self.ptys.ptys.get(idx) {
+                                if slot.handle.is_alternate_screen() {
+                                    let _ = slot.handle.write_input(&[27, 91, 53, 126]);
+                                } else {
+                                    slot.handle.scroll_page_up(
+                                        self.view.last_chat_area.height.saturating_sub(2) as usize,
+                                    );
+                                }
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+F: scrollback search
+                        KeyCode::Char('F') => {
+                            if let Some(slot) = self.ptys.ptys.get(idx) {
+                                if slot.handle.is_alternate_screen() {
+                                    let _ = slot.handle.write_input(&[27, 91, 54, 126]);
+                                } else {
+                                    self.view.input_mode = InputMode::ScrollbackSearch;
+                                    self.view.scrollback_query.clear();
+                                    self.view.scrollback_matches.clear();
+                                    self.view.scrollback_match_idx = 0;
+                                }
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+T: token usage
+                        KeyCode::Char('T') => {
+                            self.view.input_mode = InputMode::TokenStats;
+                            self.view.status = "Token Usage (any key to close)".into();
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+S: stats
+                        KeyCode::Char('S') => {
+                            self.view.input_mode = InputMode::Stats;
+                            self.view.status = "Activity Statistics (any key to close)".into();
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+E: chain select
+                        KeyCode::Char('E') => {
+                            if self.chains.chains.is_empty() {
+                                self.view.status = "No chains configured. Add chains to config.json.".into();
+                            } else {
+                                self.view.input_mode = InputMode::ChainSelect;
+                                self.chains.chain_state.select(Some(0));
+                                self.view.status = "Select chain (Enter=start, Esc=cancel)".into();
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+G: timeline
+                        KeyCode::Char('G') => {
+                            use crate::discovery::extract_timeline;
+                            let timeline = extract_timeline(&self.sessions.sessions);
+                            if timeline.is_empty() {
+                                self.view.status = "No timeline events found.".into();
+                            } else {
+                                self.timeline_events = timeline;
+                                self.view.input_mode = InputMode::Timeline;
+                                self.view.status = format!(
+                                    "Timeline ({} events, any key to close)",
+                                    self.timeline_events.len()
+                                );
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+W: agent recommendations
+                        KeyCode::Char('W') => {
+                            use crate::discovery::compute_agent_recommendations;
+                            let recs = compute_agent_recommendations(&self.sessions.sessions);
+                            if recs.is_empty() {
+                                self.view.status = "No session history for recommendations.".into();
+                            } else {
+                                self.agent_recommendations = recs;
+                                self.view.input_mode = InputMode::AgentRecommend;
+                                self.view.status = "Agent Recommendations (any key to close)".into();
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+R: remote view
+                        KeyCode::Char('R') => {
+                            if self.remote_hosts.is_empty() {
+                                self.view.status =
+                                    "No remote hosts configured. Add to config.json remote_hosts.".into();
+                            } else {
+                                self.remote_sessions.clear();
+                                for host in &self.remote_hosts.clone() {
+                                    let sessions = crate::discovery::discover_remote_sessions(host);
+                                    self.remote_sessions.extend(sessions);
+                                }
+                                if self.remote_sessions.is_empty() {
+                                    self.view.status = "No remote sessions found.".into();
+                                } else {
+                                    self.view.input_mode = InputMode::RemoteView;
+                                    self.view.status = format!(
+                                        "Remote Sessions ({} found, any key to close)",
+                                        self.remote_sessions.len()
+                                    );
+                                }
+                            }
+                            return Ok(Action::Continue);
+                        }
+                        // Alt+Shift+X: diff
+                        KeyCode::Char('X') => {
+                            self.start_diff()?;
+                            return Ok(Action::Continue);
+                        }
+                        _ => {} // fall through
+                    }
+                }
+
                 // Ctrl+Q: terminate session (always)
                 if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
@@ -217,39 +333,6 @@ impl super::App {
                             slot.handle.scroll_page_down(
                                 self.view.last_chat_area.height.saturating_sub(2) as usize,
                             );
-                        }
-                    }
-                    return Ok(Action::Continue);
-                }
-                // Alt+Shift+B: page up
-                if key.code == KeyCode::Char('B')
-                    && key.modifiers.contains(KeyModifiers::ALT)
-                    && key.modifiers.contains(KeyModifiers::SHIFT)
-                {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        if slot.handle.is_alternate_screen() {
-                            let _ = slot.handle.write_input(&[27, 91, 53, 126]);
-                        } else {
-                            slot.handle.scroll_page_up(
-                                self.view.last_chat_area.height.saturating_sub(2) as usize,
-                            );
-                        }
-                    }
-                    return Ok(Action::Continue);
-                }
-                // Alt+Shift+F: scrollback search or page-down
-                if key.code == KeyCode::Char('F')
-                    && key.modifiers.contains(KeyModifiers::ALT)
-                    && key.modifiers.contains(KeyModifiers::SHIFT)
-                {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        if slot.handle.is_alternate_screen() {
-                            let _ = slot.handle.write_input(&[27, 91, 54, 126]);
-                        } else {
-                            self.view.input_mode = InputMode::ScrollbackSearch;
-                            self.view.scrollback_query.clear();
-                            self.view.scrollback_matches.clear();
-                            self.view.scrollback_match_idx = 0;
                         }
                     }
                     return Ok(Action::Continue);
