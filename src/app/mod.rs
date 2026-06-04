@@ -633,7 +633,7 @@ impl App {
                     {
                         let _ = crate::config::save_snapshot_meta(session_id, snapshot);
                     }
-                    // Auto-generate session summary
+                    // Auto-generate session summary (saved to file, no popup)
                     if let Some(ref session_id) = slot.info.session_id
                         && let Some(session) =
                             self.sessions.sessions.iter().find(|s| &s.id == session_id)
@@ -644,22 +644,6 @@ impl App {
                         let short_id = &session_id[..session_id.len().min(16)];
                         let path = summary_dir.join(format!("{}.md", short_id));
                         let _ = std::fs::write(&path, &summary);
-                        // Auto-popup summary preview
-                        self.popup.preview_show_summary = true;
-                        self.popup.preview_session_id = Some(session_id.clone());
-                        self.popup.preview_lines = summary
-                            .lines()
-                            .map(|l| PreviewLine {
-                                role: if l.starts_with('#') {
-                                    "heading"
-                                } else {
-                                    "text"
-                                }
-                                .to_string(),
-                                text: l.to_string(),
-                            })
-                            .collect();
-                        self.view.input_mode = InputMode::SummaryPreview;
                     }
                     // Merge session knowledge into workspace knowledge base
                     {
