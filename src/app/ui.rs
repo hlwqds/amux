@@ -159,6 +159,28 @@ impl super::App {
                             .style(Style::default().fg(Color::DarkGray)),
                     ])
                 }
+                TreeNode::RecentWorkspace => {
+                    // Count sessions in the Recent virtual workspace from the tree
+                    let count = self.sessions.tree.iter().skip_while(|n| !matches!(n, TreeNode::RecentWorkspace)).skip(1).take_while(|n| matches!(n, TreeNode::Session(_, _))).count();
+                    ListItem::new(vec![
+                        Line::from(vec![
+                            Span::styled(
+                                "▼ 🕐 ",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                            Span::styled(
+                                "Recent",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                        ]),
+                        Line::from(format!("   {} recent sessions", count))
+                            .style(Style::default().fg(Color::DarkGray)),
+                    ])
+                }
                 TreeNode::Workspace(wi) => {
                     let ws = &self.sessions.workspaces[*wi];
                     let icon = if ws.expanded { "\u{25bc}" } else { "\u{25b6}" };
@@ -711,6 +733,28 @@ impl super::App {
                 lines.push(Line::from(""));
                 lines.push(
                     Line::from("Press ! on a session to unpin it")
+                        .style(Style::default().fg(Color::DarkGray)),
+                );
+            }
+            Some(&TreeNode::RecentWorkspace) => {
+                let count = self.sessions.tree.iter().skip_while(|n| !matches!(n, TreeNode::RecentWorkspace)).skip(1).take_while(|n| matches!(n, TreeNode::Session(_, _))).count();
+                lines.push(
+                    Line::from("🕐 Recent Sessions").style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                );
+                lines.push(Line::from(format!(
+                    "{} recent session(s) from all workspaces",
+                    count
+                )));
+                lines.push(Line::from(
+                    "Most recently active sessions from all workspaces",
+                ));
+                lines.push(Line::from(""));
+                lines.push(
+                    Line::from("Sessions are automatically sorted by last activity")
                         .style(Style::default().fg(Color::DarkGray)),
                 );
             }

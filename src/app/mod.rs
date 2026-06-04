@@ -38,6 +38,12 @@ struct AppView {
     screen_changed: bool,
     /// Previous input_mode to detect mode transitions requiring re-render.
     prev_input_mode: InputMode,
+    /// Active query for PTY scrollback search (Ctrl+F).
+    scrollback_query: String,
+    /// Match positions from scrollback search: (row, col, length).
+    scrollback_matches: Vec<(u16, u16, usize)>,
+    /// Currently highlighted match index in scrollback_matches.
+    scrollback_match_idx: usize,
 }
 
 #[derive(Clone, Default)]
@@ -135,6 +141,9 @@ impl Default for AppView {
             keybinds: Keybinds::default(),
             screen_changed: true,
             prev_input_mode: InputMode::default(),
+            scrollback_query: String::new(),
+            scrollback_matches: Vec::new(),
+            scrollback_match_idx: 0,
         }
     }
 }
@@ -322,6 +331,9 @@ impl App {
                 keybinds: config.keybinds,
                 screen_changed: true,
                 prev_input_mode: InputMode::None,
+                scrollback_query: String::new(),
+                scrollback_matches: Vec::new(),
+                scrollback_match_idx: 0,
             },
             ptys: PtyManager::default(),
             sessions: SessionStore {
@@ -1276,15 +1288,61 @@ impl App {
                 tree.push(TreeNode::Session(wi, si));
             }
         }
+        // Collect recent sessions: non-pinned, non-active, sorted by last_active desc, top 10
+        let active_session_ids: Vec<String> = self
+            .ptys
+            .ptys
+            .iter()
+            .filter_map(|slot| slot.info.session_id.clone())
+            .collect();
+        let mut recent_idxs: Vec<usize> = self
+            .sessions
+            .sessions
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                !s.pinned
+                    && !active_session_ids.iter().any(|sid| sid == &s.id)
+                    && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
+                    && self.view.tag_filter.as_ref().is_none_or(|tag| {
+                        s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
+                    })
+                    && date_cutoff.is_none_or(|cutoff| s.last_active >= cutoff)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        recent_idxs.sort_by(|&a, &b| {
+            self.sessions.sessions[b]
+                .last_active
+                .cmp(&self.sessions.sessions[a].last_active)
+        });
+        recent_idxs.truncate(10);
+        if !recent_idxs.is_empty() {
+            tree.push(TreeNode::RecentWorkspace);
+            for &si in &recent_idxs {
+                let ws_path = &self.sessions.sessions[si].workspace_path;
+                let wi = self
+                    .sessions
+                    .workspaces
+                    .iter()
+                    .position(|w| {
+                        w.path.as_deref() == Some(ws_path)
+                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                    })
+                    .unwrap_or(0);
+                tree.push(TreeNode::Session(wi, si));
+            }
+        }
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
             let sess_idxs: Vec<usize> = self
                 .sessions
                 .sessions
                 .iter()
                 .enumerate()
-                .filter(|(_, s)| {
+                .filter(|(i, s)| {
                     self.ws_matches_path(wi, &s.workspace_path)
                             && !s.pinned  // pinned sessions shown in virtual workspace above
+                            && !recent_idxs.contains(i) // recent sessions shown in virtual workspace above
                             && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
                             && self.view.tag_filter.as_ref().is_none_or(|tag| {
                                 s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
@@ -2363,6 +2421,7 @@ impl App {
             }
             Some(TreeNode::AgentHeader(_)) => {}
             Some(TreeNode::PinnedWorkspace) => {}
+            Some(TreeNode::RecentWorkspace) => {}
             Some(TreeNode::ArchivedHeader) => {}
             Some(TreeNode::WorkspaceWarning(_, _)) => {}
             Some(TreeNode::ArchivedSession(_wi, ai))

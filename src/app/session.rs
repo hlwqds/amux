@@ -279,6 +279,7 @@ impl super::App {
             }
             Some(TreeNode::ArchivedSession(_, _)) => {}
             Some(TreeNode::PinnedWorkspace) => {}
+            Some(TreeNode::RecentWorkspace) => {}
             None => {}
         }
         Ok(())
