@@ -1045,8 +1045,16 @@ impl App {
                             .collect::<Vec<_>>()
                             .join(", ");
                         new_warnings.push(format!(
-                            "{} & {} both modifying: {}",
-                            title_a, title_b, file_list
+                            "[{}] {} & {} both modifying: {}",
+                            self.ptys.ptys[pty_files[a].0]
+                                .info
+                                .workspace_path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("?"),
+                            title_a,
+                            title_b,
+                            file_list
                         ));
                     }
                 }

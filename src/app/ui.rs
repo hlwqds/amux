@@ -2365,8 +2365,8 @@ impl super::App {
     }
 
     fn render_conflict_resolve(&self, frame: &mut Frame, area: Rect) {
-        let height = (self.popup.conflict_warnings.len() + 7).min(20) as u16;
-        let popup_area = centered_rect(65, height, area);
+        let height = (self.popup.conflict_warnings.len() * 2 + 9).min(30) as u16;
+        let popup_area = centered_rect(80, height, area);
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![Span::styled(
             "  \u{26a0} File Conflict Detected",
@@ -2410,7 +2410,7 @@ impl super::App {
                 Style::default().fg(Color::DarkGray),
             )));
         }
-        let paragraph = Paragraph::new(lines);
+        let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
         frame.render_widget(Clear, popup_area);
         frame.render_widget(
             paragraph.block(
