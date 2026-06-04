@@ -657,6 +657,50 @@ impl super::App {
         if self.view.input_mode == InputMode::ChainSelect {
             return self.handle_chain_select_key(key);
         }
+        // Panel switching: Alt+key switches between popup panels without dismissing first
+        let kb = &self.view.keybinds;
+        if kb.help.matches_event(&key) {
+            self.view.input_mode = InputMode::Help;
+            return Ok(Action::Continue);
+        }
+        if kb.settings.matches_event(&key) {
+            self.view.input_mode = InputMode::Settings;
+            self.view.status =
+                "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
+            return Ok(Action::Continue);
+        }
+        if kb.theme.matches_event(&key) {
+            self.view.input_mode = InputMode::ThemeSelect;
+            let mut themes = vec![
+                crate::theme::ThemeName::Dark,
+                crate::theme::ThemeName::Light,
+            ];
+            if let Some(customs) = crate::theme::discover_custom_themes() {
+                themes.extend(customs);
+            }
+            let sel = themes
+                .iter()
+                .position(|t| t == &self.view.theme_name)
+                .unwrap_or(0);
+            self.theme_list = themes;
+            self.theme_list_state.select(Some(sel));
+            return Ok(Action::Continue);
+        }
+        if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.view.input_mode = InputMode::Stats;
+            self.view.status = "Activity Statistics (any key to close)".into();
+            return Ok(Action::Continue);
+        }
+        if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.view.input_mode = InputMode::TokenStats;
+            self.view.status = "Token Usage (any key to close)".into();
+            return Ok(Action::Continue);
+        }
+        if key.code == KeyCode::Char('k') && key.modifiers.is_empty() {
+            // Switch to keybind view from any popup panel
+            self.view.input_mode = InputMode::KeybindView;
+            return Ok(Action::Continue);
+        }
         if self.view.input_mode == InputMode::Help {
             // Any key closes help
             self.view.input_mode = InputMode::None;
