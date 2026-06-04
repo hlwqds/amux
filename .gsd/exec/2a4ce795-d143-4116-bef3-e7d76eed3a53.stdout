@@ -1,5 +1,0 @@
-230:                if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
-238:                if key.modifiers.contains(KeyModifiers::CONTROL)
----
-230:                if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
-238:                if key.modifiers.contains(KeyModifiers::CONTROL)

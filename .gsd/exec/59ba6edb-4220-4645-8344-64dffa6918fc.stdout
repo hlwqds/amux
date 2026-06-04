@@ -1,2 +1,0 @@
-1260:        lines.push(Line::from("Ctrl+Q       Kill current Claude Code session"));
-1462:                "Enter:new/resume e:expand r:refresh R:rename N:new-ws D:del-ws Tab:toggle Ctrl+J/K:switch Ctrl+Q:kill q:quit",

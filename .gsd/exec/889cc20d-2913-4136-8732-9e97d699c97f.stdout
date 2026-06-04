@@ -1,4 +1,0 @@
-235:                    self.status = "Claude Code terminated. Sessions refreshed.".into();
-1260:        lines.push(Line::from("Ctrl+Q       Kill current Claude Code session"));
-1352:        let help = Line::from(" C:Claude  X:Codex  j/k:navigate  Enter:confirm  Esc:cancel")
-1483:        anyhow::bail!("No agent CLI found. Install Claude Code or Codex.");

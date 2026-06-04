@@ -1,5 +1,0 @@
-110:            if slot.info.agent == Agent::Codex && !slot.handle.is_alive() {
-468:                if self.available_agents.contains(&Agent::Codex) =>
-473:                        .position(|a| *a == Agent::Codex)
-1352:        let help = Line::from(" C:Claude  X:Codex  j/k:navigate  Enter:confirm  Esc:cancel")
-1483:        anyhow::bail!("No agent CLI found. Install Claude Code or Codex.");

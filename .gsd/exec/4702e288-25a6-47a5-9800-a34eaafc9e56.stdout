@@ -1,7 +1,0 @@
-436:    fn test_app(workspaces: Vec<Workspace>, sessions: Vec<Session>) -> App {
-527:    fn filter_returns_matching_sessions() {
-553:    fn filter_empty_query_shows_all() {
-566:    fn filter_no_matches_empty_tree() {
-578:    fn filter_selection_clamped() {
-608:    fn filter_restores_all_on_clear() {
-628:    fn filter_workspaces_independently() {

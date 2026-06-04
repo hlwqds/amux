@@ -1,2 +1,0 @@
-1195:                    Line::from("Press Enter to start a named Claude Code session")
-1494:        anyhow::bail!("No agent CLI found. Install Claude Code, Codex, or GSD.");

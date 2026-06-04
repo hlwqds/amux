@@ -1,1 +1,0 @@
-    fn test_app(workspaces: Vec<Workspace>, sessions: Vec<Session>) -> App {

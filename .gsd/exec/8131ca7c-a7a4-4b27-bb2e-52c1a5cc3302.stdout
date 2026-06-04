@@ -1,7 +1,0 @@
-171:                code: KeyCode::Char('1'),
-174:                self.toggle_agent_filter(Agent::Claude);
-179:                code: KeyCode::Char('2'),
-182:                self.toggle_agent_filter(Agent::Codex);
-187:                code: KeyCode::Char('3'),
-190:                self.toggle_agent_filter(Agent::Gsd);
-268:                self.agent_filter = None;
