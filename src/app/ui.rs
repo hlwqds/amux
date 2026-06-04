@@ -1309,29 +1309,26 @@ impl super::App {
             Span::raw("")
         };
 
-        // Total resource usage across all active PTYs
+        // Resource usage for the active PTY only
         let stats_span = {
-            let total_cpu: f64 = self
+            let stats = self
                 .ptys
-                .ptys
-                .iter()
-                .filter_map(|s| s.process_stats.as_ref().map(|p| p.cpu_percent))
-                .sum();
-            let total_mem_kb: u64 = self
-                .ptys
-                .ptys
-                .iter()
-                .filter_map(|s| s.process_stats.as_ref().map(|p| p.mem_rss_kb))
-                .sum();
-            if total_cpu > 0.0 || total_mem_kb > 0 {
-                Span::styled(
-                    format!(
-                        " CPU:{:.1}% MEM:{}",
-                        total_cpu,
-                        crate::procfs::format_bytes(total_mem_kb * 1024)
-                    ),
-                    Style::default().fg(Color::Cyan),
-                )
+                .active_pty
+                .and_then(|idx| self.ptys.ptys.get(idx))
+                .and_then(|s| s.process_stats.clone());
+            if let Some(ref stats) = stats {
+                if stats.cpu_percent > 0.0 || stats.mem_rss_kb > 0 {
+                    Span::styled(
+                        format!(
+                            " CPU:{:.1}% MEM:{}",
+                            stats.cpu_percent,
+                            crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
+                        ),
+                        Style::default().fg(Color::Cyan),
+                    )
+                } else {
+                    Span::raw("")
+                }
             } else {
                 Span::raw("")
             }
