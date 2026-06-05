@@ -5,6 +5,7 @@ pub mod chain;
 pub mod config;
 pub mod discovery;
 pub mod doctor;
+pub mod extraction;
 pub mod headless;
 pub mod knowledge;
 pub mod mcp;

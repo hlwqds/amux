@@ -278,7 +278,14 @@
 - **修复**:`Vec<String>` → `` `Vec<String>` ``,CLI usage → backtick code span,URLs → angle bracket links
 - **验证**:`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` clean
 
----
+### 67. [x] P2 拆分 `discovery.rs` god-file (2025→721 行)
+- **位置**:`src/extraction.rs` — 新文件,从 `discovery.rs` 提取 30+ 个 session 内容分析函数
+- **包含**:parse_gsd_session, parse_codex_session, clean_user_message, extract_text_from_content,
+  preview_session_content, export_session_to_markdown, extract_branch_points/context,
+  extract_token_usage, extract_session_output, compute_diff, discover_remote_sessions,
+  extract_timeline, compute_agent_recommendations, generate_session_summary, cross_session_search
+- **效果**:`discovery.rs` 从 2025 行降至 721 行 (64% reduction),`extraction.rs` 1311 行
+- **re-export**:`discovery.rs` 添加 `pub use crate::extraction::*` 保持 API 兼容
 
 ## 五、推荐的执行顺序
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
