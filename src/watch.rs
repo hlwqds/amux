@@ -74,3 +74,69 @@ impl SessionWatcher {
         changed
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn new_creates_valid_watcher() {
+        let watcher = SessionWatcher::new();
+        // A fresh watcher should have no pending changes
+        assert!(!watcher.poll());
+    }
+
+    #[test]
+    fn default_matches_new() {
+        let watcher = SessionWatcher::default();
+        assert!(!watcher.poll());
+    }
+
+    #[test]
+    fn poll_returns_false_when_nothing_changed() {
+        let watcher = SessionWatcher::new();
+        assert!(!watcher.poll());
+        assert!(!watcher.poll());
+        assert!(!watcher.poll());
+    }
+
+    #[test]
+    fn notify_detects_file_change() {
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let sessions_dir = temp.path().join("sessions");
+        fs::create_dir_all(&sessions_dir).expect("create sessions dir");
+
+        // Point PI_CODING_AGENT_DIR at temp so the watcher monitors our dir.
+        // SAFETY: test-only; env var is restored before return.
+        #[allow(clippy::env_set_var)]
+        unsafe {
+            std::env::set_var("PI_CODING_AGENT_DIR", temp.path());
+        }
+
+        let watcher = SessionWatcher::new();
+
+        // Trigger a filesystem event inside the watched directory
+        fs::write(sessions_dir.join("trigger.txt"), b"hello").expect("write file");
+
+        // Give the OS watcher (inotify on Linux) a moment to deliver the event
+        std::thread::sleep(Duration::from_millis(200));
+
+        // Drain multiple times with a short back-off to handle timing jitter
+        let mut detected = false;
+        for _ in 0..5 {
+            if watcher.poll() {
+                detected = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+
+        #[allow(clippy::env_set_var)]
+        unsafe {
+            std::env::remove_var("PI_CODING_AGENT_DIR");
+        }
+
+        assert!(detected, "watcher should detect file change in watched dir");
+    }
+}
