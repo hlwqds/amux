@@ -231,6 +231,10 @@
 - **位置**:`src/app/ui_popup.rs` — 新文件,27 个 popup/dialog render 函数从 `ui.rs` 提取
 - **效果**:`ui.rs` 从 3880 行降至 1706 行,`ui_popup.rs` 2214 行
 
+### 55. [x] P2 拆分 `mod.rs` god-file (3702→2228 行)
+- **位置**:`src/app/session_ops.rs` — 32 个 session/tree/preview/config 函数从 `mod.rs` 提取
+- **效果**:`mod.rs` 从 3702 行降至 2228 行,`session_ops.rs` 1467 行
+
 ---
 
 ## 五、推荐的执行顺序
