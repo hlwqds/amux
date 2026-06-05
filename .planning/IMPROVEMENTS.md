@@ -299,9 +299,14 @@
   - Passthrough 模式下 `Char` 键累积到 buffer,50ms 无新按键时 flush
   - flush 走 `handle_paste()` 统一路径 (sanitize + bracketed paste wrapping + 8KB limit)
   - 超过 8KB 立即 flush 防止内存无限增长
-- **修复5**: 粘贴上限 8KB
 - **测试**:11 个新测试
-| 阶段 | 任务 | 预计依赖 | 验收标准 |
+- **修复6**: `pending_paste` 现在正确处理 Enter→\\r, Tab→\\t, Backspace→pop,不再因换行中断多行粘贴
+
+### 69. [x] P1 修复 10 个 clippy 性能警告 (redundant_clone + or_fun_call)
+- **位置**:handler_select, session, session_ops, mod, pty, watch, ui, mcp
+- **修复**:移除 7 处冗余 `.clone()` (workspace_path, session.title, serve_token, shared_ptys, recording, tx)
+- **修复**:3 处 `.unwrap_or(expensive)` → `.unwrap_or_else(|| expensive)` (tuple default, agent.label(), json!({}))
+
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
