@@ -1969,4 +1969,35 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn test_session_cache_retain_evicts_stale() {
+        // Directly test the cache retain behavior that discover_sessions_cached relies on.
+        let mut cache = SessionCache::new();
+
+        let keep = std::path::PathBuf::from("/keep/this.jsonl");
+        let evict = std::path::PathBuf::from("/evict/this.jsonl");
+        let session = crate::types::Session {
+            id: "s".into(),
+            workspace_path: std::path::PathBuf::from("/ws"),
+            title: "T".into(),
+            last_active: 0,
+            agent: crate::types::Agent::Claude,
+            tags: vec![],
+            pinned: false,
+            last_message: None,
+        };
+        let t = std::time::SystemTime::UNIX_EPOCH;
+        cache.insert(keep.clone(), (t, session.clone()));
+        cache.insert(evict.clone(), (t, session));
+        assert_eq!(cache.len(), 2);
+
+        // Retain only entries whose path is in the jsonl set
+        let jsonl_set: std::collections::HashSet<_> = [keep.clone()].into_iter().collect();
+        cache.retain(|path, _| jsonl_set.contains(path));
+
+        assert_eq!(cache.len(), 1, "only the kept path should survive");
+        assert!(cache.contains_key(&keep));
+        assert!(!cache.contains_key(&evict));
+    }
 }

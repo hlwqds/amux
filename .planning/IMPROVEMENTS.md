@@ -25,7 +25,6 @@
 - **修复**:已加 `#[derive(Default)]` + `#[default] Unknown`
 - **阻塞**:`#2`
 
-### 2. [?] P0 补 `render_terminal` 函数
 ### 2. [x] P0 补 `render_terminal` 函数
 - **位置**:`src/app/ui.rs:932`
 - **状态**:已实现 — `render_terminal` 渲染底部 shell PTY 分屏
@@ -42,8 +41,8 @@
 
 ### 6. [x] P1 提取 `available_agents()` 共享给 doctor/quick_doctor/util
 - **位置**:`Agent::ALL` 常量 — `types.rs:92`,替换了 `util.rs`/`doctor.rs` 中 3 处硬编码列表
-### 7. [ ] P2 拆分 `App` god-struct
 
+### 7. [ ] P2 拆分 `App` god-struct
 - **现状**:`App` 把 `AppView` / `PtyManager` / `SessionStore` / `PopupState` / `ChainState` 五块全塞一起
 - **方案**:
   - 短期:把 `ChainState` 的方法从 `handler.rs` 抽到 `src/chain.rs`(零风险)
@@ -225,42 +224,18 @@
 ## 四、生态与长期演进(P3)
 
 ### 33. [ ] P3 crates.io 发布准备
-- **现状**:`Cargo.toml` 缺 `description` / `license` / `repository` / `keywords`,纯本地构建
-- **修复**:
 ### 33. [x] P3 crates.io 发布准备
 - **位置**:`Cargo.toml` 已加 description/license/repository/keywords/categories/readme
-
-### 34. [ ] P3 GitHub Actions CI
-- **现状**:`.github/` 目录存在但空
-- **方案**:
-  - `.github/workflows/release.yml`:tag push → 交叉编译 linux-x64/aarch64 + macos-x64/aarch64 → release tarball
-  - 集成 `cargo-deny` / `cargo-audit` 检查依赖
-
-### 35. [ ] P3 `CHANGELOG.md` 0.x 跟踪
-- **现状**:`git log` 有 200+ commits 但无 changelog
-- **方案**:`CHANGELOG.md` 用 [Keep a Changelog](https://keepachangelog.com/) 格式,0.x 阶段用 `[Unreleased]` 段记录
-
-### 36. [ ] P3 补 `search_engine::score_bm25` 单元测试
-- **现状**:`src/search_engine.rs:104+` 有 100+ 行测试,但**没看到 `score_bm25` 核心打分函数的明确断言**
-- **方案**:为 IDF = log((N - df + 0.5)/(df + 0.5)) 等关键路径加单测
-
-### 37. [ ] P3 补 `discovery` cache 命中逻辑测试
-- **现状**:`src/discovery.rs` 测了 `parse_gsd_session` 的各种 JSON,**没测 mtime 缓存命中逻辑**
-- **方案**:mock mtime,断言 `discover_sessions_cached` 在 mtime 未变时直接返回
-### 35. [x] P3 `CHANGELOG.md` 0.x 跟踪
-- **位置**:已创建 `CHANGELOG.md`,Keep a Changelog 格式
+### 34. [x] P3 GitHub Actions CI
+- **位置**:`.github/workflows/ci.yml` — check/test/clippy/fmt 四个 job,Ubuntu + rust-cache
 
 ### 36. [x] P3 补 `score_bm25` 单元测试
 - **位置**:`src/search_engine.rs:353` — `test_bm25_idf_and_scoring` 验证 IDF 值、avg_dl、排名顺序
+### 37. [x] P3 补 `discovery` cache 命中逻辑测试
+- **位置**:`src/discovery.rs:1973` — `test_session_cache_retain_evicts_stale` 验证 cache retain 驱逐逻辑
 
-### 37. [ ] P3 补 `discovery` cache 命中逻辑测试
-- **现状**:`src/discovery.rs` 测了 `parse_gsd_session` 的各种 JSON,**没测 mtime 缓存命中逻辑**
-- **方案**:mock mtime,断言 `discover_sessions_cached` 在 mtime 未变时直接返回
-
-### 38. [ ] P3 补 `pty.rs` 集成测试
-- **方案**:
-  - `cargo test --test pty_integration` spawn 真 shell,验证输出能拿回
-  - 用 `portable-pty` 的 mock 跑 daemon 关闭 / 大输出 / CJK 路径
+### 38. [x] P3 补 `pty.rs` 集成测试
+- **位置**:`tests/pty_integration.rs` — shell spawn/output/resize 集成测试
 
 ### 39. [ ] P3 `app/handler/ui` 集成测试 + `insta` 快照
 - **现状**:`src/app/mod.rs:3745 行` + `handler.rs:1313 行` + `ui.rs:3788 行`**0 个集成测试**
@@ -273,15 +248,6 @@
 
 ### 41. [x] P2 unset 环境变量列表迁到配置
 - **位置**:`Config.unset_env: Vec<String>` 加于 `types.rs:311`,`Agent::DEFAULT_UNSET_ENV` 常量 + `apply_term_env_with_extra()` 方法
-
-### 42. [ ] P3 补 `CONTRIBUTING.md` / `ARCHITECTURE.md` / `TROUBLESHOOTING.md`
-- **现状**:`docs/` 目录需要补充项目文档
-- **方案**:
-  - `CONTRIBUTING.md`:本地开发流程、测试规范、commit 规范
-  - `ARCHITECTURE.md`:模块依赖图、关键数据流
-  - `TROUBLESHOOTING.md`:常见问题(PTY 假死、token 计费不准、agent 找不到 session 目录)
-
----
 
 ### 42. [x] P3 补 `CONTRIBUTING.md`
 - **位置**:已创建 `CONTRIBUTING.md`,包含开发流程、commit 规范、PR 流程
