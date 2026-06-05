@@ -666,6 +666,235 @@ pub(crate) fn git_cmd(dir: &Path, args: &[&str]) -> Result<String, String> {
 
 // ─── Main ─────────────────────────────────────────────────
 
+/// Start the embedded web server if requested. Returns the actual port (0 on failure).
+fn start_server(app: &mut App, shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>) -> u16 {
+    let rt = tokio::runtime::Runtime::new().expect("create tokio runtime");
+    let _guard = rt.enter();
+    let config = crate::config::load_config().unwrap_or_else(|_| Config {
+        workspaces: Vec::new(),
+        ..Default::default()
+    });
+    let serve_port = config.serve_port.unwrap_or(8080);
+    let serve_token = config.serve_token.clone().unwrap_or_default();
+    let actual_port = match rt.block_on(crate::server::run_server_with_state(
+        serve_port,
+        serve_token,
+        shared_ptys.clone(),
+    )) {
+        Ok((port, handle)) => {
+            app.server_handle = Some(handle);
+            port
+        }
+        Err(_) => {
+            eprintln!("amux: port {} in use, trying random port", serve_port);
+            match rt.block_on(crate::server::run_server_with_state(
+                0,
+                config.serve_token.unwrap_or_default(),
+                shared_ptys,
+            )) {
+                Ok((port, handle)) => {
+                    app.server_handle = Some(handle);
+                    port
+                }
+                Err(e) => {
+                    eprintln!("amux: server disabled ({})", e);
+                    0u16
+                }
+            }
+        }
+    };
+    if actual_port > 0 {
+        app.view.status = format!(
+            "{} [web: http://localhost:{}]",
+            app.view.status, actual_port
+        );
+    }
+    std::mem::forget(rt);
+    actual_port
+}
+
+/// Set the terminal cursor position and style to match the PTY cursor.
+fn set_cursor(app: &App) {
+    if app.view.focus != Focus::Chat || app.view.input_mode != InputMode::None {
+        return;
+    }
+    let Some(idx) = app.ptys.active_pty else {
+        return;
+    };
+    let Some(slot) = app.ptys.ptys.get(idx) else {
+        return;
+    };
+
+    let term = slot.handle.term();
+    let guard = term.lock();
+    let grid = guard.grid();
+    let cursor_point = grid.cursor.point;
+    let cursor_col = u16::try_from(cursor_point.column.0).unwrap_or(u16::MAX);
+    let cursor_row_i32 = i32::try_from(grid.display_offset())
+        .unwrap_or(i32::MAX)
+        .saturating_add(cursor_point.line.0);
+    let cursor_row =
+        u16::try_from(u32::try_from(cursor_row_i32.max(0)).unwrap_or(u32::MAX)).unwrap_or(u16::MAX);
+    let cursor_visible = guard
+        .mode()
+        .contains(alacritty_terminal::term::TermMode::SHOW_CURSOR);
+    let cursor_style = guard.cursor_style();
+    drop(guard);
+    let rect = app.view.last_chat_area;
+    if cursor_row >= rect.height || cursor_col >= rect.width {
+        return;
+    }
+    let default_shape = alacritty_terminal::vte::ansi::CursorShape::Block;
+    let is_explicit = cursor_style.shape != default_shape || cursor_style.blinking;
+    if is_explicit {
+        use crossterm::cursor::SetCursorStyle;
+        let shape = match cursor_style.shape {
+            alacritty_terminal::vte::ansi::CursorShape::Block => {
+                if cursor_style.blinking {
+                    SetCursorStyle::BlinkingBlock
+                } else {
+                    SetCursorStyle::SteadyBlock
+                }
+            }
+            alacritty_terminal::vte::ansi::CursorShape::Underline => {
+                if cursor_style.blinking {
+                    SetCursorStyle::BlinkingUnderScore
+                } else {
+                    SetCursorStyle::SteadyUnderScore
+                }
+            }
+            alacritty_terminal::vte::ansi::CursorShape::Beam => {
+                if cursor_style.blinking {
+                    SetCursorStyle::BlinkingBar
+                } else {
+                    SetCursorStyle::SteadyBar
+                }
+            }
+            alacritty_terminal::vte::ansi::CursorShape::HollowBlock
+            | alacritty_terminal::vte::ansi::CursorShape::Hidden => SetCursorStyle::SteadyBlock,
+        };
+        let _ = crossterm::execute!(
+            std::io::stdout(),
+            shape,
+            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2),
+            crossterm::cursor::Show,
+        );
+    } else {
+        let _ = crossterm::execute!(
+            std::io::stdout(),
+            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2),
+            crossterm::cursor::Show,
+        );
+    }
+    if !cursor_visible {
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
+    }
+}
+
+/// Handle a single terminal event. Returns true to quit.
+fn handle_event(app: &mut App, event: Event) -> anyhow::Result<bool> {
+    match event {
+        Event::Key(key) if key.kind == KeyEventKind::Press => {
+            // In passthrough Chat mode, accumulate rapid key sequences
+            let is_paste_char = app.view.input_mode == InputMode::None
+                && app.view.focus == Focus::Chat
+                && app.view.chat_mode == ChatMode::Passthrough
+                && !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+
+            if is_paste_char {
+                match key.code {
+                    KeyCode::Char(c) => {
+                        app.pending_paste.push(c);
+                    }
+                    KeyCode::Enter => {
+                        app.pending_paste.push('\r');
+                    }
+                    KeyCode::Tab => {
+                        app.pending_paste.push('\t');
+                    }
+                    KeyCode::Backspace => {
+                        app.pending_paste.pop();
+                    }
+                    _ => {
+                        if !app.pending_paste.is_empty() {
+                            app.flush_pending_paste();
+                        }
+                        match app.handle_key(key)? {
+                            Action::Continue => {}
+                            Action::Quit => return Ok(true),
+                        }
+                    }
+                }
+                if app.pending_paste.len() >= 8192 {
+                    app.flush_pending_paste();
+                }
+            } else {
+                if !app.pending_paste.is_empty() {
+                    app.flush_pending_paste();
+                }
+                match app.handle_key(key)? {
+                    Action::Continue => {}
+                    Action::Quit => return Ok(true),
+                }
+            }
+        }
+        Event::Paste(text) => {
+            if !app.pending_paste.is_empty() {
+                app.pending_paste.clear();
+            }
+            app.handle_paste(&text);
+        }
+        Event::Mouse(mouse) => {
+            if !app.pending_paste.is_empty() {
+                app.flush_pending_paste();
+            }
+            if app.handle_split_drag(mouse.kind, mouse.column) {
+                // consumed
+            } else {
+                match mouse.kind {
+                    crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                        if mouse
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL)
+                        {
+                            app.ctrl_click_open(mouse.column, mouse.row);
+                        } else {
+                            app.handle_mouse_click(mouse.column, mouse.row);
+                        }
+                    }
+                    crossterm::event::MouseEventKind::Down(
+                        crossterm::event::MouseButton::Right
+                        | crossterm::event::MouseButton::Middle,
+                    ) => {
+                        app.handle_tab_close_click(mouse.column, mouse.row);
+                    }
+                    crossterm::event::MouseEventKind::ScrollUp => {
+                        if app.view.focus == Focus::Chat
+                            && let Some(idx) = app.ptys.active_pty
+                            && let Some(slot) = app.ptys.ptys.get(idx)
+                        {
+                            slot.handle.scroll_page_up(3);
+                        }
+                    }
+                    crossterm::event::MouseEventKind::ScrollDown => {
+                        if app.view.focus == Focus::Chat
+                            && let Some(idx) = app.ptys.active_pty
+                            && let Some(slot) = app.ptys.ptys.get(idx)
+                        {
+                            slot.handle.scroll_page_down(3);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(false)
+}
+
 pub fn run(serve: bool) -> anyhow::Result<()> {
     let agents = detect_agents();
     if agents.is_empty() {
@@ -675,52 +904,8 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     let shared_ptys: std::sync::Arc<crate::server::SharedPtyMap> =
         std::sync::Arc::new(crate::server::SharedPtyMap::new());
     let mut app = App::new(shared_ptys.clone());
-    // Only start embedded server with --web flag
     if serve {
-        let rt = tokio::runtime::Runtime::new()?;
-        let _guard = rt.enter();
-        let config = crate::config::load_config().unwrap_or_else(|_| Config {
-            workspaces: Vec::new(),
-            ..Default::default()
-        });
-        let serve_port = config.serve_port.unwrap_or(8080);
-        let serve_token = config.serve_token.clone().unwrap_or_default();
-        let actual_port = match rt.block_on(crate::server::run_server_with_state(
-            serve_port,
-            serve_token,
-            shared_ptys.clone(),
-        )) {
-            Ok((port, handle)) => {
-                app.server_handle = Some(handle);
-                port
-            }
-            Err(_) => {
-                eprintln!("amux: port {} in use, trying random port", serve_port);
-                match rt.block_on(crate::server::run_server_with_state(
-                    0,
-                    config.serve_token.unwrap_or_default(),
-                    shared_ptys,
-                )) {
-                    Ok((port, handle)) => {
-                        app.server_handle = Some(handle);
-                        port
-                    }
-                    Err(e) => {
-                        eprintln!("amux: server disabled ({})", e);
-                        0u16
-                    }
-                }
-            }
-        };
-        if actual_port > 0 {
-            app.view.status = format!(
-                "{} [web: http://localhost:{}]",
-                app.view.status, actual_port
-            );
-        }
-        // Keep runtime alive for the server's lifetime — leak is intentional,
-        // the process is about to enter the TUI event loop.
-        std::mem::forget(rt);
+        start_server(&mut app, shared_ptys);
     }
     if !std::io::stdout().is_terminal() {
         let sessions = discover_sessions(&app.sessions.workspaces);
@@ -782,89 +967,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         if needs_render {
             terminal.draw(|frame| app.render(frame))?;
             app.view.screen_changed = false;
-            // Move cursor to PTY input position so IME candidate window
-            // follows the actual typing position. Required after every
-            // frame because ratatui's full-screen redraw displaces the
-            // real cursor.
-            if app.view.focus == Focus::Chat
-                && app.view.input_mode == InputMode::None
-                && let Some(idx) = app.ptys.active_pty
-                && let Some(slot) = app.ptys.ptys.get(idx)
-            {
-                let term = slot.handle.term();
-                let guard = term.lock();
-                let grid = guard.grid();
-                let cursor_point = grid.cursor.point;
-                let cursor_col = u16::try_from(cursor_point.column.0).unwrap_or(u16::MAX);
-                let cursor_row_i32 = i32::try_from(grid.display_offset())
-                    .unwrap_or(i32::MAX)
-                    .saturating_add(cursor_point.line.0);
-                let cursor_row =
-                    u16::try_from(u32::try_from(cursor_row_i32.max(0)).unwrap_or(u32::MAX))
-                        .unwrap_or(u16::MAX);
-                let cursor_visible = guard
-                    .mode()
-                    .contains(alacritty_terminal::term::TermMode::SHOW_CURSOR);
-                let cursor_style = guard.cursor_style();
-                drop(guard);
-                let rect = app.view.last_chat_area;
-                if cursor_row < rect.height && cursor_col < rect.width {
-                    // Only forward cursor shape when the PTY program has
-                    // explicitly changed it from the default (Block, not
-                    // blinking).  This avoids overriding the user's terminal
-                    // cursor preference (e.g. beam) when agents don't set it.
-                    let default_shape = alacritty_terminal::vte::ansi::CursorShape::Block;
-                    let is_explicit = cursor_style.shape != default_shape || cursor_style.blinking;
-                    if is_explicit {
-                        use crossterm::cursor::SetCursorStyle;
-                        let shape = match cursor_style.shape {
-                            alacritty_terminal::vte::ansi::CursorShape::Block => {
-                                if cursor_style.blinking {
-                                    SetCursorStyle::BlinkingBlock
-                                } else {
-                                    SetCursorStyle::SteadyBlock
-                                }
-                            }
-                            alacritty_terminal::vte::ansi::CursorShape::Underline => {
-                                if cursor_style.blinking {
-                                    SetCursorStyle::BlinkingUnderScore
-                                } else {
-                                    SetCursorStyle::SteadyUnderScore
-                                }
-                            }
-                            alacritty_terminal::vte::ansi::CursorShape::Beam => {
-                                if cursor_style.blinking {
-                                    SetCursorStyle::BlinkingBar
-                                } else {
-                                    SetCursorStyle::SteadyBar
-                                }
-                            }
-                            alacritty_terminal::vte::ansi::CursorShape::HollowBlock => {
-                                SetCursorStyle::SteadyBlock
-                            }
-                            alacritty_terminal::vte::ansi::CursorShape::Hidden => {
-                                SetCursorStyle::SteadyBlock
-                            }
-                        };
-                        let _ = crossterm::execute!(
-                            std::io::stdout(),
-                            shape,
-                            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2,),
-                            crossterm::cursor::Show,
-                        );
-                    } else {
-                        let _ = crossterm::execute!(
-                            std::io::stdout(),
-                            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2,),
-                            crossterm::cursor::Show,
-                        );
-                    }
-                }
-                // Hide cursor when terminal program hides it (e.g. alternate-screen apps).
-                if !cursor_visible {
-                    let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
-                }
-            }
+            set_cursor(&app);
         }
 
         // Auto-refresh: either timer-based (5s) or file-system-event-driven
@@ -889,124 +992,10 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         // Adaptive poll: shorter when PTYs are active, longer when idle
         let poll_ms = if app.ptys.ptys.is_empty() { 100 } else { 50 };
         if crossterm::event::poll(std::time::Duration::from_millis(poll_ms))? {
-            match crossterm::event::read()? {
-                Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    // In passthrough Chat mode, accumulate rapid key sequences
-                    // into pending_paste instead of forwarding each one individually.
-                    // This detects "paste without bracketed paste" — when the host
-                    // terminal doesn't support DECSET 2004 and sends pasted content
-                    // as individual keystroke events.
-                    let is_paste_char = app.view.input_mode == InputMode::None
-                        && app.view.focus == Focus::Chat
-                        && app.view.chat_mode == ChatMode::Passthrough
-                        && !key
-                            .modifiers
-                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
-
-                    if is_paste_char {
-                        match key.code {
-                            KeyCode::Char(c) => {
-                                app.pending_paste.push(c);
-                            }
-                            KeyCode::Enter => {
-                                // Map Enter → \r (what a terminal sends)
-                                app.pending_paste.push('\r');
-                            }
-                            KeyCode::Tab => {
-                                app.pending_paste.push('\t');
-                            }
-                            KeyCode::Backspace => {
-                                // Consume backspace in paste buffer (simulate edit)
-                                app.pending_paste.pop();
-                            }
-                            _ => {
-                                // Arrow keys, Escape, F-keys etc. break the paste
-                                // sequence — flush buffered chars, then handle normally.
-                                if !app.pending_paste.is_empty() {
-                                    app.flush_pending_paste();
-                                }
-                                match app.handle_key(key)? {
-                                    Action::Continue => {}
-                                    Action::Quit => break Ok(()),
-                                }
-                                app.view.screen_changed = true;
-                                continue;
-                            }
-                        }
-                        if app.pending_paste.len() >= 8192 {
-                            app.flush_pending_paste();
-                        }
-                    } else {
-                        // Non-passthrough or modified key: flush any pending
-                        // paste first, then handle the key normally.
-                        if !app.pending_paste.is_empty() {
-                            app.flush_pending_paste();
-                        }
-                        match app.handle_key(key)? {
-                            Action::Continue => {}
-                            Action::Quit => break Ok(()),
-                        }
-                    }
-                }
-                Event::Paste(text) => {
-                    // Flush any pending rapid-key buffer first (shouldn't normally
-                    // happen, but be safe).
-                    if !app.pending_paste.is_empty() {
-                        app.pending_paste.clear();
-                    }
-                    app.handle_paste(&text);
-                }
-
-                Event::Mouse(mouse) => {
-                    if !app.pending_paste.is_empty() {
-                        app.flush_pending_paste();
-                    }
-                    // Handle split divider drag first — consumes Down/Drag/Up near boundary
-                    if app.handle_split_drag(mouse.kind, mouse.column) {
-                        // consumed
-                    } else {
-                        match mouse.kind {
-                            crossterm::event::MouseEventKind::Down(
-                                crossterm::event::MouseButton::Left,
-                            ) => {
-                                if mouse
-                                    .modifiers
-                                    .contains(crossterm::event::KeyModifiers::CONTROL)
-                                {
-                                    app.ctrl_click_open(mouse.column, mouse.row);
-                                } else {
-                                    app.handle_mouse_click(mouse.column, mouse.row);
-                                }
-                            }
-                            crossterm::event::MouseEventKind::Down(
-                                crossterm::event::MouseButton::Right
-                                | crossterm::event::MouseButton::Middle,
-                            ) => {
-                                app.handle_tab_close_click(mouse.column, mouse.row);
-                            }
-                            crossterm::event::MouseEventKind::ScrollUp => {
-                                if app.view.focus == Focus::Chat
-                                    && let Some(idx) = app.ptys.active_pty
-                                    && let Some(slot) = app.ptys.ptys.get(idx)
-                                {
-                                    slot.handle.scroll_page_up(3);
-                                }
-                            }
-                            crossterm::event::MouseEventKind::ScrollDown => {
-                                if app.view.focus == Focus::Chat
-                                    && let Some(idx) = app.ptys.active_pty
-                                    && let Some(slot) = app.ptys.ptys.get(idx)
-                                {
-                                    slot.handle.scroll_page_down(3);
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
+            let event = crossterm::event::read()?;
+            if handle_event(&mut app, event)? {
+                break Ok(());
             }
-            // Any input event should trigger a re-render
             app.view.screen_changed = true;
         }
     };

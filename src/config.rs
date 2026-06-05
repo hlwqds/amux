@@ -59,45 +59,48 @@ pub fn load_config() -> Result<Config> {
         }
     };
 
-    // Overlay config.d/*.json files (sorted alphabetically)
-    let config_d = config_path()
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."))
-        .join("config.d");
-    if config_d.is_dir() {
-        let mut entries: Vec<_> = match fs::read_dir(&config_d) {
-            Ok(rd) => rd.filter_map(|e| e.ok()).collect(),
-            Err(e) => {
-                tracing::warn!("Failed to read config.d: {e}");
-                Vec::new()
-            }
-        };
-        entries.retain(|e| e.path().extension().is_some_and(|ext| ext == "json"));
+    let config_dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    apply_config_overlays(&mut config, config_dir);
 
-        entries.sort_by_key(|e| e.file_name());
+    Ok(config)
+}
 
-        for entry in entries {
-            let overlay_path = entry.path();
-            match fs::read_to_string(&overlay_path) {
-                Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(value) => {
-                        if let Ok(overlay) = serde_json::from_value::<Config>(value) {
-                            merge_config(&mut config, &overlay);
-                            tracing::info!("Loaded config overlay: {}", overlay_path.display());
-                        }
+/// Overlay config.d/*.json drop-in files on top of the base config.
+fn apply_config_overlays(config: &mut Config, config_dir: &Path) {
+    let config_d = config_dir.join("config.d");
+    if !config_d.is_dir() {
+        return;
+    }
+
+    let mut entries: Vec<_> = match fs::read_dir(&config_d) {
+        Ok(rd) => rd.filter_map(|e| e.ok()).collect(),
+        Err(e) => {
+            tracing::warn!("Failed to read config.d: {e}");
+            return;
+        }
+    };
+    entries.retain(|e| e.path().extension().is_some_and(|ext| ext == "json"));
+    entries.sort_by_key(|e| e.file_name());
+
+    for entry in entries {
+        let overlay_path = entry.path();
+        match fs::read_to_string(&overlay_path) {
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(value) => {
+                    if let Ok(overlay) = serde_json::from_value::<Config>(value) {
+                        merge_config(config, &overlay);
+                        tracing::info!("Loaded config overlay: {}", overlay_path.display());
                     }
-                    Err(e) => {
-                        tracing::warn!("Failed to parse {}: {e}", overlay_path.display());
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!("Failed to read {}: {e}", overlay_path.display());
                 }
+                Err(e) => {
+                    tracing::warn!("Failed to parse {}: {e}", overlay_path.display());
+                }
+            },
+            Err(e) => {
+                tracing::warn!("Failed to read {}: {e}", overlay_path.display());
             }
         }
     }
-
-    Ok(config)
 }
 
 /// Merge overlay config into base. Only replaces non-default fields.

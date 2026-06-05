@@ -52,6 +52,61 @@ const fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
         DimWhite => Some(Color::Gray),
     }
 }
+
+/// Render an alacritty terminal grid directly into a ratatui frame buffer.
+/// This bypasses ratatui's widget system for pixel-perfect terminal rendering.
+fn render_grid_to_frame<T: alacritty_terminal::event::EventListener>(
+    frame: &mut Frame,
+    term: &alacritty_terminal::sync::FairMutex<alacritty_terminal::term::Term<T>>,
+    area: Rect,
+) {
+    let guard = term.lock();
+    let display_offset = guard.grid().display_offset();
+    let grid = guard.grid();
+    let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
+    let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
+    let max_rows = area.height.min(screen_rows);
+    let max_cols = area.width.min(screen_cols);
+    for y in 0..max_rows {
+        let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
+        for x in 0..max_cols {
+            let p = Point::new(AlacLine(line_idx), Column(x as usize));
+            let cell = &grid[p];
+            if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                continue;
+            }
+            let ch = if cell.c == '\0' { ' ' } else { cell.c };
+            let mut style = Style::default();
+            if let Some(c) = ansi_to_ratatui_color(cell.fg) {
+                style = style.fg(c);
+            }
+            if let Some(c) = ansi_to_ratatui_color(cell.bg) {
+                style = style.bg(c);
+            }
+            let flags = cell.flags;
+            if flags.contains(Flags::BOLD) {
+                style = style.add_modifier(Modifier::BOLD);
+            }
+            if flags.contains(Flags::ITALIC) {
+                style = style.add_modifier(Modifier::ITALIC);
+            }
+            if flags.intersects(Flags::ALL_UNDERLINES) {
+                style = style.add_modifier(Modifier::UNDERLINED);
+            }
+            if flags.contains(Flags::INVERSE) {
+                style = style.add_modifier(Modifier::REVERSED);
+            }
+            let target_x = area.x + x;
+            let target_y = area.y + y;
+            if let Some(buf_cell) = frame.buffer_mut().cell_mut((target_x, target_y)) {
+                let mut tmp = [0u8; 4];
+                buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
+                buf_cell.set_style(style);
+            }
+        }
+    }
+    drop(guard);
+}
 impl super::App {
     pub(super) const fn chat_size(&self) -> (u16, u16) {
         (
@@ -764,59 +819,7 @@ impl super::App {
                         },
                     );
                 } else {
-                    let term = slot.handle.term();
-                    let guard = term.lock();
-                    let display_offset = guard.grid().display_offset();
-                    let grid = guard.grid();
-                    let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
-                    let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
-                    let max_rows = pty_area.height.min(screen_rows);
-                    let max_cols = pty_area.width.min(screen_cols);
-                    for y in 0..max_rows {
-                        let line_idx =
-                            i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
-                        for x in 0..max_cols {
-                            let p = Point::new(AlacLine(line_idx), Column(x as usize));
-                            let cell = &grid[p];
-                            // Skip spacer cells — they are the right half of a
-                            // wide (CJK) character.  Rendering them as spaces
-                            // would overwrite the wide glyph.
-                            if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
-                                continue;
-                            }
-                            let ch = if cell.c == '\0' { ' ' } else { cell.c };
-                            let mut style = Style::default();
-                            if let Some(c) = ansi_to_ratatui_color(cell.fg) {
-                                style = style.fg(c);
-                            }
-                            if let Some(c) = ansi_to_ratatui_color(cell.bg) {
-                                style = style.bg(c);
-                            }
-                            let flags = cell.flags;
-                            if flags.contains(Flags::BOLD) {
-                                style = style.add_modifier(Modifier::BOLD);
-                            }
-                            if flags.contains(Flags::ITALIC) {
-                                style = style.add_modifier(Modifier::ITALIC);
-                            }
-                            if flags.intersects(Flags::ALL_UNDERLINES) {
-                                style = style.add_modifier(Modifier::UNDERLINED);
-                            }
-                            if flags.contains(Flags::INVERSE) {
-                                style = style.add_modifier(Modifier::REVERSED);
-                            }
-                            let target_x = pty_area.x + x;
-                            let target_y = pty_area.y + y;
-                            if let Some(buf_cell) =
-                                frame.buffer_mut().cell_mut((target_x, target_y))
-                            {
-                                let mut tmp = [0u8; 4];
-                                buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
-                                buf_cell.set_style(style);
-                            }
-                        }
-                    }
-                    drop(guard);
+                    render_grid_to_frame(frame, &slot.handle.term(), pty_area);
                     // Highlight scrollback search matches
                     if is_searching && !self.view.scrollback_matches.is_empty() {
                         let offset = slot.handle.scrollback_offset();
@@ -882,53 +885,7 @@ impl super::App {
             let inner = block.inner(area);
             slot.handle.resize((inner.width, inner.height));
 
-            let term_arc = slot.handle.term();
-            let guard = term_arc.lock();
-            let display_offset = guard.grid().display_offset();
-            let grid = guard.grid();
-            let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
-            let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
-            let max_rows = inner.height.min(screen_rows);
-            let max_cols = inner.width.min(screen_cols);
-            for y in 0..max_rows {
-                let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
-                for x in 0..max_cols {
-                    let p = Point::new(AlacLine(line_idx), Column(x as usize));
-                    let cell = &grid[p];
-                    if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
-                        continue;
-                    }
-                    let ch = if cell.c == '\0' { ' ' } else { cell.c };
-                    let mut style = Style::default();
-                    if let Some(c) = ansi_to_ratatui_color(cell.fg) {
-                        style = style.fg(c);
-                    }
-                    if let Some(c) = ansi_to_ratatui_color(cell.bg) {
-                        style = style.bg(c);
-                    }
-                    let flags = cell.flags;
-                    if flags.contains(Flags::BOLD) {
-                        style = style.add_modifier(Modifier::BOLD);
-                    }
-                    if flags.contains(Flags::ITALIC) {
-                        style = style.add_modifier(Modifier::ITALIC);
-                    }
-                    if flags.intersects(Flags::ALL_UNDERLINES) {
-                        style = style.add_modifier(Modifier::UNDERLINED);
-                    }
-                    if flags.contains(Flags::INVERSE) {
-                        style = style.add_modifier(Modifier::REVERSED);
-                    }
-                    let target_x = inner.x + x;
-                    let target_y = inner.y + y;
-                    if let Some(buf_cell) = frame.buffer_mut().cell_mut((target_x, target_y)) {
-                        let mut tmp = [0u8; 4];
-                        buf_cell.set_symbol(ch.encode_utf8(&mut tmp));
-                        buf_cell.set_style(style);
-                    }
-                }
-            }
-            drop(guard);
+            render_grid_to_frame(frame, &slot.handle.term(), inner);
             frame.render_widget(block, area);
             return;
         }

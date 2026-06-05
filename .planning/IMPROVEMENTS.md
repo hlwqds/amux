@@ -340,6 +340,16 @@
 - **修复**:13 个永远返回 Ok 的函数移除 Result 包装,返回裸类型
 - **调用者**:handler.rs 中 15 处 `return self.xxx()` → `Ok(self.xxx())`, mod.rs 中 `handle_paste()?` → `handle_paste()`, 测试中 `.unwrap()` 移除
 - **验证**:`cargo clippy -- -W clippy::unnecessary_wraps -D warnings` clean
+
+### 75. [x] P1 降低 7 个函数的认知复杂度 (cognitive_complexity)
+- **问题**:`cargo clippy -- -W clippy::cognitive_complexity` 报 7 个函数超过 25 阈值
+- **修复**:
+  - `ui.rs`: 提取 `render_grid_to_frame()` 消除 render_chat 中 50+ 行重复的 grid 渲染逻辑
+  - `mod.rs`: 提取 `start_server()` / `set_cursor()` / `handle_event()` 从 run() 事件循环
+  - `config.rs`: 提取 `apply_config_overlays()` 从 load_config()
+  - `handler.rs` / `handler_amux.rs` / `session_ops.rs` / `ui.rs render()`: 通过辅助提取间接降低
+- **效果**: 最复杂的函数从 43/25 降至 ~15/25
+- **验证**:`cargo clippy -- -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
