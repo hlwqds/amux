@@ -975,7 +975,7 @@ mod tests {
         app
     }
 
-    fn ws(id: &str, name: &str, path: &str) -> Workspace {
+    pub(crate) fn ws(id: &str, name: &str, path: &str) -> Workspace {
         Workspace {
             id: id.into(),
             name: name.into(),
@@ -985,7 +985,7 @@ mod tests {
         }
     }
 
-    fn sess(id: &str, title: &str, ws_path: &str) -> Session {
+    pub(crate) fn sess(id: &str, title: &str, ws_path: &str) -> Session {
         Session { id: id.into(), workspace_path: PathBuf::from(ws_path), title: title.into(), last_active: 1000, agent: Agent::Claude, tags: Vec::new(), pinned: false, last_message: None }
     }
 

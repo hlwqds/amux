@@ -248,7 +248,11 @@
 
 ### 59. [x] P3 `browse.rs` 补全 5 个单元测试
 - **位置**:`src/app/browse.rs` — 浏览导航/选择/虚拟工作区/上级目录
-- **覆盖**:move_wraps_clamps (1), empty_noop (1), select_creates_workspace (1), select_virtual (1), up_goes_parent (1)
+
+### 60. [x] P3 补全 4 个模块单元测试 (24 新测试)
+- **位置**:`handler_select.rs` (7 tests), `session.rs` (5 tests), `pty.rs` (5 tests), `types.rs` (7 tests)
+- **覆盖**:fuzzy picker query (7), session rename/new-workspace (5), asciinema/recording/timestamp (5), Agent/SortMode/KeyBinding (7)
+- **Bug fix**:`open_theme_panel()` 未清除 `picker_query` — 已修复
 
 ---
 

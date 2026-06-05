@@ -523,3 +523,99 @@ impl super::App {
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::app::App;
+    use crate::app::tests::{test_app, ws, sess};
+    use crate::types::InputMode;
+
+    // ── Test 1: start_rename on a session sets RenameSession mode ──
+    #[test]
+    fn start_rename_session_sets_mode_and_target() {
+        let mut app = test_app(
+            vec![ws("w1", "my-workspace", "/tmp/ws1")],
+            vec![sess("deadbeef", "my session", "/tmp/ws1")],
+        );
+        // Tree: [Workspace(0), WorkspaceWarning(0,..), Session(0,0)] — session is at index 2
+        // because /tmp/ws1 doesn't exist, triggering a warning node.
+        app.sessions.tree_state.select(Some(2));
+        app.start_rename();
+        assert_eq!(app.view.input_mode, InputMode::RenameSession);
+        assert_eq!(app.rename_target, Some(0));
+        assert_eq!(app.input_buffer, "my session");
+        assert!(app.view.status.contains("Edit session name"));
+    }
+
+    // ── Test 2: start_rename on a workspace sets RenameWorkspace mode ──
+    #[test]
+    fn start_rename_workspace_sets_mode_and_target() {
+        let mut app = test_app(
+            vec![ws("w1", "original-name", "/tmp/ws1")],
+            vec![],
+        );
+        // Tree has: [Workspace(0)]. Select the workspace node.
+        app.sessions.tree_state.select(Some(0));
+        app.start_rename();
+        assert_eq!(app.view.input_mode, InputMode::RenameWorkspace);
+        assert_eq!(app.rename_workspace_target, Some(0));
+        assert_eq!(app.input_buffer, "original-name");
+        assert!(app.view.status.contains("Edit workspace name"));
+    }
+
+    // ── Test 3: confirm_input in RenameSession renames the session ──
+    #[test]
+    fn confirm_input_renames_session() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![sess("abc12345", "old title", "/tmp/ws1")],
+        );
+        // Set up rename state manually
+        app.sessions.tree_state.select(Some(2)); // session is at index 2 (after Workspace + WorkspaceWarning)
+        app.view.input_mode = InputMode::RenameSession;
+        app.rename_target = Some(0);
+        app.input_buffer = "new title".into();
+
+        app.confirm_input().unwrap();
+
+        assert_eq!(app.sessions.sessions[0].title, "new title");
+        assert_eq!(app.view.input_mode, InputMode::None);
+        assert!(app.input_buffer.is_empty());
+        assert!(app.rename_target.is_none());
+        assert!(app.view.status.contains("Renamed to: new title"));
+    }
+
+    // ── Test 4: confirm_input in SessionName with empty buffer stores None ──
+    #[test]
+    fn confirm_input_session_name_empty_gives_none() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![],
+        );
+        app.view.input_mode = InputMode::SessionName;
+        app.input_buffer = "   ".into(); // whitespace-only
+        // With no agents available, it will stay in SessionName but set pending_session_name
+        app.available_agents.clear();
+
+        // confirm_input for SessionName with multiple agents goes to SelectAgent.
+        // With 0 agents it should still try the branch and not panic.
+        let _ = app.confirm_input();
+
+        assert!(app.pending_session_name.is_none());
+        assert!(app.input_buffer.is_empty());
+    }
+
+    // ── Test 5: start_new_workspace sets correct initial state ──
+    #[test]
+    fn start_new_workspace_initializes_input_state() {
+        let mut app = test_app(vec![], vec![]);
+        app.input_buffer = "stale text".into();
+
+        app.start_new_workspace();
+
+        assert_eq!(app.view.input_mode, InputMode::NewWorkspaceName);
+        assert!(app.input_buffer.is_empty());
+        assert!(app.new_workspace_name.is_none());
+        assert!(app.view.status.contains("Workspace name"));
+    }
+}

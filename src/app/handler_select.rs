@@ -762,3 +762,112 @@ impl super::App {
         Ok(Action::Continue)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    use crate::theme::ThemeName;
+    use crate::types::InputMode;
+
+    fn theme_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn fresh_app() -> super::super::App {
+        let mut app = super::super::tests::test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::ThemeSelect;
+        app.theme_list = vec![ThemeName::Dark, ThemeName::Light];
+        app.theme_list_state.select(Some(0));
+        app
+    }
+
+    // 1. open_theme_panel clears picker_query
+    #[test]
+    fn open_theme_panel_clears_picker_query() {
+        let mut app = fresh_app();
+        app.view.picker_query = "stale".into();
+        app.open_theme_panel();
+        assert!(app.view.picker_query.is_empty());
+        assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
+    }
+
+    // 2. Typing chars appends to picker_query
+    #[test]
+    fn typing_chars_appends_to_picker_query() {
+        let mut app = fresh_app();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('d'))).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('a'))).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('r'))).unwrap();
+        assert_eq!(app.view.picker_query, "dar");
+        // Mode should remain ThemeSelect
+        assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
+    }
+
+    // 3. Backspace removes from picker_query
+    #[test]
+    fn backspace_removes_from_picker_query() {
+        let mut app = fresh_app();
+        app.view.picker_query = "mo".into();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace)).unwrap();
+        assert_eq!(app.view.picker_query, "m");
+        // Backspace on empty query is a no-op
+        app.view.picker_query.clear();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace)).unwrap();
+        assert!(app.view.picker_query.is_empty());
+    }
+
+    // 4. Escape clears query and exits picker mode
+    #[test]
+    fn escape_clears_and_exits() {
+        let mut app = fresh_app();
+        app.view.picker_query = "dark".into();
+        app.handle_theme_select_key(theme_key(KeyCode::Esc)).unwrap();
+        assert!(app.view.picker_query.is_empty());
+        assert_eq!(app.view.input_mode, InputMode::None);
+        assert!(app.theme_list.is_empty());
+        assert!(app.view.status.is_empty());
+    }
+
+    // 5. Enter applies theme and clears picker_query
+    #[test]
+    fn enter_applies_theme_and_clears_query() {
+        let mut app = fresh_app();
+        app.view.picker_query = "da".into();
+        // List has [Dark, Light], selection on index 0 (Dark)
+        app.handle_theme_select_key(theme_key(KeyCode::Enter)).unwrap();
+        assert_eq!(app.view.theme_name, ThemeName::Dark);
+        assert!(app.view.picker_query.is_empty());
+        assert_eq!(app.view.input_mode, InputMode::None);
+        assert!(app.theme_list.is_empty());
+    }
+
+    // 6. Up/Down navigation wraps and preserves picker_query
+    #[test]
+    fn up_down_navigates_and_preserves_query() {
+        let mut app = fresh_app();
+        app.view.picker_query = "li".into();
+        // Down: 0 -> 1
+        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
+        assert_eq!(app.theme_list_state.selected(), Some(1));
+        assert_eq!(app.view.picker_query, "li");
+        // Down again wraps: 1 -> 0
+        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
+        assert_eq!(app.theme_list_state.selected(), Some(0));
+        // Up wraps back: 0 -> 1
+        app.handle_theme_select_key(theme_key(KeyCode::Up)).unwrap();
+        assert_eq!(app.theme_list_state.selected(), Some(1));
+        assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
+    }
+
+    // 7. Enter on second item applies correct theme
+    #[test]
+    fn enter_on_second_item_applies_light() {
+        let mut app = fresh_app();
+        // Navigate to Light (index 1)
+        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Enter)).unwrap();
+        assert_eq!(app.view.theme_name, ThemeName::Light);
+        assert_eq!(app.view.input_mode, InputMode::None);
+    }
+}

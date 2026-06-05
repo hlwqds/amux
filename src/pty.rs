@@ -726,3 +726,101 @@ impl PtyHandle {
         (t.screen_lines(), t.columns())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+    use std::collections::VecDeque;
+
+    /// Helper: build a PtyHandle from raw Arc state without spawning a real PTY.
+    fn dead_pty_handle(last_output_epoch: u64, alive: bool) -> PtyHandle {
+        let size = TermSize::new(80, 24);
+        let term_config = Config::default();
+        let listener = PtyEventListener::default();
+        let term = Term::new(term_config, &size, listener);
+        let (writer_tx, _) = std::sync::mpsc::sync_channel(1);
+        PtyHandle {
+            term: Arc::new(FairMutex::new(term)),
+            writer_tx,
+            alive: Arc::new(AtomicBool::new(alive)),
+            last_output_at: Arc::new(AtomicU64::new(last_output_epoch)),
+            last_raw_output: Arc::new(RwLock::new(Vec::new())),
+            output_notify: Arc::new(Notify::new()),
+            child_pid: None,
+            snapshots: Arc::new(RwLock::new(VecDeque::new())),
+            snap_scroll: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    #[test]
+    fn create_recording_writes_valid_asciinema_v2_header() {
+        let dir = std::env::temp_dir().join("amux_test_recording");
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("test.cast");
+        let file = create_recording(&path, 120, 40).expect("create_recording");
+        // File should be readable and contain valid JSON header.
+        drop(file);
+        let mut content = String::new();
+        std::fs::File::open(&path)
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
+        let header: serde_json::Value = serde_json::from_str(content.trim()).unwrap();
+        assert_eq!(header["version"], 2);
+        assert_eq!(header["width"], 120);
+        assert_eq!(header["height"], 40);
+        assert!(header["timestamp"].is_number());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_recording_event_formats_correctly() {
+        let dir = std::env::temp_dir().join("amux_test_rec_event");
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("ev.cast");
+        let mut file = create_recording(&path, 80, 24).expect("create_recording");
+        let start = std::time::Instant::now();
+        write_recording_event(&mut file, start, b"hello world");
+        drop(file);
+        let content = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = content.trim().lines().collect();
+        assert_eq!(lines.len(), 2, "should have header + 1 event");
+        let event: serde_json::Value = serde_json::from_str(lines[1]).unwrap();
+        assert_eq!(event[0], "o", "event type should be 'o' (output)");
+        assert_eq!(event[2], "hello world");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn chrono_free_timestamp_is_reasonable() {
+        let ts = chrono_free_timestamp();
+        // After 2020-01-01 (1577836800) and before 2100-01-01 (4102444800).
+        assert!(ts > 1_577_836_800, "timestamp should be after 2020");
+        assert!(ts < 4_102_444_800, "timestamp should be before 2100");
+    }
+
+    #[test]
+    fn event_listener_default_does_not_panic_on_send() {
+        let listener = PtyEventListener::default();
+        // Default has no response_tx, so all events should be silently dropped.
+        listener.send_event(Event::PtyWrite("test".into()));
+        // If we reach here, no panic occurred.
+    }
+
+    #[test]
+    fn dead_pty_handle_reports_completed_state() {
+        // last_output_at = 0 (epoch) → idle for decades, alive = false
+        let handle = dead_pty_handle(0, false);
+        assert_eq!(handle.state(), PtyState::Completed);
+        assert!(!handle.is_alive());
+        assert_eq!(handle.grid_size(), (24, 80));
+        assert_eq!(handle.snap_count(), 0);
+        assert_eq!(handle.snap_scroll_pos(), 0);
+        assert_eq!(handle.scrolled_snapshot(), None);
+        assert!(handle.take_raw_output().is_empty());
+        assert_eq!(handle.child_pid(), None);
+        // write_input should fail on dead PTY.
+        assert!(handle.write_input(b"hello").is_err());
+    }
+}

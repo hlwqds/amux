@@ -991,4 +991,111 @@ mod tests {
         assert_eq!(parsed.ignore_sessions, vec!["temp-"]);
         assert_eq!(parsed.env, vec![("NODE_ENV".into(), "development".into())]);
     }
+
+    // --- Agent::from_label ---
+
+    #[test]
+    fn agent_from_label_known_agents() {
+        assert_eq!(Agent::from_label("claude"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("Claude"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("CLAUDE"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("claude code"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("Claude Code"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("CLAUDE CODE"), Some(Agent::Claude));
+        assert_eq!(Agent::from_label("codex"), Some(Agent::Codex));
+        assert_eq!(Agent::from_label("Codex"), Some(Agent::Codex));
+        assert_eq!(Agent::from_label("omp"), Some(Agent::Omp));
+        assert_eq!(Agent::from_label("OMP"), Some(Agent::Omp));
+    }
+
+    #[test]
+    fn agent_from_label_unknown_returns_none() {
+        assert_eq!(Agent::from_label("unknown"), None);
+        assert_eq!(Agent::from_label(""), None);
+        assert_eq!(Agent::from_label("claudecode"), None);
+        assert_eq!(Agent::from_label("copilot"), None);
+    }
+
+    // --- Agent::ALL ---
+
+    #[test]
+    fn agent_all_contains_every_variant() {
+        assert_eq!(Agent::ALL.len(), 3);
+        assert!(Agent::ALL.contains(&Agent::Claude));
+        assert!(Agent::ALL.contains(&Agent::Codex));
+        assert!(Agent::ALL.contains(&Agent::Omp));
+        // Verify fixed sort order: Claude < Codex < Omp
+        assert!(Agent::ALL.windows(2).all(|w| w[0] < w[1]));
+    }
+
+    // --- SortMode::next ---
+
+    #[test]
+    fn sort_mode_next_cycles_through_all_variants() {
+        use SortMode::*;
+        let variants = [TimeDesc, TimeAsc, NameAsc, NameDesc, AgentGroup];
+        // Verify each step advances correctly
+        for i in 0..variants.len() {
+            assert_eq!(variants[i].next(), variants[(i + 1) % variants.len()]);
+        }
+        // Full cycle returns to start
+        let mut mode = TimeDesc;
+        for _ in 0..variants.len() {
+            mode = mode.next();
+        }
+        assert_eq!(mode, TimeDesc);
+    }
+
+    // --- KeyBinding::matches_event ---
+
+    #[test]
+    fn keybinding_matches_event_various_keys() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        // Plain char
+        let kb = KeyBinding::key("q");
+        assert!(kb.matches_event(&KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+        assert!(!kb.matches_event(&KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)));
+
+        // Ctrl+char
+        let kb_ctrl = KeyBinding::ctrl("c");
+        assert!(kb_ctrl.matches_event(&KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)));
+        assert!(!kb_ctrl.matches_event(&KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)));
+
+        // Alt+char
+        let kb_alt = KeyBinding::alt("k");
+        assert!(kb_alt.matches_event(&KeyEvent::new(KeyCode::Char('k'), KeyModifiers::ALT)));
+
+        // Special keys
+        let kb_enter = KeyBinding::key("enter");
+        assert!(kb_enter.matches_event(&KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+
+        let kb_f5 = KeyBinding::key("f5");
+        assert!(kb_f5.matches_event(&KeyEvent::new(KeyCode::F(5), KeyModifiers::NONE)));
+        assert!(!kb_f5.matches_event(&KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE)));
+
+        // Modifiers mismatch
+        let kb_shift = KeyBinding::shift("up");
+        assert!(kb_shift.matches_event(&KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT)));
+        assert!(!kb_shift.matches_event(&KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)));
+    }
+
+    // --- Keybinds::validate ---
+
+    #[test]
+    fn keybinds_validate_no_conflicts_by_default() {
+        let kb = Keybinds::default();
+        assert!(kb.validate().is_empty(), "default keybinds should have no conflicts");
+    }
+
+    #[test]
+    fn keybinds_validate_detects_duplicate_bindings() {
+        let mut kb = Keybinds::default();
+        // Force a conflict: set move_up identical to move_down
+        kb.move_up = kb.move_down.clone();
+        let conflicts = kb.validate();
+        assert!(!conflicts.is_empty(), "duplicate binding should produce a conflict");
+        assert!(conflicts.iter().any(|(a, b)| (*a == "move_up" && *b == "move_down")
+            || (*a == "move_down" && *b == "move_up")));
+    }
 }

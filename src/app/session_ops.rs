@@ -1395,6 +1395,7 @@ impl App {
         self.theme_list = themes;
         self.theme_list_state.select(Some(sel));
         self.view.input_mode = InputMode::ThemeSelect;
+        self.view.picker_query.clear();
         self.view.status = "Select theme (Enter=apply, Esc=cancel)".into();
     }
 
