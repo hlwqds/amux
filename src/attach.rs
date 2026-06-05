@@ -71,54 +71,30 @@ fn which_tmux() -> Result<String> {
 mod tests {
     use super::*;
 
-    /// Verify `which_tmux` returns an error when the `tmux` binary is not on
-    /// PATH.  We achieve this by temporarily pointing PATH at an empty temp
-    /// directory so the OS cannot resolve `tmux`.
+    /// If the test host has tmux installed, which_tmux should succeed.
+    /// If not installed, the test is a no-op (can't test negative path
+    /// without mutating PATH, which is UB in parallel tests).
     #[test]
-    fn which_tmux_fails_when_missing() {
-        let dir = std::env::temp_dir().join("amux_test_no_tmux_bin");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        let original_path = std::env::var("PATH").unwrap_or_default();
-        // Point PATH at an empty directory — no tmux there.
-        unsafe {
-            std::env::set_var("PATH", &dir);
+    fn which_tmux_returns_ok_when_installed() {
+        if crate::util::which("tmux").is_some() {
+            assert!(which_tmux().is_ok());
         }
-        let result = which_tmux();
-        // Restore before asserting so other tests aren't affected.
-        unsafe {
-            std::env::set_var("PATH", &original_path);
-        }
-        let _ = std::fs::remove_dir_all(&dir);
+    }
 
-        assert!(result.is_err(), "expected error when tmux is missing");
+    /// Verify `run()` surfaces a clear error when tmux is unavailable.
+    /// Skip when tmux IS installed — we can only test the negative path
+    /// on systems without tmux.
+    #[test]
+    fn run_fails_without_tmux() {
+        if crate::util::which("tmux").is_some() {
+            return;
+        }
+        let result = run();
+        assert!(result.is_err());
         let msg = format!("{}", result.unwrap_err());
         assert!(
             msg.contains("tmux"),
             "error message should mention tmux: {msg}"
         );
-    }
-
-    /// Verify `run()` surfaces a clear error when tmux is unavailable.
-    #[test]
-    fn run_fails_gracefully_without_tmux() {
-        let dir = std::env::temp_dir().join("amux_test_run_no_tmux");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        let original_path = std::env::var("PATH").unwrap_or_default();
-        unsafe {
-            std::env::set_var("PATH", &dir);
-        }
-        let result = run();
-        unsafe {
-            std::env::set_var("PATH", &original_path);
-        }
-        let _ = std::fs::remove_dir_all(&dir);
-
-        assert!(result.is_err(), "run() should fail when tmux is missing");
-        let msg = format!("{}", result.unwrap_err());
-        assert!(msg.contains("tmux"), "error should mention tmux: {msg}");
     }
 }

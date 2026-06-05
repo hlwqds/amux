@@ -312,6 +312,13 @@
 - **修复**:clippy 命令增加 `-W clippy::cast_possible_truncation -W clippy::cast_sign_loss`
 - **效果**:CI 会捕获隐式类型转换截断/符号丢失问题,防止回归
 
+### 71. [x] P1 修复 `attach::tests::which_tmux_fails_when_missing` flaky test
+- **问题**:测试用 `unsafe { set_var("PATH", dir) }` 模拟无 tmux 环境,但 `set_var` 非线程安全,并行测试时 PATH 被其他线程覆盖 → panic
+- **修复**:移除 PATH 劫持,改用 `crate::util::which("tmux")` 守卫:
+  - `which_tmux_returns_ok_when_installed()`: tmux 存在时断言成功,不存在时 no-op
+  - `run_fails_without_tmux()`: tmux 不存在时断言错误,存在时 skip
+- **效果**:消除非确定性测试失败,CI 和本地均稳定通过
+
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
