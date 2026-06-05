@@ -242,6 +242,14 @@
 - **位置**:`src/app/handler_search.rs` — 搜索按键、tag filter、语义搜索浏览/输入测试
 - **覆盖**:search_key (4), tag_filter (5), semantic_browsing (6), semantic_typing (3)
 
+### 58. [x] P2 继续拆分 `mod.rs` (2229→1854 行)
+- **位置**:`poll_states()` (375 行) 从 `mod.rs` 移至 `session_ops.rs`
+- **效果**:`mod.rs` 从 2229 行降至 1854 行,`session_ops.rs` 从 1467 行增至 1843 行
+
+### 59. [x] P3 `browse.rs` 补全 5 个单元测试
+- **位置**:`src/app/browse.rs` — 浏览导航/选择/虚拟工作区/上级目录
+- **覆盖**:move_wraps_clamps (1), empty_noop (1), select_creates_workspace (1), select_virtual (1), up_goes_parent (1)
+
 ---
 
 ## 五、推荐的执行顺序
