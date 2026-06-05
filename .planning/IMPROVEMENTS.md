@@ -287,6 +287,14 @@
 - **效果**:`discovery.rs` 从 2025 行降至 721 行 (64% reduction),`extraction.rs` 1311 行
 - **re-export**:`discovery.rs` 添加 `pub use crate::extraction::*` 保持 API 兼容
 
+### 68. [x] P0 修复粘贴 bug: 奇怪符号 + 大内容阻塞
+- **问题1**: 粘贴内容到 agent CLI 出现奇怪符号 — 因为未用 BracketedPaste 协议包裹
+- **问题2**: 粘贴大内容导致 CLI 长时间回显 — 因为未限制大小
+- **修复**:`src/pty.rs` 添加 `is_bracketed_paste()` 检测终端模式
+- **修复**:`src/app/handler.rs` `handle_paste()` 用 `\x1b[200~`/`\x1b[201~` 包裹粘贴内容
+- **修复**:PTY 粘贴限制 64KB,搜索模式限制 200 字符,输入模式限制 4000 字符
+- **测试**:6 个新测试覆盖各种粘贴场景
+
 ## 五、推荐的执行顺序
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|

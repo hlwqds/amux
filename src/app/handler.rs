@@ -1012,16 +1012,43 @@ impl super::App {
 
     pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
         if self.view.input_mode == InputMode::ScrollbackSearch {
-            self.view.scrollback_query.push_str(text);
+            // In search mode, limit pasted text to prevent query bar overflow
+            let limited: String = text.chars().take(200).collect();
+            self.view.scrollback_query.push_str(&limited);
             self.run_scrollback_search();
         } else if self.view.input_mode != InputMode::None {
-            self.input_buffer.push_str(text);
+            // In input modes (rename, prompt), limit to reasonable size
+            let limited: String = text.chars().take(4000).collect();
+            self.input_buffer.push_str(&limited);
         } else if self.view.focus == Focus::Chat
             && let Some(idx) = self.ptys.active_pty
             && let Some(slot) = self.ptys.ptys.get(idx)
         {
-            let res = slot.handle.write_input(text.as_bytes());
-            if let Err(e) = res {
+            const MAX_PASTE_BYTES: usize = 64 * 1024;
+            let paste_bytes = text.as_bytes();
+
+            if paste_bytes.len() > MAX_PASTE_BYTES {
+                self.view.status = format!(
+                    "Paste truncated: {} bytes → {} KB max",
+                    paste_bytes.len(),
+                    MAX_PASTE_BYTES / 1024
+                );
+            }
+
+            let data = &paste_bytes[..paste_bytes.len().min(MAX_PASTE_BYTES)];
+
+            // Wrap in bracketed paste sequence if the PTY app supports it.
+            // This tells the CLI that this is pasted content (not typed),
+            // allowing it to handle it properly (e.g. collapse display).
+            if slot.handle.is_bracketed_paste() {
+                let mut buf = Vec::with_capacity(data.len() + 16);
+                buf.extend_from_slice(b"\x1b[200~");
+                buf.extend_from_slice(data);
+                buf.extend_from_slice(b"\x1b[201~");
+                if let Err(e) = slot.handle.write_input(&buf) {
+                    self.view.status = format!("Write error: {e}");
+                }
+            } else if let Err(e) = slot.handle.write_input(data) {
                 self.view.status = format!("Write error: {e}");
             }
         }

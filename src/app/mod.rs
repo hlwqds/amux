@@ -1860,4 +1860,51 @@ mod tests {
         assert_eq!(app.sessions.archived_sessions[0].id, "old1");
         assert_eq!(app.sessions.archived_sessions[0].title, "Old");
     }
+
+    #[test]
+    fn paste_in_none_mode_ignored_without_active_pty() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::None;
+        // No active PTY → paste is silently ignored
+        let result = app.handle_paste("hello world");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn paste_in_search_mode_appends_to_query() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::ScrollbackSearch;
+        let result = app.handle_paste("search term");
+        assert!(result.is_ok());
+        assert_eq!(app.view.scrollback_query, "search term");
+    }
+
+    #[test]
+    fn paste_in_search_mode_truncates_long_content() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::ScrollbackSearch;
+        let long_text = "x".repeat(500);
+        let result = app.handle_paste(&long_text);
+        assert!(result.is_ok());
+        assert!(app.view.scrollback_query.len() <= 200);
+    }
+
+    #[test]
+    fn paste_in_input_mode_appends_to_buffer() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::RenameSession;
+        let result = app.handle_paste("new name");
+        assert!(result.is_ok());
+        assert_eq!(app.input_buffer, "new name");
+    }
+
+    #[test]
+    fn paste_in_input_mode_truncates_very_long_content() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.input_mode = InputMode::RenameSession;
+        let long_text = "y".repeat(10000);
+        let result = app.handle_paste(&long_text);
+        assert!(result.is_ok());
+        assert!(app.input_buffer.len() <= 4000);
+    }
 }
