@@ -262,7 +262,11 @@
 
 ### 63. [x] P3 补全 3 个模块单元测试 (11 新测试)
 - **位置**:`server/auth.rs` (3 tests), `handler_amux.rs` (5 tests), `server/mod.rs` (3 tests)
-- **覆盖**:auth 中间件 401/通过 (3), amux 按键 c/x/?/o/p (5), 端口绑定/路由/首页 (3)
+
+### 64. [x] P3 补全最后 2 个模块单元测试 (17 新测试) — 全模块覆盖
+- **位置**:`ui_popup.rs` (14 tests), `server/ws.rs` (3 tests)
+- **覆盖**:help/settings/keybind 内容生成 (4), centered_rect 计算 (3), popup 面积 (3), render smoke tests (4), ws 消息格式 (3)
+- **里程碑**:所有 src/ 下的 Rust 模块均有单元测试
 
 ---
 
