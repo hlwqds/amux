@@ -203,7 +203,7 @@ impl super::App {
                     return Ok(Action::Continue);
                 }
                 // ── Amux mode: delegated to handler_amux.rs ──
-                return self.handle_amux_key(idx, key);
+                return Ok(self.handle_amux_key(idx, key));
             }
 
             // Chat focus but no active PTY
@@ -405,7 +405,7 @@ impl super::App {
         }
         // Shift+B: Branch
         if key.code == KeyCode::Char('B') {
-            self.start_branch()?;
+            self.start_branch();
             return Ok(Action::Continue);
         }
         // Alt+Shift+S: Stats
@@ -431,7 +431,7 @@ impl super::App {
             && key.modifiers.contains(KeyModifiers::ALT)
             && key.modifiers.contains(KeyModifiers::SHIFT)
         {
-            self.start_diff()?;
+            self.start_diff();
             return Ok(Action::Continue);
         }
         // Alt+Shift+G: Toggle archived sessions visibility
@@ -557,25 +557,25 @@ impl super::App {
 
     fn handle_input_key(&mut self, key: KeyEvent) -> Result<Action> {
         if self.view.input_mode == InputMode::BrowseDir {
-            return self.handle_browse_key(key);
+            return Ok(self.handle_browse_key(key));
         }
         if self.view.input_mode == InputMode::SelectAgent {
             return self.handle_agent_key(key);
         }
         if self.view.input_mode == InputMode::Search {
-            return self.handle_search_key(key);
+            return Ok(self.handle_search_key(key));
         }
         if self.view.input_mode == InputMode::ScrollbackSearch {
-            return self.handle_scrollback_search_key(key);
+            return Ok(self.handle_scrollback_search_key(key));
         }
         if self.view.input_mode == InputMode::TagFilter {
-            return self.handle_tag_filter_key(key);
+            return Ok(self.handle_tag_filter_key(key));
         }
         if self.view.input_mode == InputMode::TemplateSelect {
             return self.handle_template_select_key(key);
         }
         if self.view.input_mode == InputMode::AutomationSelect {
-            return self.handle_automation_select_key(key);
+            return Ok(self.handle_automation_select_key(key));
         }
         if self.view.input_mode == InputMode::SemanticSearch {
             return self.handle_semantic_search_key(key);
@@ -584,7 +584,7 @@ impl super::App {
             return self.handle_branch_select_key(key);
         }
         if self.view.input_mode == InputMode::ChainSelect {
-            return self.handle_chain_select_key(key);
+            return Ok(self.handle_chain_select_key(key));
         }
         // KeybindView: scroll with ↑/↓ or j/k, Esc to close
         if self.view.input_mode == InputMode::KeybindView {
@@ -676,10 +676,10 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::PluginList {
-            return self.handle_plugin_list_key(key);
+            return Ok(self.handle_plugin_list_key(key));
         }
         if self.view.input_mode == InputMode::PluginOutput {
-            return self.handle_plugin_output_key(key);
+            return Ok(self.handle_plugin_output_key(key));
         }
         if self.view.input_mode == InputMode::Timeline {
             self.view.input_mode = InputMode::None;
@@ -697,7 +697,7 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::ConflictResolve {
-            return self.handle_conflict_resolve_key(key);
+            return Ok(self.handle_conflict_resolve_key(key));
         }
         if self.view.input_mode == InputMode::RemoteView {
             self.view.input_mode = InputMode::None;
@@ -705,7 +705,7 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::Settings {
-            return self.handle_settings_key(key);
+            return Ok(self.handle_settings_key(key));
         }
         if self.view.input_mode == InputMode::SessionPreview {
             match key.code {
@@ -805,7 +805,7 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::ThemeSelect {
-            return self.handle_theme_select_key(key);
+            return Ok(self.handle_theme_select_key(key));
         }
         if self.view.input_mode == InputMode::ConfirmDelete {
             match key.code {
@@ -869,7 +869,7 @@ impl super::App {
                     self.popup.preflight_agent = None;
                     self.view.input_mode = InputMode::None;
                     if let Some(agent) = agent {
-                        self.spawn_with_agent_inner(agent, name)?;
+                        self.spawn_with_agent_inner(agent, &name)?;
                     } else {
                         self.view.status = "No pending session.".into();
                     }
@@ -900,7 +900,7 @@ impl super::App {
                             self.popup.preflight_agent = None;
                             self.view.input_mode = InputMode::None;
                             if let Some(agent) = agent {
-                                self.spawn_with_agent_inner(agent, name)?;
+                                self.spawn_with_agent_inner(agent, &name)?;
                             }
                         }
                     }
@@ -1020,12 +1020,10 @@ impl super::App {
         let text = std::mem::take(&mut self.pending_paste);
         // Route through handle_paste for proper sanitization, size limiting,
         // and bracketed-paste wrapping.
-        if let Err(e) = self.handle_paste(&text) {
-            self.view.status = format!("Paste flush error: {e}");
-        }
+        self.handle_paste(&text);
     }
 
-    pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
+    pub(super) fn handle_paste(&mut self, text: &str) -> Action {
         if self.view.input_mode == InputMode::ScrollbackSearch {
             // In search mode, limit pasted text to prevent query bar overflow
             let limited: String = text.chars().take(200).collect();
@@ -1075,11 +1073,11 @@ impl super::App {
                 self.view.status = format!("Write error: {e}");
             }
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     /// Handle keys in ScrollbackSearch mode (f in PTY chat).
-    fn handle_scrollback_search_key(&mut self, key: KeyEvent) -> Result<Action> {
+    fn handle_scrollback_search_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.scrollback_query.clear();
@@ -1122,7 +1120,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     /// Search the active PTY screen for the current scrollback query.

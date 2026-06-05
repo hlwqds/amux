@@ -39,7 +39,7 @@ fn page_size() -> i64 {
 pub fn read_process_stats(pid: u32) -> Result<ProcessStats> {
     #[cfg(target_os = "linux")]
     {
-        read_process_tree_stats_linux(pid)
+        Ok(read_process_tree_stats_linux(pid))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -194,7 +194,7 @@ fn collect_descendants(root_pid: u32) -> Vec<u32> {
 /// Read stats for an entire process tree (root PID + all descendants).
 /// Aggregates CPU, memory, IO across all processes in the tree.
 #[cfg(target_os = "linux")]
-fn read_process_tree_stats_linux(root_pid: u32) -> Result<ProcessStats> {
+fn read_process_tree_stats_linux(root_pid: u32) -> ProcessStats {
     let pids = collect_descendants(root_pid);
     let mut aggregated = ProcessStats::default();
     let mut max_uptime: u64 = 0;
@@ -211,7 +211,7 @@ fn read_process_tree_stats_linux(root_pid: u32) -> Result<ProcessStats> {
         }
     }
     aggregated.uptime_secs = max_uptime;
-    Ok(aggregated)
+    aggregated
 }
 
 /// Compute CPU percentage from previous measurement.

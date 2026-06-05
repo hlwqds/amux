@@ -33,7 +33,7 @@ struct JsonRpcRequest {
     params: Value,
 }
 
-fn success(id: Value, result: Value) -> String {
+fn success(id: &Value, result: &Value) -> String {
     serde_json::to_string(&json!({
         "jsonrpc": "2.0",
         "id": id,
@@ -42,7 +42,7 @@ fn success(id: Value, result: Value) -> String {
     .expect("serializing a json! value cannot fail")
 }
 
-fn error_resp(id: Value, code: i32, message: &str) -> String {
+fn error_resp(id: &Value, code: i32, message: &str) -> String {
     serde_json::to_string(&json!({
         "jsonrpc": "2.0",
         "id": id,
@@ -254,7 +254,7 @@ pub fn run() -> Result<()> {
         let req: JsonRpcRequest = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
-                let resp = error_resp(Value::Null, -32_700, &format!("parse error: {e}"));
+                let resp = error_resp(&Value::Null, -32_700, &format!("parse error: {e}"));
                 writeln!(stdout, "{resp}")?;
                 stdout.flush()?;
                 continue;
@@ -265,8 +265,8 @@ pub fn run() -> Result<()> {
 
         let resp = match req.method.as_str() {
             "initialize" => success(
-                id,
-                json!({
+                &id,
+                &json!({
                     "protocolVersion": "2024-11-05",
                     "capabilities": { "tools": {} },
                     "serverInfo": {
@@ -281,7 +281,7 @@ pub fn run() -> Result<()> {
                 continue;
             }
 
-            "tools/list" => success(id, json!({ "tools": tool_definitions() })),
+            "tools/list" => success(&id, &json!({ "tools": tool_definitions() })),
 
             "tools/call" => {
                 let tool_name = req.params["name"].as_str().unwrap_or("").to_string();
@@ -292,10 +292,10 @@ pub fn run() -> Result<()> {
                     .unwrap_or_else(|| json!({}));
 
                 match dispatch_tool(&state, &tool_name, &tool_args) {
-                    Ok(val) => success(id, val),
+                    Ok(val) => success(&id, &val),
                     Err(e) => success(
-                        id,
-                        json!({
+                        &id,
+                        &json!({
                             "content": [{ "type": "text", "text": format!("error: {e}") }],
                             "isError": true,
                         }),
@@ -303,7 +303,7 @@ pub fn run() -> Result<()> {
                 }
             }
 
-            other => error_resp(id, -32_601, &format!("method not found: {other}")),
+            other => error_resp(&id, -32_601, &format!("method not found: {other}")),
         };
 
         writeln!(stdout, "{resp}")?;
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn json_rpc_success_shape() {
-        let s = success(json!(1), json!({"ok": true}));
+        let s = success(&json!(1), &json!({"ok": true}));
         let v: Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["jsonrpc"], "2.0");
         assert_eq!(v["id"], 1);
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn json_rpc_error_shape() {
-        let s = error_resp(json!(2), -32_600, "bad");
+        let s = error_resp(&json!(2), -32_600, "bad");
         let v: Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["jsonrpc"], "2.0");
         assert_eq!(v["id"], 2);

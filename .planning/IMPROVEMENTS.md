@@ -325,6 +325,21 @@
 - **效果**:编译器可在编译时求值,减少运行时开销
 - **验证**:`cargo clippy -- -W clippy::missing_const_for_fn -D warnings` clean
 
+
+### 73. [x] P2 修复 5 处 needless_pass_by_value 警告
+- **位置**:session.rs (Option<String>), mcp.rs (Value×3), theme.rs (Theme)
+- **修复**:
+  - `spawn_with_agent_inner`: `name: Option<String>` → `&Option<String>`
+  - `success`/`error_resp`: `id: Value, result: Value` → `&Value`
+  - `apply_to`: `base: Theme` → `&Theme`
+  - `Theme` 添加 `Copy` derive
+- **验证**:`cargo clippy -- -W clippy::needless_pass_by_value -D warnings` clean
+
+### 74. [x] P2 移除 13 处不必要的 Result 包装 (unnecessary_wraps)
+- **位置**:handler.rs (handle_paste, handle_scrollback_search_key), handler_amux.rs (handle_amux_key), handler_search.rs (handle_search_key, handle_tag_filter_key), handler_select.rs (handle_settings_key, handle_theme_select_key, handle_chain_select_key, handle_automation_select_key, handle_browse_key, handle_plugin_list_key, handle_plugin_output_key, handle_conflict_resolve_key)
+- **修复**:13 个永远返回 Ok 的函数移除 Result 包装,返回裸类型
+- **调用者**:handler.rs 中 15 处 `return self.xxx()` → `Ok(self.xxx())`, mod.rs 中 `handle_paste()?` → `handle_paste()`, 测试中 `.unwrap()` 移除
+- **验证**:`cargo clippy -- -W clippy::unnecessary_wraps -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::types::*;
 
 impl super::App {
-    pub(super) fn handle_search_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_search_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char(c) => {
                 self.input_buffer.push(c);
@@ -29,10 +29,10 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
-    pub(super) fn handle_tag_filter_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_tag_filter_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Enter => {
                 if self.input_buffer.trim().is_empty() {
@@ -62,7 +62,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     /// Handle keys in SemanticSearch mode.
@@ -181,11 +181,11 @@ mod tests {
         app.view.input_mode = InputMode::Search;
         app.input_buffer.clear();
 
-        app.handle_search_key(key(KeyCode::Char('f'))).unwrap();
+        app.handle_search_key(key(KeyCode::Char('f')));
         assert_eq!(app.input_buffer, "f");
         assert_eq!(app.view.search_query.as_deref(), Some("f"));
 
-        app.handle_search_key(key(KeyCode::Char('i'))).unwrap();
+        app.handle_search_key(key(KeyCode::Char('i')));
         assert_eq!(app.input_buffer, "fi");
         assert_eq!(app.view.search_query.as_deref(), Some("fi"));
     }
@@ -197,7 +197,7 @@ mod tests {
         app.input_buffer = "abc".into();
         app.view.search_query = Some("abc".into());
 
-        app.handle_search_key(key(KeyCode::Backspace)).unwrap();
+        app.handle_search_key(key(KeyCode::Backspace));
         assert_eq!(app.input_buffer, "ab");
         assert_eq!(app.view.search_query.as_deref(), Some("ab"));
     }
@@ -209,7 +209,7 @@ mod tests {
         app.input_buffer = "x".into();
         app.view.search_query = Some("x".into());
 
-        app.handle_search_key(key(KeyCode::Backspace)).unwrap();
+        app.handle_search_key(key(KeyCode::Backspace));
         assert!(app.input_buffer.is_empty());
         assert!(app.view.search_query.is_none());
     }
@@ -222,7 +222,7 @@ mod tests {
         app.view.search_query = Some("query".into());
         app.view.agent_filter = Some(Agent::Claude);
 
-        app.handle_search_key(key(KeyCode::Esc)).unwrap();
+        app.handle_search_key(key(KeyCode::Esc));
         assert_eq!(app.view.input_mode, InputMode::None);
         assert!(app.input_buffer.is_empty());
         assert!(app.view.search_query.is_none());
@@ -237,7 +237,7 @@ mod tests {
         app.view.input_mode = InputMode::TagFilter;
         app.input_buffer = "  rust  ".into();
 
-        app.handle_tag_filter_key(key(KeyCode::Enter)).unwrap();
+        app.handle_tag_filter_key(key(KeyCode::Enter));
         assert_eq!(app.view.tag_filter.as_deref(), Some("rust"));
         assert_eq!(app.view.input_mode, InputMode::None);
         assert!(app.input_buffer.is_empty());
@@ -251,7 +251,7 @@ mod tests {
         app.input_buffer = "   ".into();
         app.view.tag_filter = Some("old".into());
 
-        app.handle_tag_filter_key(key(KeyCode::Enter)).unwrap();
+        app.handle_tag_filter_key(key(KeyCode::Enter));
         assert!(app.view.tag_filter.is_none());
         assert!(app.view.status.contains("cleared"));
     }
@@ -263,7 +263,7 @@ mod tests {
         app.input_buffer = "rust".into();
         app.view.status = "some status".into();
 
-        app.handle_tag_filter_key(key(KeyCode::Esc)).unwrap();
+        app.handle_tag_filter_key(key(KeyCode::Esc));
         assert_eq!(app.view.input_mode, InputMode::None);
         assert!(app.input_buffer.is_empty());
         assert!(app.view.status.is_empty());
@@ -275,8 +275,8 @@ mod tests {
         app.view.input_mode = InputMode::TagFilter;
         app.input_buffer.clear();
 
-        app.handle_tag_filter_key(key(KeyCode::Char('r'))).unwrap();
-        app.handle_tag_filter_key(key(KeyCode::Char('s'))).unwrap();
+        app.handle_tag_filter_key(key(KeyCode::Char('r')));
+        app.handle_tag_filter_key(key(KeyCode::Char('s')));
         assert_eq!(app.input_buffer, "rs");
     }
 
@@ -286,7 +286,7 @@ mod tests {
         app.view.input_mode = InputMode::TagFilter;
         app.input_buffer = "abc".into();
 
-        app.handle_tag_filter_key(key(KeyCode::Backspace)).unwrap();
+        app.handle_tag_filter_key(key(KeyCode::Backspace));
         assert_eq!(app.input_buffer, "ab");
     }
 

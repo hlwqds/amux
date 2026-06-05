@@ -1221,7 +1221,7 @@ impl App {
         }
     }
 
-    pub(crate) fn start_branch(&mut self) -> Result<()> {
+    pub(crate) fn start_branch(&mut self) {
         let node = self.selected_node();
         let session = match node {
             Some(TreeNode::Session(_wi, si)) => self.sessions.sessions.get(*si).cloned(),
@@ -1229,13 +1229,13 @@ impl App {
         };
         let Some(session) = session else {
             self.view.status = "Select a session to branch from.".into();
-            return Ok(());
+            return;
         };
 
         let jsonl_path = find_session_jsonl(&session);
         let Some(jsonl_path) = jsonl_path else {
             self.view.status = "Cannot find session JSONL file.".into();
-            return Ok(());
+            return;
         };
 
         match extract_branch_points(&jsonl_path) {
@@ -1252,10 +1252,9 @@ impl App {
                 self.view.status = "Failed to read session data.".into();
             }
         }
-        Ok(())
     }
 
-    pub(crate) fn start_diff(&mut self) -> Result<()> {
+    pub(crate) fn start_diff(&mut self) {
         use crate::discovery::{compute_diff, extract_session_output, find_session_jsonl};
 
         let node = self.selected_node();
@@ -1263,7 +1262,7 @@ impl App {
             Some(TreeNode::Session(_wi, si)) => *si,
             _ => {
                 self.view.status = "Select a session to diff.".into();
-                return Ok(());
+                return;
             }
         };
 
@@ -1272,7 +1271,7 @@ impl App {
             if left_idx == session_idx {
                 self.view.status = "Cannot diff a session with itself.".into();
                 self.popup.diff_left_session = None;
-                return Ok(());
+                return;
             }
 
             let left_session = self.sessions.sessions.get(left_idx).cloned();
@@ -1280,12 +1279,12 @@ impl App {
             let Some(left_session) = left_session else {
                 self.view.status = "First session no longer available.".into();
                 self.popup.diff_left_session = None;
-                return Ok(());
+                return;
             };
             let Some(right_session) = right_session else {
                 self.view.status = "Second session no longer available.".into();
                 self.popup.diff_left_session = None;
-                return Ok(());
+                return;
             };
 
             let left_jsonl = find_session_jsonl(&left_session);
@@ -1313,7 +1312,6 @@ impl App {
                 &session.title[..session.title.len().min(30)]
             );
         }
-        Ok(())
     }
 
     pub(crate) fn flush_pending_inputs(&mut self) {

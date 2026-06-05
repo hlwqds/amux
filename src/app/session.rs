@@ -62,13 +62,13 @@ impl super::App {
         self.popup.preflight_workspace = None;
         self.popup.preflight_agent = None;
         self.popup.preflight_session_name = None;
-        self.spawn_with_agent_inner(agent, name)
+        self.spawn_with_agent_inner(agent, &name)
     }
 
     pub(super) fn spawn_with_agent_inner(
         &mut self,
         agent: Agent,
-        name: Option<String>,
+        name: &Option<String>,
     ) -> Result<()> {
         let chat_size = self.chat_size();
         match self.selected_node().cloned() {

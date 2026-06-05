@@ -954,7 +954,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                     if !app.pending_paste.is_empty() {
                         app.pending_paste.clear();
                     }
-                    app.handle_paste(&text)?;
+                    app.handle_paste(&text);
                 }
 
                 Event::Mouse(mouse) => {
@@ -1944,16 +1944,14 @@ mod tests {
         let mut app = test_app(vec![], vec![]);
         app.view.input_mode = InputMode::None;
         // No active PTY → paste is silently ignored
-        let result = app.handle_paste("hello world");
-        assert!(result.is_ok());
+        let _result = app.handle_paste("hello world");
     }
 
     #[test]
     fn paste_in_search_mode_appends_to_query() {
         let mut app = test_app(vec![], vec![]);
         app.view.input_mode = InputMode::ScrollbackSearch;
-        let result = app.handle_paste("search term");
-        assert!(result.is_ok());
+        let _result = app.handle_paste("search term");
         assert_eq!(app.view.scrollback_query, "search term");
     }
 
@@ -1962,8 +1960,7 @@ mod tests {
         let mut app = test_app(vec![], vec![]);
         app.view.input_mode = InputMode::ScrollbackSearch;
         let long_text = "x".repeat(500);
-        let result = app.handle_paste(&long_text);
-        assert!(result.is_ok());
+        let _result = app.handle_paste(&long_text);
         assert!(app.view.scrollback_query.len() <= 200);
     }
 
@@ -1971,8 +1968,7 @@ mod tests {
     fn paste_in_input_mode_appends_to_buffer() {
         let mut app = test_app(vec![], vec![]);
         app.view.input_mode = InputMode::RenameSession;
-        let result = app.handle_paste("new name");
-        assert!(result.is_ok());
+        let _result = app.handle_paste("new name");
         assert_eq!(app.input_buffer, "new name");
     }
 
@@ -1981,8 +1977,7 @@ mod tests {
         let mut app = test_app(vec![], vec![]);
         app.view.input_mode = InputMode::RenameSession;
         let long_text = "y".repeat(10000);
-        let result = app.handle_paste(&long_text);
-        assert!(result.is_ok());
+        let _result = app.handle_paste(&long_text);
         assert!(app.input_buffer.len() <= 4000);
     }
 }

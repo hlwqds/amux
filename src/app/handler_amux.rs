@@ -1,4 +1,3 @@
-use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::types::*;
@@ -11,7 +10,7 @@ impl super::App {
     /// Called from `handle_key` when the focus is Chat, a PTY is active,
     /// shared keys (F12, Tab, Alt+key, Ctrl+Q/J/K/Y) have been handled,
     /// and we are NOT in Passthrough mode.
-    pub(super) fn handle_amux_key(&mut self, idx: usize, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_amux_key(&mut self, idx: usize, key: KeyEvent) -> Action {
         // Plain letters are commands (like vim normal mode).
         // Modified keys (Ctrl+X, Alt+X, etc.) still forward to PTY.
         if key.modifiers.is_empty()
@@ -27,7 +26,7 @@ impl super::App {
                             self.view.last_chat_area.height.saturating_sub(2) as usize,
                         );
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // f: scrollback search
                 KeyCode::Char('f') => {
@@ -39,19 +38,19 @@ impl super::App {
                         self.view.scrollback_matches.clear();
                         self.view.scrollback_match_idx = 0;
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // t: token usage
                 KeyCode::Char('t') => {
                     self.view.input_mode = InputMode::TokenStats;
                     self.view.status = "Token Usage (any key to close)".into();
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // s: stats
                 KeyCode::Char('s') => {
                     self.view.input_mode = InputMode::Stats;
                     self.view.status = "Activity Statistics (any key to close)".into();
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // e: chain select
                 KeyCode::Char('e') => {
@@ -63,7 +62,7 @@ impl super::App {
                         self.chains.chain_state.select(Some(0));
                         self.view.status = "Select chain (Enter=start, Esc=cancel)".into();
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // g: timeline
                 KeyCode::Char('g') => {
@@ -79,7 +78,7 @@ impl super::App {
                             self.timeline_events.len()
                         );
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // w: agent recommendations
                 KeyCode::Char('w') => {
@@ -92,7 +91,7 @@ impl super::App {
                         self.view.input_mode = InputMode::AgentRecommend;
                         self.view.status = "Agent Recommendations (any key to close)".into();
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // r: remote view
                 KeyCode::Char('r') => {
@@ -115,13 +114,13 @@ impl super::App {
                             );
                         }
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // x: diff
                 KeyCode::Char('x') => {
                     let _ = slot;
-                    self.start_diff()?;
-                    return Ok(Action::Continue);
+                    self.start_diff();
+                    return Action::Continue;
                 }
                 // c: toggle bottom terminal split
                 KeyCode::Char('c') => {
@@ -164,7 +163,7 @@ impl super::App {
                             }
                         }
                     }
-                    return Ok(Action::Continue);
+                    return Action::Continue;
                 }
                 // y: copy visible screen when scrolled up
                 KeyCode::Char('y') => {
@@ -175,10 +174,10 @@ impl super::App {
                             Ok(()) => self.view.status = "Screen copied to clipboard".into(),
                             Err(e) => self.view.status = format!("Clipboard error: {e}"),
                         }
-                        return Ok(Action::Continue);
+                    return Action::Continue;
                     }
                 }
-                _ => return Ok(Action::Continue), // swallow all plain letters
+                _ => return Action::Continue, // swallow all plain letters
             }
         }
 
@@ -199,7 +198,7 @@ impl super::App {
                     );
                 }
             }
-            return Ok(Action::Continue);
+            return Action::Continue;
         }
         // Home (Amux mode)
         if key.code == KeyCode::Home {
@@ -213,7 +212,7 @@ impl super::App {
                     slot.handle.scroll_page_up(99999);
                 }
             }
-            return Ok(Action::Continue);
+            return Action::Continue;
         }
         // End (Amux mode)
         if key.code == KeyCode::End {
@@ -227,7 +226,7 @@ impl super::App {
                     slot.handle.reset_scroll();
                 }
             }
-            return Ok(Action::Continue);
+            return Action::Continue;
         }
 
         // Amux mode fallback: forward to PTY (non-letter keys, modified keys)
@@ -245,7 +244,7 @@ impl super::App {
                 }
             }
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 }
 
@@ -297,7 +296,7 @@ mod tests {
         assert!(app.terminal.is_none());
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('c')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         assert!(app.terminal.is_some(), "terminal split should be opened");
         assert!(
             app.view.status.contains("Terminal opened"),
@@ -307,7 +306,7 @@ mod tests {
 
         // Pressing 'c' again closes it
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('c')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         assert!(app.terminal.is_none(), "terminal split should be closed");
         assert!(app.view.status.contains("Terminal closed"));
     }
@@ -328,7 +327,7 @@ mod tests {
         }
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('x')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         // First press selects left session for diff
         assert!(
             app.popup.diff_left_session.is_some(),
@@ -349,11 +348,11 @@ mod tests {
         app.ptys.ptys.push(make_slot("pty-1"));
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('?')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         assert!(
-            matches!(result, Ok(Action::Continue)),
-            "'?' should return Ok(Continue), got {:?}",
-            result.as_ref().map(|_| "Continue").err()
+            matches!(result, Action::Continue),
+            "'?' should return Continue, got {:?}",
+            result
         );
     }
 
@@ -364,10 +363,10 @@ mod tests {
         app.ptys.ptys.push(make_slot("pty-1"));
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('o')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         assert!(
-            matches!(result, Ok(Action::Continue)),
-            "'o' should return Ok(Continue)"
+            matches!(result, Action::Continue),
+            "'o' should return Continue"
         );
     }
 
@@ -378,10 +377,10 @@ mod tests {
         app.ptys.ptys.push(make_slot("pty-1"));
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('p')));
-        assert!(result.is_ok());
+        assert!(matches!(result, Action::Continue));
         assert!(
-            matches!(result, Ok(Action::Continue)),
-            "'p' should return Ok(Continue)"
+            matches!(result, Action::Continue),
+            "'p' should return Continue"
         );
     }
 }

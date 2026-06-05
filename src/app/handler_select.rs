@@ -6,7 +6,7 @@ use crate::types::*;
 use crate::util::now_secs;
 
 impl super::App {
-    pub(super) fn handle_settings_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_settings_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -70,10 +70,10 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
-    pub(super) fn handle_theme_select_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_theme_select_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -117,7 +117,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     pub(super) fn handle_template_select_key(&mut self, key: KeyEvent) -> Result<Action> {
@@ -190,7 +190,7 @@ impl super::App {
         Ok(Action::Continue)
     }
 
-    pub(super) fn handle_chain_select_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_chain_select_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -220,7 +220,7 @@ impl super::App {
                     if chain.steps.is_empty() {
                         self.view.status = "Chain has no steps.".into();
                         self.view.input_mode = InputMode::None;
-                        return Ok(Action::Continue);
+                        return Action::Continue;
                     }
 
                     // Find workspace path from current selection
@@ -232,7 +232,7 @@ impl super::App {
                         None => {
                             self.view.status = "Select a workspace or session first.".into();
                             self.view.input_mode = InputMode::None;
-                            return Ok(Action::Continue);
+                            return Action::Continue;
                         }
                     };
 
@@ -350,9 +350,9 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
-    pub(super) fn handle_automation_select_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_automation_select_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -423,9 +423,9 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
-    pub(super) fn handle_browse_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_browse_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -446,7 +446,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     pub(super) fn handle_branch_select_key(&mut self, key: KeyEvent) -> Result<Action> {
@@ -520,7 +520,7 @@ impl super::App {
         Ok(Action::Continue)
     }
 
-    pub(super) fn handle_plugin_list_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_plugin_list_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
@@ -594,7 +594,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     pub(super) fn handle_agent_key(&mut self, key: KeyEvent) -> Result<Action> {
@@ -655,7 +655,7 @@ impl super::App {
         Ok(Action::Continue)
     }
 
-    pub(super) fn handle_plugin_output_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_plugin_output_key(&mut self, key: KeyEvent) -> Action {
         let line_count = self.plugin_output.len();
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => {
@@ -690,7 +690,7 @@ impl super::App {
                 self.plugin_scroll = 0;
             }
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 
     /// Parse plugin output for JSON actions and handle them.
@@ -747,7 +747,7 @@ impl super::App {
         }
     }
 
-    pub(super) fn handle_conflict_resolve_key(&mut self, key: KeyEvent) -> Result<Action> {
+    pub(super) fn handle_conflict_resolve_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('i' | 'I') => {
                 self.isolate_conflicts();
@@ -759,7 +759,7 @@ impl super::App {
             }
             _ => {}
         }
-        Ok(Action::Continue)
+        Action::Continue
     }
 }
 
@@ -796,12 +796,9 @@ mod tests {
     #[test]
     fn typing_chars_appends_to_picker_query() {
         let mut app = fresh_app();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('d')))
-            .unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('a')))
-            .unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('r')))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('d')));
+        app.handle_theme_select_key(theme_key(KeyCode::Char('a')));
+        app.handle_theme_select_key(theme_key(KeyCode::Char('r')));
         assert_eq!(app.view.picker_query, "dar");
         // Mode should remain ThemeSelect
         assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
@@ -812,13 +809,11 @@ mod tests {
     fn backspace_removes_from_picker_query() {
         let mut app = fresh_app();
         app.view.picker_query = "mo".into();
-        app.handle_theme_select_key(theme_key(KeyCode::Backspace))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace));
         assert_eq!(app.view.picker_query, "m");
         // Backspace on empty query is a no-op
         app.view.picker_query.clear();
-        app.handle_theme_select_key(theme_key(KeyCode::Backspace))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace));
         assert!(app.view.picker_query.is_empty());
     }
 
@@ -827,8 +822,7 @@ mod tests {
     fn escape_clears_and_exits() {
         let mut app = fresh_app();
         app.view.picker_query = "dark".into();
-        app.handle_theme_select_key(theme_key(KeyCode::Esc))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Esc));
         assert!(app.view.picker_query.is_empty());
         assert_eq!(app.view.input_mode, InputMode::None);
         assert!(app.theme_list.is_empty());
@@ -841,8 +835,7 @@ mod tests {
         let mut app = fresh_app();
         app.view.picker_query = "da".into();
         // List has [Dark, Light], selection on index 0 (Dark)
-        app.handle_theme_select_key(theme_key(KeyCode::Enter))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Enter));
         assert_eq!(app.view.theme_name, ThemeName::Dark);
         assert!(app.view.picker_query.is_empty());
         assert_eq!(app.view.input_mode, InputMode::None);
@@ -855,16 +848,14 @@ mod tests {
         let mut app = fresh_app();
         app.view.picker_query = "li".into();
         // Down: 0 -> 1
-        app.handle_theme_select_key(theme_key(KeyCode::Down))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down));
         assert_eq!(app.theme_list_state.selected(), Some(1));
         assert_eq!(app.view.picker_query, "li");
         // Down again wraps: 1 -> 0
-        app.handle_theme_select_key(theme_key(KeyCode::Down))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down));
         assert_eq!(app.theme_list_state.selected(), Some(0));
         // Up wraps back: 0 -> 1
-        app.handle_theme_select_key(theme_key(KeyCode::Up)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Up));
         assert_eq!(app.theme_list_state.selected(), Some(1));
         assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
     }
@@ -874,10 +865,8 @@ mod tests {
     fn enter_on_second_item_applies_light() {
         let mut app = fresh_app();
         // Navigate to Light (index 1)
-        app.handle_theme_select_key(theme_key(KeyCode::Down))
-            .unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Enter))
-            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down));
+        app.handle_theme_select_key(theme_key(KeyCode::Enter));
         assert_eq!(app.view.theme_name, ThemeName::Light);
         assert_eq!(app.view.input_mode, InputMode::None);
     }

@@ -148,7 +148,7 @@ pub fn load_custom_theme(name: &str) -> Option<Theme> {
     let path = themes_dir().join(format!("{name}.json"));
     let content = fs::read_to_string(&path).ok()?;
     let tf: ThemeFile = serde_json::from_str(&content).ok()?;
-    Some(tf.apply_to(Theme::dark()))
+    Some(tf.apply_to(&Theme::dark()))
 }
 
 /// Discover all custom theme names from the themes directory.
@@ -173,7 +173,7 @@ pub fn discover_custom_themes() -> Option<Vec<ThemeName>> {
 
 impl ThemeFile {
     /// Apply this theme file on top of a base theme, overriding only specified fields.
-    fn apply_to(&self, base: Theme) -> Theme {
+    fn apply_to(&self, base: &Theme) -> Theme {
         Theme {
             sidebar_bg: self
                 .sidebar_bg
@@ -312,7 +312,7 @@ impl ThemeFile {
 
 /// Named color slots used across the TUI.
 /// Each slot maps to a specific UI element.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Theme {
     // Sidebar
     pub sidebar_bg: Color,
@@ -563,7 +563,7 @@ mod tests {
             accent: Some("Green".into()),
             ..ThemeFile::default()
         };
-        let theme = tf.apply_to(Theme::dark());
+        let theme = tf.apply_to(&Theme::dark());
         assert_eq!(theme.sidebar_title, Color::Rgb(255, 0, 0));
         assert_eq!(theme.accent, Color::Green);
         // Other fields unchanged from Dark
