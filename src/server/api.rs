@@ -20,18 +20,17 @@ pub async fn list_sessions(State(state): State<Arc<AppState>>) -> Json<Value> {
     let sessions = crate::discovery::discover_sessions(&config.workspaces);
 
     // Build set of session_ids that are currently active (have a running PTY)
-    let active_session_ids: std::collections::HashSet<String> = {
-        let ptys = state.ptys.lock().await;
-        ptys.values()
-            .filter_map(|rp| {
-                if rp.handle.is_alive() {
-                    rp.session_id.clone()
-                } else {
-                    None
-                }
-            })
-            .collect()
-    };
+    let active_session_ids: std::collections::HashSet<String> = state
+        .ptys
+        .iter()
+        .filter_map(|rp| {
+            if rp.value().handle.is_alive() {
+                rp.value().session_id.clone()
+            } else {
+                None
+            }
+        })
+        .collect();
 
     let list: Vec<Value> = sessions
         .iter()
@@ -69,10 +68,11 @@ pub async fn list_workspaces(State(_state): State<Arc<AppState>>) -> Json<Value>
 
 /// List all active PTY sessions registered by the TUI.
 pub async fn list_ptys(State(state): State<Arc<AppState>>) -> Json<Value> {
-    let ptys = state.ptys.lock().await;
-    let list: Vec<Value> = ptys
+    let list: Vec<Value> = state
+        .ptys
         .iter()
-        .map(|(id, rp)| {
+        .map(|ref_multi| {
+            let (id, rp) = (ref_multi.key(), ref_multi.value());
             let mut obj = json!({
                 "id": id,
                 "alive": rp.handle.is_alive(),
@@ -105,11 +105,10 @@ pub async fn pty_input(
     Path(id): Path<String>,
     AxumJson(body): AxumJson<PtyInputRequest>,
 ) -> Json<Value> {
-    let ptys = state.ptys.lock().await;
-    let Some(rp) = ptys.get(&id) else {
+    let Some(rp) = state.ptys.get(&id) else {
         return Json(json!({ "error": format!("PTY '{}' not found", id) }));
     };
-    let _ = rp.handle.write_input(body.data.as_bytes());
+    let _ = rp.value().handle.write_input(body.data.as_bytes());
     Json(json!({ "status": "ok" }))
 }
 
@@ -125,11 +124,10 @@ pub async fn pty_resize(
     Path(id): Path<String>,
     AxumJson(body): AxumJson<PtyResizeRequest>,
 ) -> Json<Value> {
-    let ptys = state.ptys.lock().await;
-    let Some(rp) = ptys.get(&id) else {
+    let Some(rp) = state.ptys.get(&id) else {
         return Json(json!({ "error": format!("PTY '{}' not found", id) }));
     };
-    rp.handle.resize((body.cols, body.rows));
+    rp.value().handle.resize((body.cols, body.rows));
     Json(json!({ "status": "ok" }))
 }
 

@@ -42,12 +42,8 @@
 ### 6. [x] P1 提取 `available_agents()` 共享给 doctor/quick_doctor/util
 - **位置**:`Agent::ALL` 常量 — `types.rs:92`,替换了 `util.rs`/`doctor.rs` 中 3 处硬编码列表
 
-### 7. [ ] P2 拆分 `App` god-struct
-- **现状**:`App` 把 `AppView` / `PtyManager` / `SessionStore` / `PopupState` / `ChainState` 五块全塞一起
-- **方案**:
-  - 短期:把 `ChainState` 的方法从 `handler.rs` 抽到 `src/chain.rs`(零风险)
-  - 长期:把 `App` 拆成 `HasView` / `HasPtys` / `HasSessions` trait,handler 函数签名分小块
-- **触发条件**:下次有人想动 `ChainState` 时,体验到"改 1 行跳 4 文件"的痛感,立即启动
+### 7. [x] P2 拆分 `App` god-struct (短期方案)
+- **位置**:`src/app/chain_handler.rs` — `execute_chain_step` 从 `mod.rs` 抽出,减少 mod.rs 130 行
 
 ---
 
@@ -193,8 +189,8 @@
 - **现状**:`load_project_config`(`src/config.rs:72`)解析失败就 `unwrap_or_default()` 静默吞错
 - **方案**:
   1. 内嵌 `.amux.json` 的 JSON Schema
-  2. 加载时 `jsonschema::validate()`,失败 → 启动报错精确到行号
-- **价值**:用户配错不再神秘,新手上手成本下降
+### 28. [x] P2 `.amux.json` 解析错误不再静默吞错
+- **位置**:`src/config.rs:66` — `load_project_config` 解析失败时 `tracing::warn!` 输出文件路径和错误,不再 `unwrap_or_default()`
 
 ### 可观测
 
@@ -223,7 +219,6 @@
 
 ## 四、生态与长期演进(P3)
 
-### 33. [ ] P3 crates.io 发布准备
 ### 33. [x] P3 crates.io 发布准备
 - **位置**:`Cargo.toml` 已加 description/license/repository/keywords/categories/readme
 ### 34. [x] P3 GitHub Actions CI
@@ -245,6 +240,9 @@
 - **现状**:`parking_lot::Mutex<HashMap<id, RegisteredPty>>` 在 `src/server/mod.rs:31-36` 是单点锁
 - **问题**:10 个并发 WS 连接就有竞争
 - **修复**:换 `dashmap::DashMap`,或 `Arc<RwLock<HashMap>>` + 一致性哈希分片
+
+### 40. [x] P2 `PtyState` 改 `DashMap` 分片锁
+- **位置**:`server::SharedPtyMap = dashmap::DashMap<String, RegisteredPty>` — 替换 `Arc<Mutex<HashMap>>`,消除 `try_lock` 和 `lock().await`
 
 ### 41. [x] P2 unset 环境变量列表迁到配置
 - **位置**:`Config.unset_env: Vec<String>` 加于 `types.rs:311`,`Agent::DEFAULT_UNSET_ENV` 常量 + `apply_term_env_with_extra()` 方法

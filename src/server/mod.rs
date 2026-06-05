@@ -6,15 +6,16 @@ use anyhow::{Context, Result};
 use axum::Router;
 use axum::middleware;
 use axum::routing::{get, post};
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::info;
 use tower_http::cors::CorsLayer;
 
 use crate::config;
 use crate::pty::PtyHandle;
 use crate::types::Agent;
+
+/// Shared PTY map type used by both TUI and HTTP server.
+pub type SharedPtyMap = dashmap::DashMap<String, RegisteredPty>;
 
 /// Metadata for a PTY registered in the shared state.
 #[derive(Clone)]
@@ -28,12 +29,11 @@ pub struct RegisteredPty {
 
 /// Shared application state for the HTTP server.
 /// `ptys` is the same Arc shared with the TUI's App struct.
-#[derive(Clone)]
 pub struct AppState {
     pub config_dir: std::path::PathBuf,
     /// Shared PTY handles keyed by PTY id, with metadata.
     /// TUI app registers PTYs here for WebSocket/REST access.
-    pub ptys: Arc<Mutex<HashMap<String, RegisteredPty>>>,
+    pub ptys: Arc<SharedPtyMap>,
 }
 
 /// Run the server with a pre-existing shared PTY state (used by TUI).
@@ -43,7 +43,7 @@ pub struct AppState {
 pub async fn run_server_with_state(
     port: u16,
     token: String,
-    ptys: Arc<Mutex<HashMap<String, RegisteredPty>>>,
+    ptys: Arc<SharedPtyMap>,
 ) -> Result<(u16, tokio::task::JoinHandle<()>)> {
     let state = Arc::new(AppState {
         config_dir: config::data_dir(),
@@ -69,7 +69,7 @@ pub async fn run_server(port: u16, token: String) -> Result<()> {
     info!("starting web server on port {}", port);
     let state = Arc::new(AppState {
         config_dir: config::data_dir(),
-        ptys: Arc::new(Mutex::new(HashMap::new())),
+        ptys: Arc::new(SharedPtyMap::new()),
     });
 
     let app = make_router(state, &token);

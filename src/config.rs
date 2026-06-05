@@ -64,7 +64,18 @@ pub fn load_project_config(workspace_path: &Path) -> ProjectConfig {
         return ProjectConfig::default();
     }
     match fs::read_to_string(&config_path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+        Ok(content) => {
+            match serde_json::from_str(&content) {
+                Ok(config) => config,
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to parse {}: {e} — using defaults",
+                        config_path.display()
+                    );
+                    ProjectConfig::default()
+                }
+            }
+        }
         Err(_) => ProjectConfig::default(),
     }
 }
