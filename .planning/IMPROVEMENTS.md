@@ -307,6 +307,11 @@
 - **修复**:移除 7 处冗余 `.clone()` (workspace_path, session.title, serve_token, shared_ptys, recording, tx)
 - **修复**:3 处 `.unwrap_or(expensive)` → `.unwrap_or_else(|| expensive)` (tuple default, agent.label(), json!({}))
 
+### 70. [x] P2 CI clippy 增加 cast 截断检查
+- **位置**:`.github/workflows/ci.yml` clippy job
+- **修复**:clippy 命令增加 `-W clippy::cast_possible_truncation -W clippy::cast_sign_loss`
+- **效果**:CI 会捕获隐式类型转换截断/符号丢失问题,防止回归
+
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
