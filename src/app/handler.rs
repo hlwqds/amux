@@ -11,201 +11,8 @@ impl super::App {
 
         if self.view.focus == Focus::Chat {
             if let Some(idx) = self.ptys.active_pty {
-                // ── Shared: always intercept these regardless of ChatMode ──
-
-                // F12: toggle between Passthrough and Amux mode
-                if key.code == KeyCode::F(12) {
-                    self.view.chat_mode = match self.view.chat_mode {
-                        ChatMode::Passthrough => {
-                            self.view.status = "Amux".into();
-                            ChatMode::Amux
-                        }
-                        ChatMode::Amux => {
-                            self.view.status = "RAW".into();
-                            ChatMode::Passthrough
-                        }
-                    };
-                    return Ok(Action::Continue);
-                }
-
-                // Tab / Alt+h: go to sidebar (always)
-                if (key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT))
-                    || (key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT))
-                {
-                    self.view.focus = Focus::Sidebar;
-                    self.refresh_sessions();
-                    self.view.status = "Sessions refreshed.".into();
-                    return Ok(Action::Continue);
-                }
-
-                // Alt+key: amux operations (always intercepted, never forwarded)
-                if key.modifiers.contains(KeyModifiers::ALT)
-                    && !key.modifiers.contains(KeyModifiers::CONTROL)
-                {
-                    let kb = &self.view.keybinds;
-                    if kb.quit.matches_event(&key) {
-                        return Ok(Action::Quit);
-                    }
-                    if kb.refresh.matches_event(&key) {
-                        self.refresh_sessions();
-                        self.view.status = "Sessions refreshed.".into();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.new_session.matches_event(&key) {
-                        self.view.focus = Focus::Sidebar;
-                        self.refresh_sessions();
-                        self.activate_selection()?;
-                        return Ok(Action::Continue);
-                    }
-                    if kb.help.matches_event(&key) {
-                        self.view.input_mode = InputMode::KeybindView;
-                        return Ok(Action::Continue);
-                    }
-                    if kb.preview.matches_event(&key) {
-                        self.start_session_preview();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.export.matches_event(&key) {
-                        self.export_selected_session();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.copy.matches_event(&key) {
-                        if let Some(slot) = self.ptys.ptys.get(idx) {
-                            let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
-                            match clipboard_copy(&text) {
-                                Ok(()) => self.view.status = format!("Copied: {}", text),
-                                Err(e) => self.view.status = format!("Copy failed: {}", e),
-                            }
-                        }
-                        return Ok(Action::Continue);
-                    }
-                    if kb.delete.matches_event(&key) {
-                        self.view.focus = Focus::Sidebar;
-                        self.request_delete();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.theme.matches_event(&key) {
-                        self.open_theme_panel();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.settings.matches_event(&key) {
-                        self.view.focus = Focus::Sidebar;
-                        self.view.input_mode = InputMode::Settings;
-                        self.view.status = "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
-                        return Ok(Action::Continue);
-                    }
-                    if kb.tag_filter.matches_event(&key) {
-                        if self.view.tag_filter.is_some() {
-                            self.view.tag_filter = None;
-                            self.rebuild_tree();
-                            self.view.status = "Tag filter cleared.".into();
-                        } else {
-                            self.view.input_mode = InputMode::TagFilter;
-                            self.input_buffer.clear();
-                            self.view.status = "Filter by tag (Enter=apply, Esc=cancel):".into();
-                        }
-                        return Ok(Action::Continue);
-                    }
-                    // Alt+key with no match: fall through to PTY forward
-                }
-
-                // Ctrl+Q: terminate session (always)
-                if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        self.unregister_pty(&slot.id);
-                    }
-                    self.ptys.ptys.remove(idx);
-                    self.ptys.active_pty = None;
-                    self.view.focus = Focus::Sidebar;
-                    self.refresh_sessions();
-                    self.view.status = "Session terminated. Sessions refreshed.".into();
-                    return Ok(Action::Continue);
-                }
-
-                // Ctrl+J/K: tab switching (always)
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(KeyModifiers::SHIFT)
-                    && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
-                {
-                    if self.ptys.ptys.len() > 1 {
-                        let cur = self.ptys.active_pty.unwrap_or(0);
-                        let delta = if key.code == KeyCode::Char('j') {
-                            1isize
-                        } else {
-                            -1
-                        };
-                        let next = ((cur as isize + delta)
-                            .rem_euclid(self.ptys.ptys.len() as isize))
-                            as usize;
-                        self.ptys.active_pty = Some(next);
-                        if let Some(s) = self.ptys.ptys.get(next) {
-                            s.handle.reset_scroll();
-                        }
-                        self.view.status = format!(
-                            "Switched to: {} ({}/{})",
-                            self.ptys.ptys[next].info.title,
-                            next + 1,
-                            self.ptys.ptys.len()
-                        );
-                    }
-                    return Ok(Action::Continue);
-                }
-
-                // Ctrl+Shift+J/K: reorder tabs (always)
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && key.modifiers.contains(KeyModifiers::SHIFT)
-                    && (key.code == KeyCode::Char('J') || key.code == KeyCode::Char('K'))
-                {
-                    if self.ptys.ptys.len() > 1 {
-                        let cur = self.ptys.active_pty.unwrap_or(0);
-                        let delta: isize = if key.code == KeyCode::Char('J') {
-                            1
-                        } else {
-                            -1
-                        };
-                        let new_pos = (cur as isize + delta)
-                            .rem_euclid(self.ptys.ptys.len() as isize)
-                            as usize;
-                        self.ptys.ptys.swap(cur, new_pos);
-                        self.ptys.active_pty = Some(new_pos);
-                        self.view.status = format!("Moved tab to position {}", new_pos + 1);
-                    }
-                    return Ok(Action::Continue);
-                }
-
-                // Ctrl+Y: copy session info (always)
-                if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                    if let Some(slot) = self.ptys.ptys.get(idx) {
-                        let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
-                        match clipboard_copy(&text) {
-                            Ok(()) => self.view.status = format!("Copied: {}", text),
-                            Err(e) => self.view.status = format!("Copy failed: {}", e),
-                        }
-                    }
-                    return Ok(Action::Continue);
-                }
-
-                // ── Passthrough mode: forward everything else to PTY ──
-                if self.view.chat_mode == ChatMode::Passthrough {
-                    let bytes = key_to_bytes(&key);
-                    if !bytes.is_empty()
-                        && let Some(slot) = self.ptys.ptys.get(idx)
-                    {
-                        // Reset scrollback position so the view snaps back
-                        // to the bottom (live content) when the user types —
-                        // same behaviour as Kitty.
-                        slot.handle.reset_scroll();
-                        if let Err(e) = slot.handle.write_input(&bytes) {
-                            self.view.status = format!("Write error: {e}");
-                        }
-                        self.view.screen_changed = true;
-                    }
-                    return Ok(Action::Continue);
-                }
-                // ── Amux mode: delegated to handler_amux.rs ──
-                return Ok(self.handle_amux_key(idx, key));
+                return self.handle_chat_pty_key(idx, key);
             }
-
             // Chat focus but no active PTY
             match key.code {
                 KeyCode::Tab => {
@@ -218,9 +25,209 @@ impl super::App {
             return Ok(Action::Continue);
         }
 
-        // P1: Use keybinds lookup instead of hardcoded key matching.
-        // Only keys NOT in Keybinds (digits, Space, Ctrl+key combos for
-        // features without configurable bindings) remain hardcoded.
+        self.handle_sidebar_key(key)
+    }
+
+    /// Handle keys when focused on a Chat PTY (InputMode::None, active PTY present).
+    fn handle_chat_pty_key(&mut self, idx: usize, key: KeyEvent) -> Result<Action> {
+        // F12: toggle between Passthrough and Amux mode
+        if key.code == KeyCode::F(12) {
+            self.view.chat_mode = match self.view.chat_mode {
+                ChatMode::Passthrough => {
+                    self.view.status = "Amux".into();
+                    ChatMode::Amux
+                }
+                ChatMode::Amux => {
+                    self.view.status = "RAW".into();
+                    ChatMode::Passthrough
+                }
+            };
+            return Ok(Action::Continue);
+        }
+
+        // Tab / Alt+h: go to sidebar (always)
+        if (key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT))
+            || (key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT))
+        {
+            self.view.focus = Focus::Sidebar;
+            self.refresh_sessions();
+            self.view.status = "Sessions refreshed.".into();
+            return Ok(Action::Continue);
+        }
+
+        // Alt+key: amux operations (always intercepted, never forwarded)
+        if key.modifiers.contains(KeyModifiers::ALT)
+            && !key.modifiers.contains(KeyModifiers::CONTROL)
+            && let Some(action) = self.handle_chat_alt_key(idx, &key)?
+        {
+            return Ok(action);
+        }
+
+        // Ctrl+Q: terminate session (always)
+        if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            if let Some(slot) = self.ptys.ptys.get(idx) {
+                self.unregister_pty(&slot.id);
+            }
+            self.ptys.ptys.remove(idx);
+            self.ptys.active_pty = None;
+            self.view.focus = Focus::Sidebar;
+            self.refresh_sessions();
+            self.view.status = "Session terminated. Sessions refreshed.".into();
+            return Ok(Action::Continue);
+        }
+
+        // Ctrl+J/K: tab switching (always)
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && !key.modifiers.contains(KeyModifiers::SHIFT)
+            && (key.code == KeyCode::Char('j') || key.code == KeyCode::Char('k'))
+        {
+            if self.ptys.ptys.len() > 1 {
+                let cur = self.ptys.active_pty.unwrap_or(0);
+                let delta = if key.code == KeyCode::Char('j') {
+                    1isize
+                } else {
+                    -1
+                };
+                let next =
+                    ((cur as isize + delta).rem_euclid(self.ptys.ptys.len() as isize)) as usize;
+                self.ptys.active_pty = Some(next);
+                if let Some(s) = self.ptys.ptys.get(next) {
+                    s.handle.reset_scroll();
+                }
+                self.view.status = format!(
+                    "Switched to: {} ({}/{})",
+                    self.ptys.ptys[next].info.title,
+                    next + 1,
+                    self.ptys.ptys.len()
+                );
+            }
+            return Ok(Action::Continue);
+        }
+
+        // Ctrl+Shift+J/K: reorder tabs (always)
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && key.modifiers.contains(KeyModifiers::SHIFT)
+            && (key.code == KeyCode::Char('J') || key.code == KeyCode::Char('K'))
+        {
+            if self.ptys.ptys.len() > 1 {
+                let cur = self.ptys.active_pty.unwrap_or(0);
+                let delta: isize = if key.code == KeyCode::Char('J') {
+                    1
+                } else {
+                    -1
+                };
+                let new_pos =
+                    (cur as isize + delta).rem_euclid(self.ptys.ptys.len() as isize) as usize;
+                self.ptys.ptys.swap(cur, new_pos);
+                self.ptys.active_pty = Some(new_pos);
+                self.view.status = format!("Moved tab to position {}", new_pos + 1);
+            }
+            return Ok(Action::Continue);
+        }
+
+        // Ctrl+Y: copy session info (always)
+        if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            if let Some(slot) = self.ptys.ptys.get(idx) {
+                let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
+                match clipboard_copy(&text) {
+                    Ok(()) => self.view.status = format!("Copied: {}", text),
+                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                }
+            }
+            return Ok(Action::Continue);
+        }
+
+        // ── Passthrough mode: forward everything else to PTY ──
+        if self.view.chat_mode == ChatMode::Passthrough {
+            let bytes = key_to_bytes(&key);
+            if !bytes.is_empty()
+                && let Some(slot) = self.ptys.ptys.get(idx)
+            {
+                slot.handle.reset_scroll();
+                if let Err(e) = slot.handle.write_input(&bytes) {
+                    self.view.status = format!("Write error: {e}");
+                }
+                self.view.screen_changed = true;
+            }
+            return Ok(Action::Continue);
+        }
+        // ── Amux mode: delegated to handler_amux.rs ──
+        Ok(self.handle_amux_key(idx, key))
+    }
+
+    /// Handle Alt+key bindings while in Chat PTY mode.
+    /// Returns `Some(action)` if consumed, `None` to fall through to PTY forward.
+    fn handle_chat_alt_key(&mut self, idx: usize, key: &KeyEvent) -> Result<Option<Action>> {
+        let kb = &self.view.keybinds;
+        if kb.quit.matches_event(key) {
+            return Ok(Some(Action::Quit));
+        }
+        if kb.refresh.matches_event(key) {
+            self.refresh_sessions();
+            self.view.status = "Sessions refreshed.".into();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.new_session.matches_event(key) {
+            self.view.focus = Focus::Sidebar;
+            self.refresh_sessions();
+            self.activate_selection()?;
+            return Ok(Some(Action::Continue));
+        }
+        if kb.help.matches_event(key) {
+            self.view.input_mode = InputMode::KeybindView;
+            return Ok(Some(Action::Continue));
+        }
+        if kb.preview.matches_event(key) {
+            self.start_session_preview();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.export.matches_event(key) {
+            self.export_selected_session();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.copy.matches_event(key) {
+            if let Some(slot) = self.ptys.ptys.get(idx) {
+                let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
+                match clipboard_copy(&text) {
+                    Ok(()) => self.view.status = format!("Copied: {}", text),
+                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                }
+            }
+            return Ok(Some(Action::Continue));
+        }
+        if kb.delete.matches_event(key) {
+            self.view.focus = Focus::Sidebar;
+            self.request_delete();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.theme.matches_event(key) {
+            self.open_theme_panel();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.settings.matches_event(key) {
+            self.view.focus = Focus::Sidebar;
+            self.view.input_mode = InputMode::Settings;
+            self.view.status =
+                "Settings: a=add ws  d=del ws  r=rename ws  k=keybinds  t=themes  Esc=close".into();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.tag_filter.matches_event(key) {
+            if self.view.tag_filter.is_some() {
+                self.view.tag_filter = None;
+                self.rebuild_tree();
+                self.view.status = "Tag filter cleared.".into();
+            } else {
+                self.view.input_mode = InputMode::TagFilter;
+                self.input_buffer.clear();
+                self.view.status = "Filter by tag (Enter=apply, Esc=cancel):".into();
+            }
+            return Ok(Some(Action::Continue));
+        }
+        Ok(None)
+    }
+
+    /// Handle keys when focused on the Sidebar (InputMode::None, Focus::Sidebar).
+    fn handle_sidebar_key(&mut self, key: KeyEvent) -> Result<Action> {
         let kb = &self.view.keybinds;
         if kb.quit.matches_event(&key) || key.code == KeyCode::Esc {
             return Ok(Action::Quit);

@@ -1,5 +1,174 @@
 use super::*;
 
+/// Collect git branch/diff info and populate `slot.info.git_info` + `slot.info.diff_summary`.
+fn collect_git_info(slot: &mut PtySlot) {
+    let ws = &slot.info.workspace_path;
+    let branch = git_cmd(ws, &["rev-parse", "--abbrev-ref", "HEAD"]).ok();
+    let commit = git_cmd(ws, &["rev-parse", "--short", "HEAD"]).ok();
+    let stat_output = git_cmd(ws, &["diff", "--stat"]).ok();
+    let diff_stat = stat_output.as_ref().and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            s.lines().last().map(|l| l.to_string())
+        }
+    });
+    let summary_line = stat_output.and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            s.lines().last().map(|l| l.to_string())
+        }
+    });
+    let numstat_output = git_cmd(ws, &["diff", "--numstat"]).ok();
+    let (files, ins, del) = numstat_output
+        .map(|s| {
+            let (files, total_ins, total_del) = s.lines().filter(|l| !l.is_empty()).fold(
+                (Vec::new(), 0u32, 0u32),
+                |(mut f, a, b), l| {
+                    let parts: Vec<&str> = l.split('\t').collect();
+                    if parts.len() >= 3 {
+                        f.push(parts[2].to_string());
+                        (
+                            f,
+                            a + parts[0].parse::<u32>().unwrap_or(0),
+                            b + parts[1].parse::<u32>().unwrap_or(0),
+                        )
+                    } else if parts.len() >= 2 {
+                        (
+                            f,
+                            a + parts[0].parse::<u32>().unwrap_or(0),
+                            b + parts[1].parse::<u32>().unwrap_or(0),
+                        )
+                    } else {
+                        (f, a, b)
+                    }
+                },
+            );
+            (files, total_ins, total_del)
+        })
+        .unwrap_or_default();
+    slot.info.git_info = GitInfo {
+        branch,
+        commit,
+        diff_stat,
+    };
+    slot.info.diff_summary = DiffSummary {
+        files_changed: files,
+        insertions: ins,
+        deletions: del,
+        summary_line,
+    };
+}
+
+/// Spawn a background thread to run post-completion checks (cargo test/clippy etc.).
+fn spawn_completion_check(idx: usize, slot: &mut PtySlot, check_override: Option<String>) {
+    let project_type = slot.info.project_type;
+    slot.info.check_status = CheckStatus::Running;
+    let ws = slot.info.workspace_path.clone();
+    std::thread::spawn(move || {
+        let result = if let Some(ref cmd_str) = check_override {
+            let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+            if parts.is_empty() {
+                CheckStatus::Passed
+            } else {
+                let (prog, args) = (parts[0], &parts[1..]);
+                let out = std::process::Command::new(prog)
+                    .args(args)
+                    .current_dir(&ws)
+                    .output();
+                if out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                    CheckStatus::Passed
+                } else {
+                    CheckStatus::Failed(cmd_str.clone())
+                }
+            }
+        } else {
+            let commands = project_type.check_commands();
+            if commands.is_empty() {
+                CheckStatus::Passed
+            } else {
+                let mut errs = Vec::new();
+                for (prog, args) in &commands {
+                    let out = std::process::Command::new(*prog)
+                        .args(args)
+                        .current_dir(&ws)
+                        .output();
+                    if !out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                        errs.push(format!("{} {} failed", prog, args.join(" ")));
+                    }
+                }
+                if errs.is_empty() {
+                    CheckStatus::Passed
+                } else {
+                    CheckStatus::Failed(errs.join(", "))
+                }
+            }
+        };
+        let marker = crate::config::data_dir().join(format!(".check-result-{}", idx));
+        let _ = std::fs::write(&marker, serde_json::to_string(&result).unwrap_or_default());
+    });
+}
+
+/// Save recording metadata (.meta.json) for a completed PTY session.
+fn save_recording_meta(slot: &PtySlot) {
+    let rec_dir = crate::config::data_dir().join("recordings");
+    let id = slot.info.session_id.as_deref().unwrap_or("unknown");
+    let path = rec_dir.join(format!("{}.cast", &id[..id.len().min(16)]));
+    if path.exists() {
+        let header = serde_json::json!({
+            "version": 2, "width": 80, "height": 24,
+            "timestamp": slot.info.started_at,
+            "title": slot.info.title,
+            "env": { "TERM": "xterm-256color" }
+        });
+        let header_path = rec_dir.join(format!("{}.meta.json", &id[..id.len().min(16)]));
+        let _ = std::fs::write(
+            &header_path,
+            serde_json::to_string_pretty(&header).unwrap_or_default(),
+        );
+    }
+}
+
+/// Merge session summary into the workspace knowledge base.
+fn merge_session_knowledge(slot: &PtySlot) {
+    let ws = &slot.info.workspace_path;
+    let summary_text = if let Some(ref session_id) = slot.info.session_id {
+        let short_id = &session_id[..session_id.len().min(16)];
+        let summary_path = crate::config::data_dir()
+            .join("summaries")
+            .join(format!("{}.md", short_id));
+        std::fs::read_to_string(&summary_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+    if !summary_text.is_empty() {
+        let mut kb = crate::knowledge::load_knowledge(ws);
+        crate::knowledge::merge_from_session(&mut kb, &summary_text);
+        let _ = crate::knowledge::save_knowledge(ws, &kb);
+    }
+}
+
+/// Execute on_complete hook plugins for a completed PTY session.
+fn run_completion_hooks(slot: &PtySlot, plugins: &[crate::types::Plugin]) {
+    let session_id = slot.info.session_id.clone().unwrap_or_default();
+    let title = slot.info.title.clone();
+    for plugin in plugins {
+        if plugin.hooks.iter().any(|h| h == "on_complete") {
+            let mut cmd = plugin
+                .command
+                .replace("{workspace}", &slot.info.workspace_path.to_string_lossy())
+                .replace("{session_id}", &session_id)
+                .replace("{title}", &title);
+            cmd.push_str(&format!(" --event on_complete --session_id {}", session_id));
+            let _ = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(&cmd)
+                .output();
+        }
+    }
+}
+
 impl App {
     pub(crate) fn archive_old_sessions(&mut self) {
         let Some(days) = self.sessions.archive_days else {
@@ -1507,38 +1676,14 @@ impl App {
             } else {
                 std::collections::HashMap::new()
             };
+        // Pre-extract global check command for use inside iter_mut
+        let global_check = self.check_command.clone();
         for (i, slot) in self.ptys.ptys.iter_mut().enumerate() {
             let state = slot.handle.state();
             if state == PtyState::Running {
                 slot.info.completed = false;
-                // Record screen frame (throttled to max every 200ms)
-                if slot.last_recording_at.elapsed() >= std::time::Duration::from_millis(200) {
-                    use std::hash::{Hash, Hasher};
-                    let content = slot.handle.screen_contents();
-                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                    content.hash(&mut hasher);
-                    let hash = hasher.finish();
-                    if hash != slot.last_screen_hash {
-                        slot.last_screen_hash = hash;
-                        any_screen_changed = true;
-                        let rec_dir = crate::config::data_dir().join("recordings");
-                        let _ = std::fs::create_dir_all(&rec_dir);
-                        let id = slot.info.session_id.as_deref().unwrap_or("unknown");
-                        let path = rec_dir.join(format!("{}.cast", &id[..id.len().min(16)]));
-                        let ts = std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs_f64();
-                        let frame = serde_json::json!([ts, "o", content]);
-                        let _ = std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(&path)
-                            .and_then(|mut f| {
-                                std::io::Write::write_all(&mut f, format!("{}\n", frame).as_bytes())
-                            });
-                    }
-                    slot.last_recording_at = std::time::Instant::now();
+                if slot.record_screen_frame() {
+                    any_screen_changed = true;
                 }
             } else if !slot.info.completed && state == PtyState::Completed {
                 slot.info.completed = true;
@@ -1552,86 +1697,9 @@ impl App {
                         pty_count
                     ));
                     // Save recording metadata
-                    let rec_dir = crate::config::data_dir().join("recordings");
-                    let id = slot.info.session_id.as_deref().unwrap_or("unknown");
-                    let path = rec_dir.join(format!("{}.cast", &id[..id.len().min(16)]));
-                    if path.exists() {
-                        let header = serde_json::json!({
-                            "version": 2, "width": 80, "height": 24,
-                            "timestamp": slot.info.started_at,
-                            "title": slot.info.title,
-                            "env": { "TERM": "xterm-256color" }
-                        });
-                        let header_path =
-                            rec_dir.join(format!("{}.meta.json", &id[..id.len().min(16)]));
-                        let _ = std::fs::write(
-                            &header_path,
-                            serde_json::to_string_pretty(&header).unwrap_or_default(),
-                        );
-                    }
-                    // Desktop notification deferred to after the loop
-                    // Record git state + diff summary (merged git calls)
-                    {
-                        let ws = &slot.info.workspace_path;
-                        let branch = git_cmd(ws, &["rev-parse", "--abbrev-ref", "HEAD"]).ok();
-                        let commit = git_cmd(ws, &["rev-parse", "--short", "HEAD"]).ok();
-                        // One --stat call for both git_info.diff_stat and diff_summary.summary_line
-                        let stat_output = git_cmd(ws, &["diff", "--stat"]).ok();
-                        let diff_stat = stat_output.as_ref().and_then(|s| {
-                            if s.is_empty() {
-                                None
-                            } else {
-                                s.lines().last().map(|l| l.to_string())
-                            }
-                        });
-                        let summary_line = stat_output.and_then(|s| {
-                            if s.is_empty() {
-                                None
-                            } else {
-                                s.lines().last().map(|l| l.to_string())
-                            }
-                        });
-                        // One --numstat call for both files_changed and insertions/deletions
-                        let numstat_output = git_cmd(ws, &["diff", "--numstat"]).ok();
-                        let (files, ins, del) = numstat_output
-                            .map(|s| {
-                                let (files, total_ins, total_del) = s
-                                    .lines()
-                                    .filter(|l| !l.is_empty())
-                                    .fold((Vec::new(), 0u32, 0u32), |(mut f, a, b), l| {
-                                        let parts: Vec<&str> = l.split('\t').collect();
-                                        if parts.len() >= 3 {
-                                            f.push(parts[2].to_string());
-                                            (
-                                                f,
-                                                a + parts[0].parse::<u32>().unwrap_or(0),
-                                                b + parts[1].parse::<u32>().unwrap_or(0),
-                                            )
-                                        } else if parts.len() >= 2 {
-                                            (
-                                                f,
-                                                a + parts[0].parse::<u32>().unwrap_or(0),
-                                                b + parts[1].parse::<u32>().unwrap_or(0),
-                                            )
-                                        } else {
-                                            (f, a, b)
-                                        }
-                                    });
-                                (files, total_ins, total_del)
-                            })
-                            .unwrap_or_default();
-                        slot.info.git_info = GitInfo {
-                            branch,
-                            commit,
-                            diff_stat,
-                        };
-                        slot.info.diff_summary = DiffSummary {
-                            files_changed: files,
-                            insertions: ins,
-                            deletions: del,
-                            summary_line,
-                        };
-                    }
+                    save_recording_meta(slot);
+                    // Record git state + diff summary
+                    collect_git_info(slot);
                     // Save snapshot_commit to session meta for rollback support
                     if let Some(ref session_id) = slot.info.session_id
                         && let Some(ref snapshot) = slot.info.snapshot_commit
@@ -1651,48 +1719,9 @@ impl App {
                         let _ = std::fs::write(&path, &summary);
                     }
                     // Merge session knowledge into workspace knowledge base
-                    {
-                        let ws = &slot.info.workspace_path;
-                        let summary_text = if let Some(ref session_id) = slot.info.session_id {
-                            let short_id = &session_id[..session_id.len().min(16)];
-                            let summary_path = crate::config::data_dir()
-                                .join("summaries")
-                                .join(format!("{}.md", short_id));
-                            std::fs::read_to_string(&summary_path).unwrap_or_default()
-                        } else {
-                            String::new()
-                        };
-                        if !summary_text.is_empty() {
-                            let mut kb = crate::knowledge::load_knowledge(ws);
-                            crate::knowledge::merge_from_session(&mut kb, &summary_text);
-                            let _ = crate::knowledge::save_knowledge(ws, &kb);
-                        }
-                    }
+                    merge_session_knowledge(slot);
                     // Execute on_complete hook plugins
-                    {
-                        let session_id = slot.info.session_id.clone().unwrap_or_default();
-                        let title = slot.info.title.clone();
-                        for plugin in &self.plugins {
-                            if plugin.hooks.iter().any(|h| h == "on_complete") {
-                                let mut cmd = plugin
-                                    .command
-                                    .replace(
-                                        "{workspace}",
-                                        &slot.info.workspace_path.to_string_lossy(),
-                                    )
-                                    .replace("{session_id}", &session_id)
-                                    .replace("{title}", &title);
-                                cmd.push_str(&format!(
-                                    " --event on_complete --session_id {}",
-                                    session_id
-                                ));
-                                let _ = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(&cmd)
-                                    .output();
-                            }
-                        }
-                    }
+                    run_completion_hooks(slot, &self.plugins);
                     // Chain continuation: pre-extracted data (can't borrow self inside iter_mut)
                     if let Some(ref pc) = pre_chain
                         && slot.info.completed
@@ -1712,76 +1741,14 @@ impl App {
                             chain_completed = true;
                         }
                     }
-                    {
-                        let project_type = slot.info.project_type;
-                        slot.info.check_status = CheckStatus::Running;
-                        let ws = slot.info.workspace_path.clone();
-                        let idx = i;
-                        // Global override first, then project config, then auto-detect
-                        let check_override = self.check_command.clone().or_else(|| {
-                            self.sessions
-                                .project_configs
-                                .get(&ws)
-                                .and_then(|pc| pc.check_command.clone())
-                        });
-                        std::thread::spawn(move || {
-                            let result = if let Some(ref cmd_str) = check_override {
-                                // User-configured override command
-                                let parts: Vec<&str> = cmd_str.split_whitespace().collect();
-                                if parts.is_empty() {
-                                    CheckStatus::Passed
-                                } else {
-                                    let (prog, args) = (parts[0], &parts[1..]);
-                                    let out = std::process::Command::new(prog)
-                                        .args(args)
-                                        .current_dir(&ws)
-                                        .output();
-                                    if out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-                                        CheckStatus::Passed
-                                    } else {
-                                        CheckStatus::Failed(cmd_str.clone())
-                                    }
-                                }
-                            } else {
-                                let commands = project_type.check_commands();
-                                if commands.is_empty() {
-                                    // Unknown project type — skip check
-                                    CheckStatus::Passed
-                                } else {
-                                    let mut errs = Vec::new();
-                                    for (prog, args) in &commands {
-                                        let out = std::process::Command::new(*prog)
-                                            .args(args)
-                                            .current_dir(&ws)
-                                            .output();
-                                        if !out
-                                            .as_ref()
-                                            .map(|o| o.status.success())
-                                            .unwrap_or(false)
-                                        {
-                                            errs.push(format!(
-                                                "{} {} failed",
-                                                prog,
-                                                args.join(" ")
-                                            ));
-                                        }
-                                    }
-                                    if errs.is_empty() {
-                                        CheckStatus::Passed
-                                    } else {
-                                        CheckStatus::Failed(errs.join(", "))
-                                    }
-                                }
-                            };
-                            // Store result via a marker file for the main thread to pick up
-                            let marker =
-                                crate::config::data_dir().join(format!(".check-result-{}", idx));
-                            let _ = std::fs::write(
-                                &marker,
-                                serde_json::to_string(&result).unwrap_or_default(),
-                            );
-                        });
-                    }
+                    // Post-completion check
+                    let check_override = global_check.clone().or_else(|| {
+                        self.sessions
+                            .project_configs
+                            .get(&slot.info.workspace_path)
+                            .and_then(|pc| pc.check_command.clone())
+                    });
+                    spawn_completion_check(i, slot, check_override);
                 }
             }
         }

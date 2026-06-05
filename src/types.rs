@@ -403,6 +403,41 @@ pub struct PtySlot {
     pub process_stats: Option<crate::procfs::ProcessStats>,
 }
 
+impl PtySlot {
+    /// Record a screen frame to disk (throttled to max every 200ms).
+    /// Returns `true` if the screen content changed.
+    pub fn record_screen_frame(&mut self) -> bool {
+        if self.last_recording_at.elapsed() < std::time::Duration::from_millis(200) {
+            return false;
+        }
+        use std::hash::{Hash, Hasher};
+        let content = self.handle.screen_contents();
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        content.hash(&mut hasher);
+        let hash = hasher.finish();
+        if hash == self.last_screen_hash {
+            return false;
+        }
+        self.last_screen_hash = hash;
+        self.last_recording_at = std::time::Instant::now();
+        let rec_dir = crate::config::data_dir().join("recordings");
+        let _ = std::fs::create_dir_all(&rec_dir);
+        let id = self.info.session_id.as_deref().unwrap_or("unknown");
+        let path = rec_dir.join(format!("{}.cast", &id[..id.len().min(16)]));
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64();
+        let frame = serde_json::json!([ts, "o", content]);
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .and_then(|mut f| std::io::Write::write_all(&mut f, format!("{}\n", frame).as_bytes()));
+        true
+    }
+}
+
 /// Git state recorded when a session completes.
 #[derive(Clone, Debug, Default)]
 pub struct GitInfo {

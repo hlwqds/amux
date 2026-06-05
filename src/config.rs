@@ -83,23 +83,25 @@ fn apply_config_overlays(config: &mut Config, config_dir: &Path) {
     entries.sort_by_key(|e| e.file_name());
 
     for entry in entries {
-        let overlay_path = entry.path();
-        match fs::read_to_string(&overlay_path) {
-            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(value) => {
-                    if let Ok(overlay) = serde_json::from_value::<Config>(value) {
-                        merge_config(config, &overlay);
-                        tracing::info!("Loaded config overlay: {}", overlay_path.display());
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to parse {}: {e}", overlay_path.display());
-                }
-            },
-            Err(e) => {
-                tracing::warn!("Failed to read {}: {e}", overlay_path.display());
-            }
+        apply_single_overlay(config, &entry.path());
+    }
+}
+
+/// Try to load and merge a single config.d overlay file.
+fn apply_single_overlay(config: &mut Config, path: &Path) {
+    let Ok(content) = fs::read_to_string(path) else {
+        return;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) else {
+        tracing::warn!("Failed to parse {}", path.display());
+        return;
+    };
+    match serde_json::from_value::<Config>(value) {
+        Ok(overlay) => {
+            merge_config(config, &overlay);
+            tracing::info!("Loaded config overlay: {}", path.display());
         }
+        Err(e) => tracing::warn!("Invalid overlay {}: {e}", path.display()),
     }
 }
 

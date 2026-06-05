@@ -149,62 +149,44 @@ impl super::App {
         }
         self.render_status(frame, chunks[1]);
 
-        if self.view.input_mode == InputMode::Help {
-            self.render_help_popup(frame, area);
-        } else if self.view.input_mode == InputMode::SessionPreview
-            || self.view.input_mode == InputMode::SummaryPreview
-        {
-            self.render_session_preview(frame, area);
-        } else if self.view.input_mode == InputMode::Settings {
-            self.render_settings_popup(frame, area);
-        } else if self.view.input_mode == InputMode::KeybindView {
-            self.render_keybind_view(frame, area);
-        } else if self.view.input_mode == InputMode::ThemeSelect {
-            self.render_theme_select(frame, area);
-        } else if self.view.input_mode == InputMode::TemplateSelect {
-            self.render_template_select(frame, area);
-        } else if self.view.input_mode == InputMode::AutomationSelect {
-            self.render_automation_select(frame, area);
-        } else if self.view.input_mode == InputMode::BranchSelect {
-            self.render_branch_select(frame, area);
-        } else if self.view.input_mode == InputMode::Stats {
-            self.render_stats(frame, area);
-        } else if self.view.input_mode == InputMode::TokenStats {
-            self.render_token_stats(frame, area);
-        } else if self.view.input_mode == InputMode::DiffView {
-            self.render_diff_view(frame, area);
-        } else if self.view.input_mode == InputMode::RemoteView {
-            self.render_remote_view(frame, area);
-        } else if self.view.input_mode == InputMode::PluginList {
-            self.render_plugin_list(frame, area);
-        } else if self.view.input_mode == InputMode::PluginOutput {
-            self.render_plugin_output(frame, area);
-        } else if self.view.input_mode == InputMode::Timeline {
-            self.render_timeline(frame, area);
-        } else if self.view.input_mode == InputMode::ConflictWarning
-            || self.view.input_mode == InputMode::ConflictResolve
-        {
-            self.render_conflict_resolve(frame, area);
-        } else if self.view.input_mode == InputMode::AgentRecommend {
-            self.render_agent_recommend(frame, area);
-        } else if self.view.input_mode == InputMode::CrossSearch {
-            self.render_cross_search(frame, area);
-        } else if self.view.input_mode == InputMode::BudgetWarning {
-            self.render_budget_warning(frame, area);
-        } else if self.view.input_mode == InputMode::ChainSelect {
-            self.render_chain_select(frame, area);
-        } else if self.view.input_mode == InputMode::RollbackConfirm {
-            self.render_rollback_confirm(frame, area);
-        } else if self.view.input_mode == InputMode::ConfirmDelete {
-            self.render_confirm_delete(frame, area);
-        } else if self.view.input_mode == InputMode::PreflightConfirm {
-            self.render_preflight_confirm(frame, area);
-        } else if self.view.input_mode == InputMode::SemanticSearch {
-            self.render_semantic_search(frame, area);
-        } else if self.view.input_mode != InputMode::None
-            && self.view.input_mode != InputMode::ScrollbackSearch
-        {
-            self.render_input_popup(frame, area);
+        match self.view.input_mode {
+            InputMode::Help => self.render_help_popup(frame, area),
+            InputMode::SessionPreview | InputMode::SummaryPreview => {
+                self.render_session_preview(frame, area)
+            }
+            InputMode::Settings => self.render_settings_popup(frame, area),
+            InputMode::KeybindView => self.render_keybind_view(frame, area),
+            InputMode::ThemeSelect => self.render_theme_select(frame, area),
+            InputMode::TemplateSelect => self.render_template_select(frame, area),
+            InputMode::AutomationSelect => self.render_automation_select(frame, area),
+            InputMode::BranchSelect => self.render_branch_select(frame, area),
+            InputMode::Stats => self.render_stats(frame, area),
+            InputMode::TokenStats => self.render_token_stats(frame, area),
+            InputMode::DiffView => self.render_diff_view(frame, area),
+            InputMode::RemoteView => self.render_remote_view(frame, area),
+            InputMode::PluginList => self.render_plugin_list(frame, area),
+            InputMode::PluginOutput => self.render_plugin_output(frame, area),
+            InputMode::Timeline => self.render_timeline(frame, area),
+            InputMode::ConflictWarning | InputMode::ConflictResolve => {
+                self.render_conflict_resolve(frame, area)
+            }
+            InputMode::AgentRecommend => self.render_agent_recommend(frame, area),
+            InputMode::CrossSearch => self.render_cross_search(frame, area),
+            InputMode::BudgetWarning => self.render_budget_warning(frame, area),
+            InputMode::ChainSelect => self.render_chain_select(frame, area),
+            InputMode::RollbackConfirm => self.render_rollback_confirm(frame, area),
+            InputMode::ConfirmDelete => self.render_confirm_delete(frame, area),
+            InputMode::PreflightConfirm => self.render_preflight_confirm(frame, area),
+            InputMode::SemanticSearch => self.render_semantic_search(frame, area),
+            InputMode::SelectAgent
+            | InputMode::SessionName
+            | InputMode::NewWorkspaceName
+            | InputMode::RenameSession
+            | InputMode::RenameWorkspace
+            | InputMode::BrowseDir
+            | InputMode::Search
+            | InputMode::TagFilter => self.render_input_popup(frame, area),
+            InputMode::None | InputMode::ScrollbackSearch => {}
         }
     }
 

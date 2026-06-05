@@ -181,52 +181,9 @@ impl super::App {
             }
         }
 
-        // Page Up/Down (Amux mode only)
-        if key.code == KeyCode::PageUp || key.code == KeyCode::PageDown {
-            if let Some(slot) = self.ptys.ptys.get(idx) {
-                if slot.handle.is_alternate_screen() {
-                    let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) {
-                        self.view.status = format!("Write error: {e}");
-                    }
-                } else if key.code == KeyCode::PageUp {
-                    slot.handle
-                        .scroll_page_up(self.view.last_chat_area.height.saturating_sub(2) as usize);
-                } else {
-                    slot.handle.scroll_page_down(
-                        self.view.last_chat_area.height.saturating_sub(2) as usize
-                    );
-                }
-            }
-            return Action::Continue;
-        }
-        // Home (Amux mode)
-        if key.code == KeyCode::Home {
-            if let Some(slot) = self.ptys.ptys.get(idx) {
-                if slot.handle.is_alternate_screen() {
-                    let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) {
-                        self.view.status = format!("Write error: {e}");
-                    }
-                } else {
-                    slot.handle.scroll_page_up(99999);
-                }
-            }
-            return Action::Continue;
-        }
-        // End (Amux mode)
-        if key.code == KeyCode::End {
-            if let Some(slot) = self.ptys.ptys.get(idx) {
-                if slot.handle.is_alternate_screen() {
-                    let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) {
-                        self.view.status = format!("Write error: {e}");
-                    }
-                } else {
-                    slot.handle.reset_scroll();
-                }
-            }
-            return Action::Continue;
+        // Page navigation keys (PageUp/PageDown/Home/End)
+        if let Some(action) = self.handle_amux_scroll_key(idx, &key) {
+            return action;
         }
 
         // Amux mode fallback: forward to PTY (non-letter keys, modified keys)
@@ -245,6 +202,53 @@ impl super::App {
             }
         }
         Action::Continue
+    }
+
+    /// Handle PageUp/PageDown/Home/End in Amux mode.
+    /// Returns `Some(Action::Continue)` if the key was consumed, `None` otherwise.
+    fn handle_amux_scroll_key(&mut self, idx: usize, key: &KeyEvent) -> Option<Action> {
+        let slot = self.ptys.ptys.get(idx)?;
+        let h = &slot.handle;
+
+        match key.code {
+            KeyCode::PageUp | KeyCode::PageDown => {
+                if h.is_alternate_screen() {
+                    let bytes = key_to_bytes(key);
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
+                } else if key.code == KeyCode::PageUp {
+                    slot.handle
+                        .scroll_page_up(self.view.last_chat_area.height.saturating_sub(2) as usize);
+                } else {
+                    slot.handle.scroll_page_down(
+                        self.view.last_chat_area.height.saturating_sub(2) as usize
+                    );
+                }
+            }
+            KeyCode::Home => {
+                if h.is_alternate_screen() {
+                    let bytes = key_to_bytes(key);
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
+                } else {
+                    slot.handle.scroll_page_up(99999);
+                }
+            }
+            KeyCode::End => {
+                if h.is_alternate_screen() {
+                    let bytes = key_to_bytes(key);
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
+                } else {
+                    slot.handle.reset_scroll();
+                }
+            }
+            _ => return None,
+        }
+        Some(Action::Continue)
     }
 }
 
