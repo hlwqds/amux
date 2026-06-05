@@ -51,6 +51,9 @@ pub fn run_doctor() -> Vec<CheckResult> {
     // 6. EDITOR/VISUAL set
     check_editor(&mut results);
 
+    // 7. Build verification
+    check_build(&mut results);
+
     results
 }
 
@@ -246,6 +249,47 @@ fn check_editor(results: &mut Vec<CheckResult>) {
                 passed: false,
                 message: "neither EDITOR nor VISUAL is set".into(),
                 fix_hint: Some("Set EDITOR in your shell profile, e.g. export EDITOR=vim".into()),
+            });
+        }
+    }
+}
+
+fn check_build(results: &mut Vec<CheckResult>) {
+    let manifest = std::path::Path::new("Cargo.toml");
+    if !manifest.exists() {
+        return; // Not running from source directory
+    }
+    let output = std::process::Command::new("cargo")
+        .args(["check", "--message-format=short"])
+        .output();
+    match output {
+        Ok(out) if out.status.success() => {
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: true,
+                message: "cargo check passes".into(),
+                fix_hint: None,
+            });
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let first_error = stderr
+                .lines()
+                .find(|l| l.contains("error"))
+                .unwrap_or("unknown error");
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: false,
+                message: format!("cargo check failed: {first_error}"),
+                fix_hint: Some("Run `cargo check` and fix compilation errors".into()),
+            });
+        }
+        Err(e) => {
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: false,
+                message: format!("failed to run cargo check: {e}"),
+                fix_hint: None,
             });
         }
     }

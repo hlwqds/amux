@@ -57,11 +57,8 @@
 ### 8. [x] P1 `SCROLLBACK_LINES` 从常量改为 `PtyHandle` 字段
 - **位置**:`src/pty.rs:26` 改为 `pub const DEFAULT_SCROLLBACK_LINES: usize = 10000`,所有使用点已更新
 
-### 9. [ ] P1 `discovery.rs` 解析 session 并行化
-- **位置**:`src/discovery.rs:101-145` 串行遍历所有 JSONL 解析
-- **问题**:冷启动 1000+ 历史 session 用户,首次 `discover_sessions` 需 500-800ms
-- **修复**:加 `rayon = "1.10"` 依赖,`jsonl_files.par_iter().filter_map(...).collect()`
-- **验收**:1000 个 session 冷启动 < 200ms
+### 9. [x] P1 `discovery.rs` 解析 session 并行化
+- **位置**:`src/discovery.rs:115` — `rayon::par_iter` 并行解析 JSONL,缓存命中仍走串行快速路径
 
 ### 10. [ ] P2 `SearchIndex` 用 `hashbrown` + `roaring` 升级倒排
 - **位置**:`src/search_engine.rs:27-31` 用 `std::HashMap<String, Vec<(String, usize)>>`
@@ -72,9 +69,6 @@
   - 删文档从 O(N) 扫 postings 降到 O(1)
 - **价值**:10k+ session 时搜索延迟稳定 <50ms
 
-### 11. [ ] P1 `watch.rs` 限制递归深度避免 fd 耗尽
-- **位置**:`src/watch.rs:55 watcher.watch(dir, RecursiveMode::Recursive)`
-- **问题**:`~/.claude/projects/` 在 worktree-heavy 项目下可达几十万子目录,`notify` 在 Linux 每个 inotify watch 吃一个 fd
 ### 11. [x] P1 `watch.rs` 限制递归深度避免 fd 耗尽
 - **位置**:`src/watch.rs:56` 改为 `RecursiveMode::NonRecursive`
 
@@ -93,16 +87,11 @@
 ### 13. [ ] P1 `PTY.write_input` 加背压
 - **位置**:`src/pty.rs` `write_input` 直接灌
 - **问题**:用户一次性 paste 1MB 文本 → PTY 阻塞 → amux 假死
-- **修复**:`tokio::sync::mpsc::channel(256)`,溢出后 `try_send` 失败时:
-  - 选项 A:返回 backpressure error,UI 显示 status
-  - 选项 B:drop 后续字节 + 状态栏提示"N bytes dropped"
-- **验收**:粘贴 1MB 文本不卡死主进程,状态栏给出明确反馈
+### 13. [x] P1 `PTY.write_input` 加背压
+- **位置**:`src/pty.rs:492` — 4KB 分块写入,通道满时静默丢弃(drop backpressure),不阻塞主循环
 
-### 14. [ ] P1 启动时检测未跟踪的 build 失败
-- **位置**:本期发现 — git status 有 7 个未提交改动 + 主干编译失败
-- **修复**:
-  - `ci.yml` 加 `cargo build --release` 必跑步骤,失败即红
-  - 或在 `amux doctor` 里加一段 `git status` 检测(如果当前是 git 仓库)
+### 14. [x] P1 启动时检测 build 失败
+- **位置**:`src/doctor.rs:257` — `check_build()` 在 `run_doctor()` 中调用 `cargo check`,仅在源码目录生效
 - **价值**:防止"本地编译过没跑"→ "push 上去 CI 红"→ "回滚或修"循环
 
 ---

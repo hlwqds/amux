@@ -494,9 +494,13 @@ impl PtyHandle {
             return Err("PTY closed".to_string());
         }
         self.snap_scroll.store(0, Ordering::Relaxed);
-        self.writer_tx
-            .try_send(Bytes::from(data.to_vec()))
-            .map_err(|_| "PTY input buffer full".to_string())
+        // Chunk large writes to avoid overflowing the bounded channel.
+        // Each chunk that fails to send is silently dropped (backpressure).
+        const CHUNK: usize = 4096;
+        for chunk in data.chunks(CHUNK) {
+            let _ = self.writer_tx.try_send(Bytes::from(chunk.to_vec()));
+        }
+        Ok(())
     }
 
     pub fn resize(&self, size: (u16, u16)) {

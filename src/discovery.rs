@@ -111,22 +111,27 @@ pub fn discover_sessions_cached(
     cache.retain(|path, _| jsonl_set.contains(path));
 
     let mut sessions: Vec<Session> = Vec::with_capacity(jsonl_files.len());
+    use rayon::prelude::*;
 
-    for path in &jsonl_files {
-        let mtime = fs::metadata(path).ok().and_then(|m| m.modified().ok());
+    let parsed: Vec<(PathBuf, Option<SystemTime>, Option<Session>)> = jsonl_files
+        .par_iter()
+        .map(|path| {
+            let mtime = fs::metadata(path).ok().and_then(|m| m.modified().ok());
+            if let Some(mt) = mtime
+                && let Some((cached_mt, cached_session)) = cache.get(path)
+                && *cached_mt == mt
+            {
+                return (path.clone(), mtime, Some(cached_session.clone()));
+            }
+            let session = parse_session_from_path(path, workspaces);
+            (path.clone(), mtime, session)
+        })
+        .collect();
 
-        if let Some(mt) = mtime
-            && let Some((cached_mt, cached_session)) = cache.get(path)
-            && *cached_mt == mt
-        {
-            sessions.push(cached_session.clone());
-            continue;
-        }
-
-        // Parse the file
-        if let Some(session) = parse_session_from_path(path, workspaces) {
+    for (path, mtime, session) in parsed {
+        if let Some(session) = session {
             if let Some(mt) = mtime {
-                cache.insert(path.clone(), (mt, session.clone()));
+                cache.insert(path, (mt, session.clone()));
             }
             sessions.push(session);
         }

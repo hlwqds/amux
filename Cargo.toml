@@ -23,5 +23,6 @@ tower-http = { version = "0.5", features = ["cors"] }
 parking_lot = "0.12"
 subtle = "2"
 alacritty_terminal = "0.26.0"
+rayon = "1.10"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
