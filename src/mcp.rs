@@ -165,7 +165,9 @@ fn handle_send_input(state: &AppState, params: &Value) -> Result<Value> {
         .get(pty_id)
         .context(format!("no PTY with id '{pty_id}'"))?;
 
-    rp.handle.write_input(data.as_bytes()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    rp.handle
+        .write_input(data.as_bytes())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(json!({
         "content": [{ "type": "text", "text": format!("sent {} bytes to PTY {pty_id}", data.len()) }]
     }))
@@ -175,8 +177,9 @@ fn handle_attach_pty(state: &AppState, params: &Value) -> Result<Value> {
     let agent_label = params["agent"]
         .as_str()
         .context("missing 'agent' parameter")?;
-    let agent = parse_agent(agent_label)
-        .context(format!("unknown agent '{agent_label}'; supported: claude, codex, omp"))?;
+    let agent = parse_agent(agent_label).context(format!(
+        "unknown agent '{agent_label}'; supported: claude, codex, omp"
+    ))?;
 
     let workspace: PathBuf = params["workspace"]
         .as_str()
@@ -186,7 +189,15 @@ fn handle_attach_pty(state: &AppState, params: &Value) -> Result<Value> {
     let name = params["name"].as_str();
 
     let project_config = config::load_project_config(&workspace);
-    let handle = PtyHandle::spawn(agent, &workspace, None, name, (80, 24), &project_config.env, &[])?;
+    let handle = PtyHandle::spawn(
+        agent,
+        &workspace,
+        None,
+        name,
+        (80, 24),
+        &project_config.env,
+        &[],
+    )?;
 
     // Generate a unique ID based on the current map size + a timestamp suffix.
     let id = format!("mcp-{}", state.ptys.len() + 1);
@@ -273,10 +284,7 @@ pub fn run() -> Result<()> {
             "tools/list" => success(id, json!({ "tools": tool_definitions() })),
 
             "tools/call" => {
-                let tool_name = req.params["name"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                let tool_name = req.params["name"].as_str().unwrap_or("").to_string();
                 let tool_args = req.params.get("arguments").cloned().unwrap_or(json!({}));
 
                 match dispatch_tool(&state, &tool_name, &tool_args) {
@@ -312,10 +320,7 @@ mod tests {
         let defs = tool_definitions();
         assert_eq!(defs.len(), 3);
 
-        let names: Vec<&str> = defs
-            .iter()
-            .filter_map(|d| d["name"].as_str())
-            .collect();
+        let names: Vec<&str> = defs.iter().filter_map(|d| d["name"].as_str()).collect();
         assert!(names.contains(&"list_sessions"));
         assert!(names.contains(&"send_input"));
         assert!(names.contains(&"attach_pty"));

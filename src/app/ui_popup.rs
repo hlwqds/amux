@@ -6,8 +6,8 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 
-use super::*;
 use super::ui::{ansi_to_spans, truncate_str, truncate_title};
+use super::*;
 
 impl App {
     pub(super) fn render_input_popup(&mut self, frame: &mut Frame, area: Rect) {
@@ -81,7 +81,7 @@ impl App {
 
         let block = Block::default()
             .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+            .border_type(ratatui::widgets::BorderType::Rounded)
             .title(" Select Agent ")
             .border_style(Style::default().fg(Color::Yellow));
 
@@ -156,7 +156,7 @@ impl App {
 
         let block = Block::default()
             .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+            .border_type(ratatui::widgets::BorderType::Rounded)
             .title(title)
             .border_style(Style::default().fg(Color::Yellow));
 
@@ -328,7 +328,7 @@ impl App {
                     Block::default()
                         .title(" Budget Warning ")
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .border_style(Style::default().fg(Color::Red))
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
                 )
@@ -392,7 +392,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Help ")
                         .title_style(
                             Style::default()
@@ -520,7 +520,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Settings ")
                         .title_style(
                             Style::default()
@@ -576,7 +576,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(title)
                     .title_style(
                         Style::default()
@@ -730,7 +730,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(format!(
                             " Keybindings ({}/{}) ",
                             scroll + visible_height.min(total_lines),
@@ -775,7 +775,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Templates (p) ")
                     .title_style(
                         Style::default()
@@ -815,7 +815,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Automations (a) ")
                     .title_style(
                         Style::default()
@@ -866,7 +866,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Chains (e) ")
                     .title_style(
                         Style::default()
@@ -907,7 +907,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Branch Points (B) ")
                     .title_style(
                         Style::default()
@@ -1052,7 +1052,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Activity Stats (s) ")
                     .title_style(
                         Style::default()
@@ -1175,7 +1175,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Token Usage (t) ")
                     .title_style(
                         Style::default()
@@ -1220,7 +1220,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Session Diff (- left, + right) ")
                     .title_style(
                         Style::default()
@@ -1261,7 +1261,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Remote Sessions (r) ")
                     .title_style(
                         Style::default()
@@ -1304,7 +1304,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Plugins (Alt+Shift+P) ")
                     .title_style(
                         Style::default()
@@ -1386,7 +1386,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(format!(
                         " Plugin Output [{}/{}] (Esc/q=close, j/k=scroll) ",
                         scroll + 1,
@@ -1414,7 +1414,14 @@ impl App {
         if let Some(idx) = self.ptys.active_pty
             && let Some(slot) = self.ptys.ptys.get(idx)
             && let Ok(output) = std::process::Command::new("git")
-                .args(["log", "--graph", "--oneline", "--decorate", "--color=always", "-15"])
+                .args([
+                    "log",
+                    "--graph",
+                    "--oneline",
+                    "--decorate",
+                    "--color=always",
+                    "-15",
+                ])
                 .current_dir(&slot.info.workspace_path)
                 .output()
             && output.status.success()
@@ -1422,7 +1429,9 @@ impl App {
             let git_out = String::from_utf8_lossy(&output.stdout);
             lines.push(Line::from(Span::styled(
                 " Git Log",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             )));
             for line in git_out.lines().take(10) {
                 lines.push(Line::from(line.to_string()));
@@ -1480,7 +1489,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Timeline (g) ")
                     .title_style(
                         Style::default()
@@ -1494,7 +1503,8 @@ impl App {
     }
 
     pub(super) fn render_conflict_resolve(&self, frame: &mut Frame, area: Rect) {
-        let height = u16::try_from((self.popup.conflict_warnings.len() * 2 + 9).min(30)).unwrap_or(u16::MAX);
+        let height =
+            u16::try_from((self.popup.conflict_warnings.len() * 2 + 9).min(30)).unwrap_or(u16::MAX);
         let popup_area = centered_rect(80, height, area);
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![Span::styled(
@@ -1545,7 +1555,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Conflict Detection ")
                     .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                     .border_style(Style::default().fg(Color::Red)),
@@ -1611,7 +1621,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Recommendations (w) ")
                     .title_style(
                         Style::default()
@@ -1682,7 +1692,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Search Results (f) ")
                     .title_style(
                         Style::default()
@@ -1780,7 +1790,7 @@ impl App {
             paragraph.block(
                 Block::default()
                     .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Semantic Search (Shift+S) ")
                     .title_style(
                         Style::default()
@@ -1943,7 +1953,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(title)
                         .title_style(
                             Style::default()
@@ -2035,7 +2045,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Pre-flight ")
                         .title_style(
                             Style::default()
@@ -2115,7 +2125,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Rollback ")
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                         .border_style(Style::default().fg(Color::Red)),
@@ -2202,7 +2212,7 @@ impl App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                .border_type(ratatui::widgets::BorderType::Rounded)
+                        .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" Delete ")
                         .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
                         .border_style(Style::default().fg(Color::Red)),
@@ -2211,7 +2221,6 @@ impl App {
             popup_area,
         );
     }
-
 }
 #[cfg(test)]
 mod tests {
@@ -2270,7 +2279,11 @@ mod tests {
         let lines = app.view.keybinds.display_lines();
         assert_eq!(lines.len(), 17);
         for line in &lines {
-            assert!(line.starts_with("  "), "line should be indented: {:?}", line);
+            assert!(
+                line.starts_with("  "),
+                "line should be indented: {:?}",
+                line
+            );
             assert!(line.contains(": "), "line should contain ': ': {:?}", line);
         }
         assert!(lines[0].contains("move_up"));

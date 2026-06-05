@@ -38,7 +38,13 @@ pub async fn auth_middleware(
 
 #[cfg(test)]
 mod tests {
-    use axum::{body::Body, http::{Request, StatusCode}, middleware, routing::get, Router};
+    use axum::{
+        Router,
+        body::Body,
+        http::{Request, StatusCode},
+        middleware,
+        routing::get,
+    };
     use tower::util::ServiceExt;
 
     async fn ok_handler() -> &'static str {
@@ -58,10 +64,7 @@ mod tests {
     #[tokio::test]
     async fn no_auth_header_returns_401() {
         let app = test_app("secret-token");
-        let req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
     }

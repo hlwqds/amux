@@ -92,7 +92,15 @@ impl App {
         // Update active chain state
         self.chains.active_chain = Some(updated);
 
-        self.spawn_chain_pty(wi, &workspace_path, &chain_name, step_num, total, agent, &prompt);
+        self.spawn_chain_pty(
+            wi,
+            &workspace_path,
+            &chain_name,
+            step_num,
+            total,
+            agent,
+            &prompt,
+        );
     }
 
     /// Spawn all remaining steps simultaneously in parallel mode.
@@ -209,7 +217,9 @@ impl App {
                 let fire_at_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_millis().try_into().unwrap_or(u64::MAX)
+                    .as_millis()
+                    .try_into()
+                    .unwrap_or(u64::MAX)
                     + 1500;
                 let pending = PendingInput {
                     fire_at_ms,

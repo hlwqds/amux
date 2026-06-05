@@ -56,7 +56,8 @@ impl super::App {
                 // e: chain select
                 KeyCode::Char('e') => {
                     if self.chains.chains.is_empty() {
-                        self.view.status = "No chains configured. Add chains to config.json.".into();
+                        self.view.status =
+                            "No chains configured. Add chains to config.json.".into();
                     } else {
                         self.view.input_mode = InputMode::ChainSelect;
                         self.chains.chain_state.select(Some(0));
@@ -186,14 +187,15 @@ impl super::App {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 if slot.handle.is_alternate_screen() {
                     let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
                 } else if key.code == KeyCode::PageUp {
-                    slot.handle.scroll_page_up(
-                        self.view.last_chat_area.height.saturating_sub(2) as usize,
-                    );
+                    slot.handle
+                        .scroll_page_up(self.view.last_chat_area.height.saturating_sub(2) as usize);
                 } else {
                     slot.handle.scroll_page_down(
-                        self.view.last_chat_area.height.saturating_sub(2) as usize,
+                        self.view.last_chat_area.height.saturating_sub(2) as usize
                     );
                 }
             }
@@ -204,7 +206,9 @@ impl super::App {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 if slot.handle.is_alternate_screen() {
                     let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
                 } else {
                     slot.handle.scroll_page_up(99999);
                 }
@@ -216,7 +220,9 @@ impl super::App {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 if slot.handle.is_alternate_screen() {
                     let bytes = crate::util::key_to_bytes(&key);
-                    if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                    if let Err(e) = slot.handle.write_input(&bytes) {
+                        self.view.status = format!("Write error: {e}");
+                    }
                 } else {
                     slot.handle.reset_scroll();
                 }
@@ -229,10 +235,14 @@ impl super::App {
         if !bytes.is_empty() {
             // When terminal split is open, forward to shell instead of main PTY
             if let Some(term) = &self.terminal {
-                if let Err(e) = term.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                if let Err(e) = term.handle.write_input(&bytes) {
+                    self.view.status = format!("Write error: {e}");
+                }
             } else if let Some(slot) = self.ptys.ptys.get(idx) {
                 slot.handle.reset_scroll();
-                if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                if let Err(e) = slot.handle.write_input(&bytes) {
+                    self.view.status = format!("Write error: {e}");
+                }
             }
         }
         Ok(Action::Continue)
@@ -243,7 +253,7 @@ impl super::App {
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-    use crate::app::tests::{test_app, ws, sess};
+    use crate::app::tests::{sess, test_app, ws};
     use crate::pty::PtyHandle;
     use crate::types::*;
 

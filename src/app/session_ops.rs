@@ -510,9 +510,11 @@ impl App {
                         now.saturating_sub(s.last_active) < 7 * 24 * 3600
                     }
                     && self.view.agent_filter.is_none_or(|agent| s.agent == agent)
-                    && self.view.tag_filter.as_ref().is_none_or(|tag| {
-                        s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
-                    })
+                    && self
+                        .view
+                        .tag_filter
+                        .as_ref()
+                        .is_none_or(|tag| s.tags.iter().any(|t| t.eq_ignore_ascii_case(tag)))
                     && date_cutoff.is_none_or(|cutoff| s.last_active >= cutoff)
             })
             .map(|(i, _)| i)
@@ -1321,7 +1323,9 @@ impl App {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis().try_into().unwrap_or(u64::MAX);
+            .as_millis()
+            .try_into()
+            .unwrap_or(u64::MAX);
         let mut i = 0;
         while i < self.ptys.pending_inputs.len() {
             if self.ptys.pending_inputs[i].fire_at_ms <= now_ms {
@@ -1330,7 +1334,9 @@ impl App {
                     && let Some(slot) = self.ptys.ptys.get(pi)
                 {
                     let data = format!("{}\n", step.text);
-                    if let Err(e) = slot.handle.write_input(data.as_bytes()) { self.view.status = format!("Write error: {e}"); }
+                    if let Err(e) = slot.handle.write_input(data.as_bytes()) {
+                        self.view.status = format!("Write error: {e}");
+                    }
                 }
             } else {
                 i += 1;
@@ -1435,12 +1441,19 @@ impl App {
     /// Ctrl+Click on PTY area: extract URL from the clicked line and open it.
     pub(crate) fn ctrl_click_open(&mut self, col: u16, row: u16) {
         let rect = self.view.last_chat_area;
-        if col < rect.x || col >= rect.x + rect.width || row < rect.y + 1 || row >= rect.y + rect.height {
+        if col < rect.x
+            || col >= rect.x + rect.width
+            || row < rect.y + 1
+            || row >= rect.y + rect.height
+        {
             return;
         }
-        let Some(idx) = self.ptys.active_pty else { return };
-        let Some(slot) = self.ptys.ptys.get(idx) else { return };
-
+        let Some(idx) = self.ptys.active_pty else {
+            return;
+        };
+        let Some(slot) = self.ptys.ptys.get(idx) else {
+            return;
+        };
 
         let (term_rows, _term_cols) = slot.handle.grid_size();
         let pty_row = (row - rect.y).saturating_sub(1);
@@ -1457,14 +1470,17 @@ impl App {
 
         let click_in_line = (col - rect.x) as usize;
         if let Some(url) = extract_url_from_line(&line, click_in_line) {
-            let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+            let opener = if cfg!(target_os = "macos") {
+                "open"
+            } else {
+                "xdg-open"
+            };
             match std::process::Command::new(opener).arg(&url).spawn() {
                 Ok(_) => self.view.status = format!("Opened {}", url),
                 Err(e) => self.view.status = format!("Failed to open: {}", e),
             }
         }
     }
-
 
     pub(crate) fn poll_states(&mut self) {
         // Track when status string changes for auto-expire in status bar
@@ -1845,7 +1861,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::tests::{test_app, ws, sess, sess_with_agent, sess_with_time};
+    use crate::app::tests::{sess, sess_with_agent, sess_with_time, test_app, ws};
     use crate::types::{Agent, SortMode, TreeNode};
 
     // ── Test 1: cycle_sort_mode cycles through all variants ──
@@ -1924,7 +1940,12 @@ mod tests {
         assert_eq!(app.view.agent_filter, Some(Agent::Claude));
         assert!(app.view.status.contains("Claude"));
         // Only Claude sessions in tree
-        let session_nodes: Vec<_> = app.sessions.tree.iter().filter(|n| matches!(n, TreeNode::Session(_, _))).collect();
+        let session_nodes: Vec<_> = app
+            .sessions
+            .tree
+            .iter()
+            .filter(|n| matches!(n, TreeNode::Session(_, _)))
+            .collect();
         assert_eq!(session_nodes.len(), 1);
 
         // Toggle same agent again — clears filter
@@ -1932,7 +1953,12 @@ mod tests {
         assert!(app.view.agent_filter.is_none());
         assert!(app.view.status.contains("all agents"));
         // All sessions visible again
-        let session_nodes: Vec<_> = app.sessions.tree.iter().filter(|n| matches!(n, TreeNode::Session(_, _))).collect();
+        let session_nodes: Vec<_> = app
+            .sessions
+            .tree
+            .iter()
+            .filter(|n| matches!(n, TreeNode::Session(_, _)))
+            .collect();
         assert_eq!(session_nodes.len(), 2);
     }
 

@@ -109,7 +109,6 @@ impl super::App {
                     // Alt+key with no match: fall through to PTY forward
                 }
 
-
                 // Ctrl+Q: terminate session (always)
                 if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
@@ -196,7 +195,9 @@ impl super::App {
                         // to the bottom (live content) when the user types —
                         // same behaviour as Kitty.
                         slot.handle.reset_scroll();
-                        if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
+                        if let Err(e) = slot.handle.write_input(&bytes) {
+                            self.view.status = format!("Write error: {e}");
+                        }
                         self.view.screen_changed = true;
                     }
                     return Ok(Action::Continue);
@@ -204,7 +205,6 @@ impl super::App {
                 // ── Amux mode: delegated to handler_amux.rs ──
                 return self.handle_amux_key(idx, key);
             }
-
 
             // Chat focus but no active PTY
             match key.code {
@@ -519,7 +519,8 @@ impl super::App {
         {
             if self.input_buffer.is_empty() {
                 self.view.status =
-                    "Type a search query first (/), then Alt+Shift+F to search all sessions.".into();
+                    "Type a search query first (/), then Alt+Shift+F to search all sessions."
+                        .into();
             } else {
                 use crate::discovery::cross_session_search;
                 let results = cross_session_search(&self.sessions.sessions, &self.input_buffer);
@@ -1047,8 +1048,8 @@ impl super::App {
                         };
                     } else {
                         // Enter: next match
-                        self.view.scrollback_match_idx =
-                            (self.view.scrollback_match_idx + 1) % self.view.scrollback_matches.len();
+                        self.view.scrollback_match_idx = (self.view.scrollback_match_idx + 1)
+                            % self.view.scrollback_matches.len();
                     }
                     self.scroll_to_current_match();
                 }
@@ -1084,8 +1085,12 @@ impl super::App {
             return;
         }
 
-        let Some(idx) = self.ptys.active_pty else { return };
-        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+        let Some(idx) = self.ptys.active_pty else {
+            return;
+        };
+        let Some(slot) = self.ptys.ptys.get(idx) else {
+            return;
+        };
 
         let (term_rows, term_cols) = slot.handle.grid_size();
 
@@ -1111,7 +1116,11 @@ impl super::App {
             if let Some(ref re) = regex_ok {
                 // Regex mode: find all matches
                 for m in re.find_iter(&line) {
-                    self.view.scrollback_matches.push((u16::try_from(row).unwrap_or(u16::MAX), u16::try_from(m.start()).unwrap_or(u16::MAX), m.end() - m.start()));
+                    self.view.scrollback_matches.push((
+                        u16::try_from(row).unwrap_or(u16::MAX),
+                        u16::try_from(m.start()).unwrap_or(u16::MAX),
+                        m.end() - m.start(),
+                    ));
                 }
             } else {
                 // Plain substring mode (case-insensitive unless toggled)
@@ -1128,7 +1137,11 @@ impl super::App {
                 let mut start = 0;
                 while let Some(pos) = haystack[start..].find(&needle) {
                     let abs_pos = start + pos;
-                    self.view.scrollback_matches.push((u16::try_from(row).unwrap_or(u16::MAX), u16::try_from(abs_pos).unwrap_or(u16::MAX), needle.len()));
+                    self.view.scrollback_matches.push((
+                        u16::try_from(row).unwrap_or(u16::MAX),
+                        u16::try_from(abs_pos).unwrap_or(u16::MAX),
+                        needle.len(),
+                    ));
                     start = abs_pos + needle.len();
                     if start >= haystack.len() {
                         break;
@@ -1148,8 +1161,12 @@ impl super::App {
             return;
         }
         let target_row = self.view.scrollback_matches[self.view.scrollback_match_idx].0;
-        let Some(idx) = self.ptys.active_pty else { return };
-        let Some(slot) = self.ptys.ptys.get(idx) else { return };
+        let Some(idx) = self.ptys.active_pty else {
+            return;
+        };
+        let Some(slot) = self.ptys.ptys.get(idx) else {
+            return;
+        };
 
         let (term_rows, _) = slot.handle.grid_size();
 
@@ -1202,11 +1219,13 @@ impl super::App {
                 }
                 // Compute frame width: chat_area.x + chat_area.width
                 let chat_area = self.view.last_chat_area;
-                let frame_width = u16::try_from(chat_area.x as u32 + chat_area.width as u32).unwrap_or(u16::MAX);
+                let frame_width =
+                    u16::try_from(chat_area.x as u32 + chat_area.width as u32).unwrap_or(u16::MAX);
                 if frame_width == 0 {
                     return true;
                 }
-                let new_ratio = u16::try_from(column as u32 * 100 / u32::from(frame_width)).unwrap_or(u16::MAX);
+                let new_ratio =
+                    u16::try_from(column as u32 * 100 / u32::from(frame_width)).unwrap_or(u16::MAX);
                 // Clamp to 20-50
                 self.view.split_ratio = new_ratio.clamp(20, 50);
                 true

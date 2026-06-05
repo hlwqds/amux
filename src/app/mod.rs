@@ -303,13 +303,11 @@ mod handler_amux;
 mod handler_search;
 mod handler_select;
 mod session;
+mod session_ops;
 mod ui;
 mod ui_popup;
-mod session_ops;
 impl App {
-    fn new(
-        shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>,
-    ) -> Self {
+    fn new(shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
             workspaces: Vec::new(),
             ..Default::default()
@@ -504,7 +502,6 @@ impl App {
         }
     }
 
-
     fn send_desktop_notification(&self, title: &str, body: &str) {
         // Fire-and-forget desktop notification via notify-send
         let _ = std::process::Command::new("notify-send")
@@ -610,7 +607,8 @@ impl App {
 
 use std::sync::LazyLock;
 static URL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r#"https?://[^\s)'"<>]+"#).expect("URL regex is a valid compile-time constant")
+    regex::Regex::new(r#"https?://[^\s)'"<>]+"#)
+        .expect("URL regex is a valid compile-time constant")
 });
 
 /// Extract a URL from a line of text containing the given column position.
@@ -792,11 +790,15 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 let grid = guard.grid();
                 let cursor_point = grid.cursor.point;
                 let cursor_col = u16::try_from(cursor_point.column.0).unwrap_or(u16::MAX);
-                let cursor_row_i32 = i32::try_from(grid.display_offset()).unwrap_or(i32::MAX).saturating_add(cursor_point.line.0);
-                let cursor_row = u16::try_from(u32::try_from(cursor_row_i32.max(0)).unwrap_or(u32::MAX)).unwrap_or(u16::MAX);
-                let cursor_visible = guard.mode().contains(
-                    alacritty_terminal::term::TermMode::SHOW_CURSOR,
-                );
+                let cursor_row_i32 = i32::try_from(grid.display_offset())
+                    .unwrap_or(i32::MAX)
+                    .saturating_add(cursor_point.line.0);
+                let cursor_row =
+                    u16::try_from(u32::try_from(cursor_row_i32.max(0)).unwrap_or(u32::MAX))
+                        .unwrap_or(u16::MAX);
+                let cursor_visible = guard
+                    .mode()
+                    .contains(alacritty_terminal::term::TermMode::SHOW_CURSOR);
                 let cursor_style = guard.cursor_style();
                 drop(guard);
                 let rect = app.view.last_chat_area;
@@ -841,19 +843,13 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
                             shape,
-                            crossterm::cursor::MoveTo(
-                                rect.x + cursor_col,
-                                rect.y + cursor_row + 2,
-                            ),
+                            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2,),
                             crossterm::cursor::Show,
                         );
                     } else {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
-                            crossterm::cursor::MoveTo(
-                                rect.x + cursor_col,
-                                rect.y + cursor_row + 2,
-                            ),
+                            crossterm::cursor::MoveTo(rect.x + cursor_col, rect.y + cursor_row + 2,),
                             crossterm::cursor::Show,
                         );
                     }
@@ -987,7 +983,16 @@ mod tests {
     }
 
     pub(crate) fn sess(id: &str, title: &str, ws_path: &str) -> Session {
-        Session { id: id.into(), workspace_path: PathBuf::from(ws_path), title: title.into(), last_active: 1000, agent: Agent::Claude, tags: Vec::new(), pinned: false, last_message: None }
+        Session {
+            id: id.into(),
+            workspace_path: PathBuf::from(ws_path),
+            title: title.into(),
+            last_active: 1000,
+            agent: Agent::Claude,
+            tags: Vec::new(),
+            pinned: false,
+            last_message: None,
+        }
     }
 
     pub(crate) fn sess_with_agent(id: &str, title: &str, ws_path: &str, agent: Agent) -> Session {
@@ -1003,7 +1008,12 @@ mod tests {
         }
     }
 
-    pub(crate) fn sess_with_time(id: &str, title: &str, ws_path: &str, last_active: u64) -> Session {
+    pub(crate) fn sess_with_time(
+        id: &str,
+        title: &str,
+        ws_path: &str,
+        last_active: u64,
+    ) -> Session {
         Session {
             id: id.into(),
             workspace_path: PathBuf::from(ws_path),

@@ -147,7 +147,6 @@ impl Agent {
         session_name: Option<&str>,
         unset_env: &[String],
     ) -> portable_pty::CommandBuilder {
-
         match self {
             Agent::Claude => {
                 let mut cmd = portable_pty::CommandBuilder::new("claude");
@@ -1085,7 +1084,10 @@ mod tests {
     #[test]
     fn keybinds_validate_no_conflicts_by_default() {
         let kb = Keybinds::default();
-        assert!(kb.validate().is_empty(), "default keybinds should have no conflicts");
+        assert!(
+            kb.validate().is_empty(),
+            "default keybinds should have no conflicts"
+        );
     }
 
     #[test]
@@ -1094,8 +1096,15 @@ mod tests {
         // Force a conflict: set move_up identical to move_down
         kb.move_up = kb.move_down.clone();
         let conflicts = kb.validate();
-        assert!(!conflicts.is_empty(), "duplicate binding should produce a conflict");
-        assert!(conflicts.iter().any(|(a, b)| (*a == "move_up" && *b == "move_down")
-            || (*a == "move_down" && *b == "move_up")));
+        assert!(
+            !conflicts.is_empty(),
+            "duplicate binding should produce a conflict"
+        );
+        assert!(
+            conflicts
+                .iter()
+                .any(|(a, b)| (*a == "move_up" && *b == "move_down")
+                    || (*a == "move_down" && *b == "move_up"))
+        );
     }
 }

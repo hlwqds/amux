@@ -72,11 +72,7 @@ pub fn load_config() -> Result<Config> {
                 Vec::new()
             }
         };
-        entries.retain(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "json")
-        });
+        entries.retain(|e| e.path().extension().is_some_and(|ext| ext == "json"));
 
         entries.sort_by_key(|e| e.file_name());
 
@@ -91,10 +87,7 @@ pub fn load_config() -> Result<Config> {
                         }
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            "Failed to parse {}: {e}",
-                            overlay_path.display()
-                        );
+                        tracing::warn!("Failed to parse {}: {e}", overlay_path.display());
                     }
                 },
                 Err(e) => {
@@ -149,18 +142,16 @@ pub fn load_project_config(workspace_path: &Path) -> ProjectConfig {
         return ProjectConfig::default();
     }
     match fs::read_to_string(&config_path) {
-        Ok(content) => {
-            match serde_json::from_str(&content) {
-                Ok(config) => config,
-                Err(e) => {
-                    tracing::warn!(
-                        "Failed to parse {}: {e} — using defaults",
-                        config_path.display()
-                    );
-                    ProjectConfig::default()
-                }
+        Ok(content) => match serde_json::from_str(&content) {
+            Ok(config) => config,
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to parse {}: {e} — using defaults",
+                    config_path.display()
+                );
+                ProjectConfig::default()
             }
-        }
+        },
         Err(_) => ProjectConfig::default(),
     }
 }

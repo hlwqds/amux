@@ -189,7 +189,12 @@ pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge
     // Also extract TODO/FIXME comments with context
     if let Ok(re) = Regex::new(r"(?i)(TODO|FIXME|HACK|XXX)\s*[:\(]?\s*(.{1,200})") {
         for caps in re.captures_iter(raw_text) {
-            let full = caps.get(0).expect("regex match always has group 0").as_str().trim().to_string();
+            let full = caps
+                .get(0)
+                .expect("regex match always has group 0")
+                .as_str()
+                .trim()
+                .to_string();
             if !knowledge.known_issues.contains(&full) {
                 knowledge.known_issues.push(full);
                 found_any = true;
@@ -297,9 +302,7 @@ pub fn merge_from_session(knowledge: &mut WorkspaceKnowledge, summary: &str) {
         && knowledge.key_files.is_empty()
         && knowledge.tech_stack.is_empty()
         && knowledge.known_issues.is_empty();
-    if needs_fallback
-        && let Some(extracted) = extract_structured_knowledge(summary)
-    {
+    if needs_fallback && let Some(extracted) = extract_structured_knowledge(summary) {
         if knowledge.architecture.is_empty() && !extracted.architecture.is_empty() {
             knowledge.architecture = extracted.architecture;
         }

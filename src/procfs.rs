@@ -114,7 +114,9 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let process_uptime = if uptime_secs > 0.0 {
-        (uptime_secs - starttime as f64 / clk_tck as f64).round().clamp(0.0, u64::MAX as f64) as u64
+        (uptime_secs - starttime as f64 / clk_tck as f64)
+            .round()
+            .clamp(0.0, u64::MAX as f64) as u64
     } else {
         0
     };
@@ -154,7 +156,8 @@ fn collect_descendants(root_pid: u32) -> Vec<u32> {
     let mut result = vec![root_pid];
     let mut queue = std::collections::VecDeque::from([root_pid]);
     // Build ppid map: scan all /proc/{n}/stat entries
-    let mut children_map: std::collections::HashMap<u32, Vec<u32>> = std::collections::HashMap::new();
+    let mut children_map: std::collections::HashMap<u32, Vec<u32>> =
+        std::collections::HashMap::new();
     if let Ok(entries) = std::fs::read_dir("/proc") {
         for entry in entries.flatten() {
             let name = entry.file_name();

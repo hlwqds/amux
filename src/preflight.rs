@@ -23,7 +23,7 @@ pub struct PreflightResult {
 }
 
 impl PreflightResult {
-/// Whether any check produced a warning or failure.
+    /// Whether any check produced a warning or failure.
     pub fn has_warnings(&self) -> bool {
         self.checks
             .iter()
@@ -207,10 +207,7 @@ mod tests {
         assert!(matches!(config.unwrap().1, CheckStatus::Pass(_)));
 
         // No Cargo.toml → no Compilation check at all.
-        let compilation = result
-            .checks
-            .iter()
-            .find(|(name, _)| name == "Compilation");
+        let compilation = result.checks.iter().find(|(name, _)| name == "Compilation");
         assert!(compilation.is_none());
     }
 
@@ -251,18 +248,12 @@ mod tests {
         let result = run_preflight(td.path());
 
         // Clean working tree → Git status Pass.
-        let git_status = result
-            .checks
-            .iter()
-            .find(|(name, _)| name == "Git status");
+        let git_status = result.checks.iter().find(|(name, _)| name == "Git status");
         assert!(git_status.is_some());
         assert!(matches!(git_status.unwrap().1, CheckStatus::Pass(_)));
 
         // On feature branch → Branch Pass (not main/master).
-        let branch = result
-            .checks
-            .iter()
-            .find(|(name, _)| name == "Branch");
+        let branch = result.checks.iter().find(|(name, _)| name == "Branch");
         assert!(branch.is_some());
         assert!(matches!(branch.unwrap().1, CheckStatus::Pass(_)));
 
@@ -303,10 +294,7 @@ mod tests {
 
         let result = run_preflight(td.path());
 
-        let branch = result
-            .checks
-            .iter()
-            .find(|(name, _)| name == "Branch");
+        let branch = result.checks.iter().find(|(name, _)| name == "Branch");
         assert!(branch.is_some());
         assert!(matches!(branch.unwrap().1, CheckStatus::Warn(_)));
         assert!(result.has_warnings());

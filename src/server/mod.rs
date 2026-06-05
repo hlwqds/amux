@@ -7,8 +7,8 @@ use axum::Router;
 use axum::middleware;
 use axum::routing::{get, post};
 use std::sync::Arc;
-use tracing::info;
 use tower_http::cors::CorsLayer;
+use tracing::info;
 
 use crate::config;
 use crate::pty::PtyHandle;
@@ -146,7 +146,10 @@ mod tests {
         let body: axum::body::Body = resp.into_body();
         let bytes = body.collect().await.unwrap().to_bytes();
         let html = String::from_utf8(bytes.to_vec()).unwrap();
-        assert!(html.contains("<title>amux</title>"), "should serve index HTML");
+        assert!(
+            html.contains("<title>amux</title>"),
+            "should serve index HTML"
+        );
     }
 
     #[tokio::test]
@@ -155,16 +158,9 @@ mod tests {
         let app = make_router(state, "test-token");
 
         // Unauthenticated requests to API routes should return 401
-        let api_routes = [
-            "/api/sessions",
-            "/api/workspaces",
-            "/api/ptys",
-        ];
+        let api_routes = ["/api/sessions", "/api/workspaces", "/api/ptys"];
         for path in &api_routes {
-            let req = Request::builder()
-                .uri(*path)
-                .body(Body::empty())
-                .unwrap();
+            let req = Request::builder().uri(*path).body(Body::empty()).unwrap();
             let resp = app.clone().oneshot(req).await.unwrap();
             assert_eq!(
                 resp.status(),

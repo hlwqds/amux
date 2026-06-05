@@ -12,10 +12,7 @@ pub async fn pty_ws_handler(
     Path(pty_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> axum::response::Response {
-    let pty_handle = state
-        .ptys
-        .get(&pty_id)
-        .map(|rp| rp.value().handle.clone());
+    let pty_handle = state.ptys.get(&pty_id).map(|rp| rp.value().handle.clone());
     ws.on_upgrade(move |socket| handle_pty_ws(socket, pty_id, pty_handle))
 }
 
@@ -90,7 +87,6 @@ async fn handle_pty_ws(
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

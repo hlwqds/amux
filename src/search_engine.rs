@@ -105,7 +105,10 @@ impl SearchIndex {
         for (term, postings) in &mut self.inverted {
             if postings.remove(doc_id).is_some() {
                 // This term appeared in the removed document.
-                let df_entry = self.df.get_mut(term).expect("df entry must exist after insertion");
+                let df_entry = self
+                    .df
+                    .get_mut(term)
+                    .expect("df entry must exist after insertion");
                 *df_entry = df_entry.saturating_sub(1);
                 if *df_entry == 0 {
                     empty_terms.push(term.clone());
@@ -357,13 +360,16 @@ mod tests {
         // Setup: 3 documents, query "rust"
         let mut index = SearchIndex::new();
         index.add_document("doc1", "rust rust rust"); // tf=3, dl=3
-        index.add_document("doc2", "rust python");     // tf=1, dl=2
-        index.add_document("doc3", "python java");     // tf=0, dl=2
+        index.add_document("doc2", "rust python"); // tf=1, dl=2
+        index.add_document("doc3", "python java"); // tf=0, dl=2
 
         // N=3, n("rust")=2 (appears in 2 docs)
         // IDF = ln((3 - 2 + 0.5) / (2 + 0.5) + 1) = ln(1.5/2.5 + 1) = ln(1.6)
         let idf_expected: f64 = (((3.0_f64 - 2.0 + 0.5) / (2.0 + 0.5)) + 1.0_f64).ln();
-        assert!((idf_expected - 0.4700).abs() < 0.01, "IDF approx 0.47, got {idf_expected}");
+        assert!(
+            (idf_expected - 0.4700).abs() < 0.01,
+            "IDF approx 0.47, got {idf_expected}"
+        );
 
         // avg_dl = (3 + 2 + 2) / 3 = 7/3
         assert!((index.avg_dl - 2.333).abs() < 0.01);
@@ -374,11 +380,19 @@ mod tests {
         // doc1 should rank higher than doc2 (higher tf)
         assert_eq!(results[0].0, "doc1");
         assert_eq!(results[1].0, "doc2");
-        assert!(results[0].1 > results[1].1, "doc1 score ({}) > doc2 score ({})", results[0].1, results[1].1);
+        assert!(
+            results[0].1 > results[1].1,
+            "doc1 score ({}) > doc2 score ({})",
+            results[0].1,
+            results[1].1
+        );
 
         // Verify scores are positive and finite
         for (_, score) in &results {
-            assert!(score.is_finite() && *score > 0.0, "score should be positive finite, got {score}");
+            assert!(
+                score.is_finite() && *score > 0.0,
+                "score should be positive finite, got {score}"
+            );
         }
     }
 }

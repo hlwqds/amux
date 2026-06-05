@@ -614,7 +614,8 @@ fn extract_last_user_message(path: &Path) -> Option<String> {
         let text = if r#type == "user" {
             extract_claude_message_text(&record)
         } else if r#type == "message" {
-            if record.get("message")
+            if record
+                .get("message")
                 .and_then(|msg| msg.get("role"))
                 .and_then(|v| v.as_str())
                 .is_some_and(|r| r == "user")
@@ -624,7 +625,8 @@ fn extract_last_user_message(path: &Path) -> Option<String> {
                 String::new()
             }
         } else if r#type == "user_message" {
-            record.get("payload")
+            record
+                .get("payload")
                 .and_then(|p| p.get("text"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
@@ -634,7 +636,11 @@ fn extract_last_user_message(path: &Path) -> Option<String> {
         };
         if !text.is_empty() {
             let truncated: String = text.chars().take(100).collect();
-            let suffix = if text.chars().count() > 100 { "..." } else { "" };
+            let suffix = if text.chars().count() > 100 {
+                "..."
+            } else {
+                ""
+            };
             return Some(format!("{}{}", truncated, suffix));
         }
     }
@@ -1428,7 +1434,9 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
+                    .unwrap_or(0.0)
+                    .round()
+                    .clamp(0.0, u64::MAX as f64) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else if r#type == "assistant" {
                 let text = extract_claude_message_text(&record);
@@ -1436,7 +1444,9 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
+                    .unwrap_or(0.0)
+                    .round()
+                    .clamp(0.0, u64::MAX as f64) as u64;
                 (
                     "assistant".into(),
                     text.chars().take(80).collect::<String>(),
@@ -1457,7 +1467,9 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                     .get("timestamp")
                     .or_else(|| record.get("createdAt"))
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
+                    .unwrap_or(0.0)
+                    .round()
+                    .clamp(0.0, u64::MAX as f64) as u64;
                 (
                     role.to_string(),
                     text.chars().take(80).collect::<String>(),
@@ -1474,7 +1486,9 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
+                    .unwrap_or(0.0)
+                    .round()
+                    .clamp(0.0, u64::MAX as f64) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else {
                 continue;

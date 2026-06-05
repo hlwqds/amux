@@ -17,7 +17,12 @@ pub enum ThemeName {
 }
 impl ThemeName {
     pub fn cycle(&self) -> Self {
-        let mut themes = vec![ThemeName::Dark, ThemeName::Light, ThemeName::Mocha, ThemeName::TokyoNight];
+        let mut themes = vec![
+            ThemeName::Dark,
+            ThemeName::Light,
+            ThemeName::Mocha,
+            ThemeName::TokyoNight,
+        ];
         // Append discovered custom themes
         if let Some(customs) = discover_custom_themes() {
             themes.extend(customs);
@@ -422,80 +427,80 @@ impl Theme {
     }
 
     /// Catppuccin Mocha — warm, soft pastels on dark blue-grey backgrounds.
-    /// https://catppuccin.com/palette/mocha
+    /// <https://catppuccin.com/palette/mocha>
     pub fn mocha() -> Self {
         Theme {
             // Surface colours
-            sidebar_bg: Color::Rgb(0x18, 0x18, 0x25),   // Mantle
-            sidebar_title: Color::Rgb(0xba, 0xc2, 0xde),  // Subtext1
-            sidebar_text: Color::Rgb(0xcd, 0xd6, 0xf4),   // Text
-            sidebar_dim: Color::Rgb(0x6c, 0x70, 0x86),    // Overlay0
+            sidebar_bg: Color::Rgb(0x18, 0x18, 0x25), // Mantle
+            sidebar_title: Color::Rgb(0xba, 0xc2, 0xde), // Subtext1
+            sidebar_text: Color::Rgb(0xcd, 0xd6, 0xf4), // Text
+            sidebar_dim: Color::Rgb(0x6c, 0x70, 0x86), // Overlay0
             sidebar_highlight: Color::Rgb(0xf9, 0xe2, 0xaf), // Yellow
             sidebar_selected: Color::Rgb(0x89, 0xb4, 0xfa), // Blue
 
-            chat_border: Color::Rgb(0x31, 0x32, 0x44),    // Surface0
-            chat_title: Color::Rgb(0xb4, 0xbe, 0xfe),     // Lavender
+            chat_border: Color::Rgb(0x31, 0x32, 0x44), // Surface0
+            chat_title: Color::Rgb(0xb4, 0xbe, 0xfe),  // Lavender
 
-            agent_claude: Color::Rgb(0x89, 0xb4, 0xfa),   // Blue
-            agent_codex: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
-            agent_omp: Color::Rgb(0xcb, 0xa6, 0xf7),     // Mauve
+            agent_claude: Color::Rgb(0x89, 0xb4, 0xfa), // Blue
+            agent_codex: Color::Rgb(0x94, 0xe2, 0xd5),  // Teal
+            agent_omp: Color::Rgb(0xcb, 0xa6, 0xf7),    // Mauve
 
-            status_bg: Color::Rgb(0x18, 0x18, 0x25),   // Mantle
-            status_text: Color::Rgb(0xcb, 0xa6, 0xf7),  // Mauve
-            status_dim: Color::Rgb(0xfa, 0xb3, 0x87),   // Peach
+            status_bg: Color::Rgb(0x18, 0x18, 0x25), // Mantle
+            status_text: Color::Rgb(0xcb, 0xa6, 0xf7), // Mauve
+            status_dim: Color::Rgb(0xfa, 0xb3, 0x87), // Peach
 
             status_running: Color::Rgb(0xf9, 0xe2, 0xaf), // Yellow
             status_done: Color::Rgb(0x94, 0xe2, 0xd5),    // Teal
-            status_error: Color::Rgb(0xf3, 0x8b, 0xa8),  // Red
+            status_error: Color::Rgb(0xf3, 0x8b, 0xa8),   // Red
 
-            popup_border: Color::Rgb(0xb4, 0xbe, 0xfe),   // Lavender
-            popup_title: Color::Rgb(0xb4, 0xbe, 0xfe),    // Lavender
-            popup_text: Color::Rgb(0xcd, 0xd6, 0xf4),     // Text
-            popup_hint: Color::Rgb(0xf9, 0xe2, 0xaf),     // Yellow
+            popup_border: Color::Rgb(0xb4, 0xbe, 0xfe), // Lavender
+            popup_title: Color::Rgb(0xb4, 0xbe, 0xfe),  // Lavender
+            popup_text: Color::Rgb(0xcd, 0xd6, 0xf4),   // Text
+            popup_hint: Color::Rgb(0xf9, 0xe2, 0xaf),   // Yellow
 
-            accent: Color::Rgb(0xb4, 0xbe, 0xfe),         // Lavender
-            dim: Color::Rgb(0x6c, 0x70, 0x86),            // Overlay0
-            bold_text: Color::Rgb(0xcd, 0xd6, 0xf4),      // Text
-            input_cursor: Color::Rgb(0x45, 0x47, 0x5a),   // Surface1
+            accent: Color::Rgb(0xb4, 0xbe, 0xfe),    // Lavender
+            dim: Color::Rgb(0x6c, 0x70, 0x86),       // Overlay0
+            bold_text: Color::Rgb(0xcd, 0xd6, 0xf4), // Text
+            input_cursor: Color::Rgb(0x45, 0x47, 0x5a), // Surface1
         }
     }
 
     /// Tokyo Night — deep blue-black with vibrant neon accents.
-    /// https://github.com/tokyo-night/tokyo-night-vscode-theme
+    /// <https://github.com/tokyo-night/tokyo-night-vscode-theme>
     pub fn tokyo_night() -> Self {
         Theme {
             // Backgrounds
-            sidebar_bg: Color::Rgb(0x1a, 0x1b, 0x26),      // Editor Background
-            sidebar_title: Color::Rgb(0x7d, 0xcf, 0xff),    // Terminal Cyan
-            sidebar_text: Color::Rgb(0xc0, 0xca, 0xf5),     // Terminal White / Variables
-            sidebar_dim: Color::Rgb(0x56, 0x5f, 0x89),      // Comments
+            sidebar_bg: Color::Rgb(0x1a, 0x1b, 0x26), // Editor Background
+            sidebar_title: Color::Rgb(0x7d, 0xcf, 0xff), // Terminal Cyan
+            sidebar_text: Color::Rgb(0xc0, 0xca, 0xf5), // Terminal White / Variables
+            sidebar_dim: Color::Rgb(0x56, 0x5f, 0x89), // Comments
             sidebar_highlight: Color::Rgb(0xe0, 0xaf, 0x68), // Yellow
             sidebar_selected: Color::Rgb(0x7d, 0xcf, 0xff), // Terminal Cyan
 
-            chat_border: Color::Rgb(0x41, 0x48, 0x68),      // Terminal Black
-            chat_title: Color::Rgb(0x7a, 0xa2, 0xf7),       // Terminal Blue
+            chat_border: Color::Rgb(0x41, 0x48, 0x68), // Terminal Black
+            chat_title: Color::Rgb(0x7a, 0xa2, 0xf7),  // Terminal Blue
 
-            agent_claude: Color::Rgb(0x7a, 0xa2, 0xf7),     // Terminal Blue
-            agent_codex: Color::Rgb(0x9e, 0xce, 0x6a),      // Green
-            agent_omp: Color::Rgb(0xbb, 0x9a, 0xf7),        // Terminal Magenta
+            agent_claude: Color::Rgb(0x7a, 0xa2, 0xf7), // Terminal Blue
+            agent_codex: Color::Rgb(0x9e, 0xce, 0x6a),  // Green
+            agent_omp: Color::Rgb(0xbb, 0x9a, 0xf7),    // Terminal Magenta
 
-            status_bg: Color::Rgb(0x1a, 0x1b, 0x26),        // Editor Background
-            status_text: Color::Rgb(0x2a, 0xc3, 0xde),      // Cyan accent
-            status_dim: Color::Rgb(0xff, 0x9e, 0x64),       // Orange
+            status_bg: Color::Rgb(0x1a, 0x1b, 0x26), // Editor Background
+            status_text: Color::Rgb(0x2a, 0xc3, 0xde), // Cyan accent
+            status_dim: Color::Rgb(0xff, 0x9e, 0x64), // Orange
 
-            status_running: Color::Rgb(0xe0, 0xaf, 0x68),   // Yellow
-            status_done: Color::Rgb(0x9e, 0xce, 0x6a),      // Green
-            status_error: Color::Rgb(0xf7, 0x76, 0x8e),     // Red
+            status_running: Color::Rgb(0xe0, 0xaf, 0x68), // Yellow
+            status_done: Color::Rgb(0x9e, 0xce, 0x6a),    // Green
+            status_error: Color::Rgb(0xf7, 0x76, 0x8e),   // Red
 
-            popup_border: Color::Rgb(0x7a, 0xa2, 0xf7),     // Terminal Blue
-            popup_title: Color::Rgb(0x7a, 0xa2, 0xf7),      // Terminal Blue
-            popup_text: Color::Rgb(0xc0, 0xca, 0xf5),       // Terminal White
-            popup_hint: Color::Rgb(0xe0, 0xaf, 0x68),       // Yellow
+            popup_border: Color::Rgb(0x7a, 0xa2, 0xf7), // Terminal Blue
+            popup_title: Color::Rgb(0x7a, 0xa2, 0xf7),  // Terminal Blue
+            popup_text: Color::Rgb(0xc0, 0xca, 0xf5),   // Terminal White
+            popup_hint: Color::Rgb(0xe0, 0xaf, 0x68),   // Yellow
 
-            accent: Color::Rgb(0x7a, 0xa2, 0xf7),           // Terminal Blue
-            dim: Color::Rgb(0x56, 0x5f, 0x89),              // Comments
-            bold_text: Color::Rgb(0xc0, 0xca, 0xf5),        // Terminal White
-            input_cursor: Color::Rgb(0x33, 0x37, 0x5f),     // Selection-ish
+            accent: Color::Rgb(0x7a, 0xa2, 0xf7), // Terminal Blue
+            dim: Color::Rgb(0x56, 0x5f, 0x89),    // Comments
+            bold_text: Color::Rgb(0xc0, 0xca, 0xf5), // Terminal White
+            input_cursor: Color::Rgb(0x33, 0x37, 0x5f), // Selection-ish
         }
     }
 }

@@ -3,7 +3,7 @@
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 const TMUX_SOCKET: &str = "amux";
 const SESSION_NAME: &str = "amux";
@@ -55,13 +55,10 @@ pub fn run() -> Result<()> {
 
 /// Locate the `tmux` binary, printing a helpful message if missing.
 fn which_tmux() -> Result<String> {
-    let out = Command::new("tmux")
-        .arg("-V")
-        .output()
-        .context(
-            "`tmux` not found. Install it with your package manager \
+    let out = Command::new("tmux").arg("-V").output().context(
+        "`tmux` not found. Install it with your package manager \
              (e.g. apt install tmux / brew install tmux).",
-        )?;
+    )?;
 
     if !out.status.success() {
         bail!("`tmux -V` returned an error — is tmux installed correctly?");
@@ -85,10 +82,14 @@ mod tests {
 
         let original_path = std::env::var("PATH").unwrap_or_default();
         // Point PATH at an empty directory — no tmux there.
-        unsafe { std::env::set_var("PATH", &dir); }
+        unsafe {
+            std::env::set_var("PATH", &dir);
+        }
         let result = which_tmux();
         // Restore before asserting so other tests aren't affected.
-        unsafe { std::env::set_var("PATH", &original_path); }
+        unsafe {
+            std::env::set_var("PATH", &original_path);
+        }
         let _ = std::fs::remove_dir_all(&dir);
 
         assert!(result.is_err(), "expected error when tmux is missing");
@@ -107,16 +108,17 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
 
         let original_path = std::env::var("PATH").unwrap_or_default();
-        unsafe { std::env::set_var("PATH", &dir); }
+        unsafe {
+            std::env::set_var("PATH", &dir);
+        }
         let result = run();
-        unsafe { std::env::set_var("PATH", &original_path); }
+        unsafe {
+            std::env::set_var("PATH", &original_path);
+        }
         let _ = std::fs::remove_dir_all(&dir);
 
         assert!(result.is_err(), "run() should fail when tmux is missing");
         let msg = format!("{}", result.unwrap_err());
-        assert!(
-            msg.contains("tmux"),
-            "error should mention tmux: {msg}"
-        );
+        assert!(msg.contains("tmux"), "error should mention tmux: {msg}");
     }
 }

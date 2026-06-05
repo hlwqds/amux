@@ -83,21 +83,28 @@ impl super::App {
                 );
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);
-                let pty =
-                    match PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size, &env, &[]) {
-                        Ok(p) => p,
-                        Err(e) => {
-                            let msg = if e.to_string().contains("not found")
-                                || e.to_string().contains("No such file")
-                            {
-                                format!("{} not found. {}", agent.label(), agent.install_hint())
-                            } else {
-                                format!("Failed to spawn {}: {}", agent.label(), e)
-                            };
-                            self.view.status = msg;
-                            anyhow::bail!(e);
-                        }
-                    };
+                let pty = match PtyHandle::spawn(
+                    agent,
+                    &path,
+                    None,
+                    name.as_deref(),
+                    chat_size,
+                    &env,
+                    &[],
+                ) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let msg = if e.to_string().contains("not found")
+                            || e.to_string().contains("No such file")
+                        {
+                            format!("{} not found. {}", agent.label(), agent.install_hint())
+                        } else {
+                            format!("Failed to spawn {}: {}", agent.label(), e)
+                        };
+                        self.view.status = msg;
+                        anyhow::bail!(e);
+                    }
+                };
                 let pty_id = self.next_pty_id();
                 let idx = self.ptys.ptys.len();
                 self.ptys.ptys.push(PtySlot {
@@ -483,7 +490,9 @@ impl super::App {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis().try_into().unwrap_or(u64::MAX);
+            .as_millis()
+            .try_into()
+            .unwrap_or(u64::MAX);
         self.ptys.pending_inputs.push(PendingInput {
             fire_at_ms: now_ms + 3000,
             text: prompt,
@@ -527,7 +536,7 @@ impl super::App {
 #[cfg(test)]
 mod tests {
     use crate::app::App;
-    use crate::app::tests::{test_app, ws, sess};
+    use crate::app::tests::{sess, test_app, ws};
     use crate::types::InputMode;
 
     // ── Test 1: start_rename on a session sets RenameSession mode ──
@@ -550,10 +559,7 @@ mod tests {
     // ── Test 2: start_rename on a workspace sets RenameWorkspace mode ──
     #[test]
     fn start_rename_workspace_sets_mode_and_target() {
-        let mut app = test_app(
-            vec![ws("w1", "original-name", "/tmp/ws1")],
-            vec![],
-        );
+        let mut app = test_app(vec![ws("w1", "original-name", "/tmp/ws1")], vec![]);
         // Tree has: [Workspace(0)]. Select the workspace node.
         app.sessions.tree_state.select(Some(0));
         app.start_rename();
@@ -588,10 +594,7 @@ mod tests {
     // ── Test 4: confirm_input in SessionName with empty buffer stores None ──
     #[test]
     fn confirm_input_session_name_empty_gives_none() {
-        let mut app = test_app(
-            vec![ws("w1", "ws", "/tmp/ws1")],
-            vec![],
-        );
+        let mut app = test_app(vec![ws("w1", "ws", "/tmp/ws1")], vec![]);
         app.view.input_mode = InputMode::SessionName;
         app.input_buffer = "   ".into(); // whitespace-only
         // With no agents available, it will stay in SessionName but set pending_session_name

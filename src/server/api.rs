@@ -201,7 +201,10 @@ mod tests {
         let state = test_state();
         let Json(value) = list_sessions(State(state)).await;
         assert!(value.is_object(), "response should be a JSON object");
-        assert!(value.get("sessions").is_some(), "should contain 'sessions' key");
+        assert!(
+            value.get("sessions").is_some(),
+            "should contain 'sessions' key"
+        );
         assert!(
             value["sessions"].is_array(),
             "'sessions' should be an array"

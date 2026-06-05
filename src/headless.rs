@@ -1,9 +1,10 @@
 //! Headless (non-interactive) CLI mode for amux.
 //!
+//!
 //! Subcommands:
-//!   amux run   --agent <agent> --prompt <prompt> [--workspace <path>] [--timeout <secs>]
-//!   amux list  [--json]
-//!   amux status <session-id>
+//!   `amux run   --agent <agent> --prompt <prompt> [--workspace <path>] [--timeout <secs>]`
+//!   `amux list  [--json]`
+//!   `amux status <session-id>`
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -359,7 +360,11 @@ fn cmd_run(rest: &[String]) -> Result<i32> {
     let prompt = prompt.context("--prompt is required")?;
     let workspace = workspace.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
-    info!("headless run: agent={:?} workspace={}", agent, workspace.display());
+    info!(
+        "headless run: agent={:?} workspace={}",
+        agent,
+        workspace.display()
+    );
 
     if !workspace.exists() {
         bail!("workspace path does not exist: {}", workspace.display());

@@ -165,8 +165,16 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
     // Try to match date prefix: >Nd, >Nh, >Nm
     let re = date_regex();
     if let Some(caps) = re.captures(trimmed) {
-        let full_match = caps.get(0).expect("regex match always has group 0").as_str();
-        let amount: u64 = caps.get(1).expect("regex has capture group 1").as_str().parse().unwrap_or(1);
+        let full_match = caps
+            .get(0)
+            .expect("regex match always has group 0")
+            .as_str();
+        let amount: u64 = caps
+            .get(1)
+            .expect("regex has capture group 1")
+            .as_str()
+            .parse()
+            .unwrap_or(1);
         let unit = caps.get(2).expect("regex has capture group 2").as_str();
 
         let cutoff = match unit {
@@ -200,7 +208,10 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
 fn date_regex() -> &'static regex::Regex {
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^>(\d+)([dhm])\s*").expect("date regex is a valid compile-time constant"))
+    RE.get_or_init(|| {
+        regex::Regex::new(r"^>(\d+)([dhm])\s*")
+            .expect("date regex is a valid compile-time constant")
+    })
 }
 
 /// Copy text to the system clipboard. Uses arboard first, falls back to

@@ -40,8 +40,10 @@ impl super::App {
                     self.view.status = "Tag filter cleared.".into();
                 } else {
                     self.view.tag_filter = Some(self.input_buffer.trim().to_string());
-                    self.view.status =
-                    format!("Tag filter: {}", self.view.tag_filter.as_ref().unwrap_or(&String::new()))
+                    self.view.status = format!(
+                        "Tag filter: {}",
+                        self.view.tag_filter.as_ref().unwrap_or(&String::new())
+                    )
                 }
                 self.view.input_mode = InputMode::None;
                 self.input_buffer.clear();
@@ -307,14 +309,11 @@ mod tests {
     fn semantic_search_j_moves_down() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![
-            ("s1".into(), 0.9),
-            ("s2".into(), 0.8),
-            ("s3".into(), 0.7),
-        ];
+        app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
         app.search_result_state.select(Some(0));
 
-        app.handle_semantic_search_key(key(KeyCode::Char('j'))).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Char('j')))
+            .unwrap();
         assert_eq!(app.search_result_state.selected(), Some(1));
 
         app.handle_semantic_search_key(key(KeyCode::Down)).unwrap();
@@ -328,7 +327,8 @@ mod tests {
         app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8)];
         app.search_result_state.select(Some(1));
 
-        app.handle_semantic_search_key(key(KeyCode::Char('j'))).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Char('j')))
+            .unwrap();
         assert_eq!(app.search_result_state.selected(), Some(1));
     }
 
@@ -336,14 +336,11 @@ mod tests {
     fn semantic_search_k_moves_up() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![
-            ("s1".into(), 0.9),
-            ("s2".into(), 0.8),
-            ("s3".into(), 0.7),
-        ];
+        app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
         app.search_result_state.select(Some(2));
 
-        app.handle_semantic_search_key(key(KeyCode::Char('k'))).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Char('k')))
+            .unwrap();
         assert_eq!(app.search_result_state.selected(), Some(1));
 
         app.handle_semantic_search_key(key(KeyCode::Up)).unwrap();
@@ -357,7 +354,8 @@ mod tests {
         app.search_results = vec![("s1".into(), 0.9)];
         app.search_result_state.select(Some(0));
 
-        app.handle_semantic_search_key(key(KeyCode::Char('k'))).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Char('k')))
+            .unwrap();
         assert_eq!(app.search_result_state.selected(), Some(0));
     }
 
@@ -383,7 +381,8 @@ mod tests {
         app.input_buffer.clear();
         // search_results is empty → typing sub-state
 
-        app.handle_semantic_search_key(key(KeyCode::Char('q'))).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Char('q')))
+            .unwrap();
         assert_eq!(app.input_buffer, "q");
     }
 
@@ -393,7 +392,8 @@ mod tests {
         app.view.input_mode = InputMode::SemanticSearch;
         app.input_buffer = "abc".into();
 
-        app.handle_semantic_search_key(key(KeyCode::Backspace)).unwrap();
+        app.handle_semantic_search_key(key(KeyCode::Backspace))
+            .unwrap();
         assert_eq!(app.input_buffer, "ab");
     }
 

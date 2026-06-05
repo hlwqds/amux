@@ -68,7 +68,7 @@ pub fn run_doctor() -> Vec<CheckResult> {
 }
 
 /// Apply auto-fixes for all failed checks that have one.
-/// Returns (applied: Vec<String>, failed: Vec<String>) with descriptions.
+/// Returns (`applied`, `failed`) with descriptions of auto-fix outcomes.
 pub fn run_doctor_fix() -> (Vec<String>, Vec<String>) {
     let results = run_doctor();
     let mut applied = Vec::new();
@@ -137,10 +137,22 @@ fn check_git(results: &mut Vec<CheckResult>) {
     match which("git") {
         Some(path) => {
             let msg = path.display().to_string();
-            results.push(CheckResult { name: "git".into(), passed: true, message: msg, fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "git".into(),
+                passed: true,
+                message: msg,
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
         None => {
-            results.push(CheckResult { name: "git".into(), passed: false, message: "not found in PATH".into(), fix_hint: Some("Install git: https://git-scm.com/downloads".into()), auto_fix: None });
+            results.push(CheckResult {
+                name: "git".into(),
+                passed: false,
+                message: "not found in PATH".into(),
+                fix_hint: Some("Install git: https://git-scm.com/downloads".into()),
+                auto_fix: None,
+            });
         }
     }
 }
@@ -151,13 +163,25 @@ fn check_agents(results: &mut Vec<CheckResult>) {
         let label = agent.label();
         match which(cmd) {
             Some(path) => {
-                results.push(CheckResult { name: format!("agent: {}", label), passed: true, message: path.display().to_string(), fix_hint: None, auto_fix: None });
+                results.push(CheckResult {
+                    name: format!("agent: {}", label),
+                    passed: true,
+                    message: path.display().to_string(),
+                    fix_hint: None,
+                    auto_fix: None,
+                });
             }
             None => {
                 let hint = install_hint(cmd)
                     .map(|h| h.to_string())
                     .unwrap_or_else(|| format!("Install {}", label));
-                results.push(CheckResult { name: format!("agent: {}", label), passed: false, message: "not found in PATH".into(), fix_hint: Some(hint), auto_fix: None });
+                results.push(CheckResult {
+                    name: format!("agent: {}", label),
+                    passed: false,
+                    message: "not found in PATH".into(),
+                    fix_hint: Some(hint),
+                    auto_fix: None,
+                });
             }
         }
     }
@@ -186,10 +210,22 @@ fn check_data_dir(results: &mut Vec<CheckResult>) {
     match fs::write(&test_file, b"test") {
         Ok(()) => {
             let _ = fs::remove_file(&test_file);
-            results.push(CheckResult { name: "data directory".into(), passed: true, message: dir_str, fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "data directory".into(),
+                passed: true,
+                message: dir_str,
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
         Err(e) => {
-            results.push(CheckResult { name: "data directory".into(), passed: false, message: format!("{} not writable: {}", dir_str, e), fix_hint: Some("Check directory permissions".into()), auto_fix: None });
+            results.push(CheckResult {
+                name: "data directory".into(),
+                passed: false,
+                message: format!("{} not writable: {}", dir_str, e),
+                fix_hint: Some("Check directory permissions".into()),
+                auto_fix: None,
+            });
         }
     }
 }
@@ -212,7 +248,13 @@ fn check_sessions_dir(results: &mut Vec<CheckResult>) {
     }
 
     let count = fs::read_dir(&dir).map(|rd| rd.count()).unwrap_or(0);
-    results.push(CheckResult { name: "sessions directory".into(), passed: true, message: format!("{} ({} entries)", dir_str, count), fix_hint: None, auto_fix: None });
+    results.push(CheckResult {
+        name: "sessions directory".into(),
+        passed: true,
+        message: format!("{} ({} entries)", dir_str, count),
+        fix_hint: None,
+        auto_fix: None,
+    });
 }
 
 fn check_config(results: &mut Vec<CheckResult>) {
@@ -220,17 +262,35 @@ fn check_config(results: &mut Vec<CheckResult>) {
     let path_str = path.display().to_string();
 
     if !path.exists() {
-        results.push(CheckResult { name: "config file".into(), passed: true, message: format!("{} (will be created on first use)", path_str), fix_hint: None, auto_fix: None });
+        results.push(CheckResult {
+            name: "config file".into(),
+            passed: true,
+            message: format!("{} (will be created on first use)", path_str),
+            fix_hint: None,
+            auto_fix: None,
+        });
         return;
     }
 
     match config::load_config() {
         Ok(cfg) => {
             let ws_count = cfg.workspaces.len();
-            results.push(CheckResult { name: "config file".into(), passed: true, message: format!("{} ({} workspace(s))", path_str, ws_count), fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "config file".into(),
+                passed: true,
+                message: format!("{} ({} workspace(s))", path_str, ws_count),
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
         Err(e) => {
-            results.push(CheckResult { name: "config file".into(), passed: false, message: format!("{}: parse error: {}", path_str, e), fix_hint: Some("Fix or delete the config file to regenerate".into()), auto_fix: None });
+            results.push(CheckResult {
+                name: "config file".into(),
+                passed: false,
+                message: format!("{}: parse error: {}", path_str, e),
+                fix_hint: Some("Fix or delete the config file to regenerate".into()),
+                auto_fix: None,
+            });
         }
     }
 }
@@ -240,10 +300,22 @@ fn check_editor(results: &mut Vec<CheckResult>) {
 
     match editor {
         Some(ed) => {
-            results.push(CheckResult { name: "EDITOR / VISUAL".into(), passed: true, message: ed, fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "EDITOR / VISUAL".into(),
+                passed: true,
+                message: ed,
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
         None => {
-            results.push(CheckResult { name: "EDITOR / VISUAL".into(), passed: false, message: "neither EDITOR nor VISUAL is set".into(), fix_hint: Some("Set EDITOR in your shell profile, e.g. export EDITOR=vim".into()), auto_fix: None });
+            results.push(CheckResult {
+                name: "EDITOR / VISUAL".into(),
+                passed: false,
+                message: "neither EDITOR nor VISUAL is set".into(),
+                fix_hint: Some("Set EDITOR in your shell profile, e.g. export EDITOR=vim".into()),
+                auto_fix: None,
+            });
         }
     }
 }
@@ -258,7 +330,13 @@ fn check_build(results: &mut Vec<CheckResult>) {
         .output();
     match output {
         Ok(out) if out.status.success() => {
-            results.push(CheckResult { name: "Build".into(), passed: true, message: "cargo check passes".into(), fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: true,
+                message: "cargo check passes".into(),
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
@@ -266,10 +344,22 @@ fn check_build(results: &mut Vec<CheckResult>) {
                 .lines()
                 .find(|l| l.contains("error"))
                 .unwrap_or("unknown error");
-            results.push(CheckResult { name: "Build".into(), passed: false, message: format!("cargo check failed: {first_error}"), fix_hint: Some("Run `cargo check` and fix compilation errors".into()), auto_fix: None });
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: false,
+                message: format!("cargo check failed: {first_error}"),
+                fix_hint: Some("Run `cargo check` and fix compilation errors".into()),
+                auto_fix: None,
+            });
         }
         Err(e) => {
-            results.push(CheckResult { name: "Build".into(), passed: false, message: format!("failed to run cargo check: {e}"), fix_hint: None, auto_fix: None });
+            results.push(CheckResult {
+                name: "Build".into(),
+                passed: false,
+                message: format!("failed to run cargo check: {e}"),
+                fix_hint: None,
+                auto_fix: None,
+            });
         }
     }
 }

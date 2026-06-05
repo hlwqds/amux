@@ -1,10 +1,3 @@
-use std::{
-    io::Write,
-    sync::Arc,
-    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-    sync::mpsc::SyncSender,
-    thread,
-};
 use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::{Column, Line, Point};
@@ -16,6 +9,13 @@ use anyhow::{Context, Result};
 use bytes::Bytes;
 use parking_lot::RwLock;
 use portable_pty::{NativePtySystem, PtySize, PtySystem};
+use std::{
+    io::Write,
+    sync::Arc,
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    sync::mpsc::SyncSender,
+    thread,
+};
 use tokio::sync::Notify;
 use tracing::{error, info, warn};
 
@@ -37,7 +37,6 @@ pub(crate) struct PtyEventListener {
     response_tx: Option<std::sync::mpsc::Sender<String>>,
     size: Option<std::sync::Arc<std::sync::Mutex<(u16, u16)>>>,
 }
-
 
 impl EventListener for PtyEventListener {
     fn send_event(&self, event: Event) {
@@ -151,7 +150,11 @@ impl PtyHandle {
         env_vars: &[(String, String)],
         unset_env: &[String],
     ) -> Result<Self> {
-        info!("spawning PTY: {} in {}", agent.label(), workspace_path.display());
+        info!(
+            "spawning PTY: {} in {}",
+            agent.label(),
+            workspace_path.display()
+        );
         let pty_system = NativePtySystem::default();
         let pty_size = PtySize {
             rows: size.1,
@@ -187,8 +190,7 @@ impl PtyHandle {
             .try_clone_reader()
             .context("failed to clone PTY reader")?;
 
-        let last_raw_output: Arc<RwLock<Vec<u8>>> =
-            Arc::new(RwLock::new(Vec::with_capacity(8192)));
+        let last_raw_output: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new(Vec::with_capacity(8192)));
         let alive = Arc::new(AtomicBool::new(true));
         let last_output_at = Arc::new(AtomicU64::new(now_secs()));
         let output_notify = Arc::new(Notify::new());
@@ -209,8 +211,7 @@ impl PtyHandle {
                 e
             })
             .ok();
-        let recording: Arc<RwLock<Option<std::fs::File>>> =
-            Arc::new(RwLock::new(recording_file));
+        let recording: Arc<RwLock<Option<std::fs::File>>> = Arc::new(RwLock::new(recording_file));
         info!("recording to {}", recording_path.display());
 
         // Create writer channel before reader thread so the reader can
@@ -373,10 +374,7 @@ impl PtyHandle {
     }
 
     /// Spawn a shell PTY ($SHELL or /bin/sh) in the given directory.
-    pub fn spawn_shell(
-        workspace_path: &std::path::Path,
-        size: (u16, u16),
-    ) -> Result<Self> {
+    pub fn spawn_shell(workspace_path: &std::path::Path, size: (u16, u16)) -> Result<Self> {
         info!("spawning shell in {}", workspace_path.display());
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
         let mut cmd = portable_pty::CommandBuilder::new(shell);
@@ -403,8 +401,7 @@ impl PtyHandle {
             .try_clone_reader()
             .context("failed to clone PTY reader")?;
 
-        let last_raw_output: Arc<RwLock<Vec<u8>>> =
-            Arc::new(RwLock::new(Vec::with_capacity(8192)));
+        let last_raw_output: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new(Vec::with_capacity(8192)));
         let alive = Arc::new(AtomicBool::new(true));
         let last_output_at = Arc::new(AtomicU64::new(now_secs()));
         let output_notify = Arc::new(Notify::new());
@@ -608,7 +605,8 @@ impl PtyHandle {
     pub fn scroll_page_down(&self, page_size: usize) {
         if self.is_alternate_screen() {
             let current = self.snap_scroll.load(Ordering::Relaxed);
-            self.snap_scroll.store(current.saturating_sub(1), Ordering::Relaxed);
+            self.snap_scroll
+                .store(current.saturating_sub(1), Ordering::Relaxed);
         } else {
             let mut t = self.term.lock();
             t.scroll_display(Scroll::Delta(-i32::try_from(page_size).unwrap_or(i32::MAX)));
@@ -628,7 +626,9 @@ impl PtyHandle {
         // Actually, let's use a direct approach.
         let total = t.grid().display_offset();
         if offset < total {
-            t.scroll_display(Scroll::Delta(i32::try_from(total - offset).unwrap_or(i32::MAX)));
+            t.scroll_display(Scroll::Delta(
+                i32::try_from(total - offset).unwrap_or(i32::MAX),
+            ));
         }
     }
 
@@ -676,7 +676,8 @@ impl PtyHandle {
     pub fn cell_contents(&self, row: usize, col: usize) -> Option<String> {
         let t = self.term.lock();
         let display_offset = t.grid().display_offset();
-        let line_idx = i32::try_from(row).unwrap_or(i32::MAX) - i32::try_from(display_offset).unwrap_or(i32::MAX);
+        let line_idx = i32::try_from(row).unwrap_or(i32::MAX)
+            - i32::try_from(display_offset).unwrap_or(i32::MAX);
         let cols = t.columns();
         if col >= cols {
             return None;
@@ -697,14 +698,16 @@ impl PtyHandle {
         let cols = t.columns();
         let mut out = String::with_capacity(rows * cols);
         for r in 0..rows {
-            let line_idx = i32::try_from(r).unwrap_or(i32::MAX) - i32::try_from(display_offset).unwrap_or(i32::MAX);
+            let line_idx = i32::try_from(r).unwrap_or(i32::MAX)
+                - i32::try_from(display_offset).unwrap_or(i32::MAX);
             let mut line_buf = String::with_capacity(cols);
             for c in 0..cols {
                 let p = Point::new(Line(line_idx), Column(c));
                 let cell = &t.grid()[p];
-                if cell.flags.contains(
-                    alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
-                ) {
+                if cell
+                    .flags
+                    .contains(alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER)
+                {
                     continue;
                 }
                 let ch = if cell.c == '\0' { ' ' } else { cell.c };
@@ -730,8 +733,8 @@ impl PtyHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Read;
     use std::collections::VecDeque;
+    use std::io::Read;
 
     /// Helper: build a PtyHandle from raw Arc state without spawning a real PTY.
     fn dead_pty_handle(last_output_epoch: u64, alive: bool) -> PtyHandle {

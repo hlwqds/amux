@@ -84,10 +84,7 @@ impl super::App {
             let term_height = (cols[1].height / 3).max(5);
             let chat_chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(4),
-                    Constraint::Length(term_height),
-                ])
+                .constraints([Constraint::Min(4), Constraint::Length(term_height)])
                 .split(cols[1]);
             self.view.last_chat_area = chat_chunks[0];
             self.render_chat(frame, chat_chunks[0]);
@@ -171,13 +168,7 @@ impl super::App {
             })
             .collect();
         // Pre-compute active tab state for ActiveTab nodes.
-        let active_tab_data: Vec<(
-            PtyState,
-            String,
-            Agent,
-            CheckStatus,
-            DiffSummary,
-        )> = self
+        let active_tab_data: Vec<(PtyState, String, Agent, CheckStatus, DiffSummary)> = self
             .ptys
             .ptys
             .iter()
@@ -200,7 +191,11 @@ impl super::App {
             .map(|node| match node {
                 TreeNode::PinnedWorkspace => {
                     let count = self.sessions.sessions.iter().filter(|s| s.pinned).count();
-                    let arrow = if self.sessions.pinned_expanded { "▼" } else { "▶" };
+                    let arrow = if self.sessions.pinned_expanded {
+                        "▼"
+                    } else {
+                        "▶"
+                    };
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
@@ -218,7 +213,11 @@ impl super::App {
                 }
                 TreeNode::RecentWorkspace => {
                     let count = self.sessions.recent_count;
-                    let arrow = if self.sessions.recent_expanded { "▼" } else { "▶" };
+                    let arrow = if self.sessions.recent_expanded {
+                        "▼"
+                    } else {
+                        "▶"
+                    };
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
@@ -504,7 +503,6 @@ impl super::App {
             })
             .collect();
 
-
         let is_searching = self.view.input_mode == InputMode::Search;
         let search_query = self.view.search_query.as_deref().unwrap_or("");
 
@@ -689,8 +687,16 @@ impl super::App {
                 };
                 let mode_tags = format!(
                     "{}{}",
-                    if self.view.scrollback_regex { " [REGEX]" } else { "" },
-                    if self.view.scrollback_case_sensitive { " [CASE]" } else { "" },
+                    if self.view.scrollback_regex {
+                        " [REGEX]"
+                    } else {
+                        ""
+                    },
+                    if self.view.scrollback_case_sensitive {
+                        " [CASE]"
+                    } else {
+                        ""
+                    },
                 );
                 let search_text = if query.is_empty() {
                     format!(" Search:_{}", mode_tags)
@@ -765,7 +771,8 @@ impl super::App {
                     let max_rows = pty_area.height.min(screen_rows);
                     let max_cols = pty_area.width.min(screen_cols);
                     for y in 0..max_rows {
-                        let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
+                        let line_idx =
+                            i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
                         for x in 0..max_cols {
                             let p = Point::new(AlacLine(line_idx), Column(x as usize));
                             let cell = &grid[p];
@@ -822,9 +829,12 @@ impl super::App {
                             if row < vis_start || row >= vis_end {
                                 continue;
                             }
-                            let screen_y = pty_area.y + u16::try_from(row - vis_start).unwrap_or(u16::MAX);
+                            let screen_y =
+                                pty_area.y + u16::try_from(row - vis_start).unwrap_or(u16::MAX);
                             let screen_x = pty_area.x + col;
-                            if screen_x + u16::try_from(len).unwrap_or(u16::MAX) > pty_area.x + pty_area.width {
+                            if screen_x + u16::try_from(len).unwrap_or(u16::MAX)
+                                > pty_area.x + pty_area.width
+                            {
                                 continue;
                             }
                             let highlight_style = if mi == self.view.scrollback_match_idx {
@@ -1233,9 +1243,6 @@ impl super::App {
         lines
     }
 
-
-
-
     fn render_status(&mut self, frame: &mut Frame, area: Rect) {
         // Budget alert — flashing, keep when present
         let budget_span = if let Some(ref msg) = self.popup.budget_alert {
@@ -1251,8 +1258,7 @@ impl super::App {
             } else {
                 Span::styled(
                     format!(" {} ", msg),
-                    Style::default()
-                        .fg(self.view.theme.status_error),
+                    Style::default().fg(self.view.theme.status_error),
                 )
             }
         } else {
@@ -1261,11 +1267,7 @@ impl super::App {
 
         let chain_span = if let Some(ref chain) = self.chains.active_chain {
             Span::styled(
-                format!(
-                    " {}/{} ",
-                    chain.current_step + 1,
-                    chain.total_steps,
-                ),
+                format!(" {}/{} ", chain.current_step + 1, chain.total_steps,),
                 Style::default().fg(self.view.theme.agent_omp),
             )
         } else {
@@ -1287,7 +1289,8 @@ impl super::App {
                     let cpu_pct = stats.cpu_percent.round().clamp(0.0, u32::MAX as f64) as u32;
                     Span::styled(
                         format!(
-                            " ⚡{}% 🧠{}", cpu_pct,
+                            " ⚡{}% 🧠{}",
+                            cpu_pct,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
                         Style::default().fg(self.view.theme.status_text),
@@ -1339,42 +1342,12 @@ impl super::App {
             .bg(self.view.theme.status_bg);
 
         frame.render_widget(
-            Paragraph::new(right)
-                .style(base_style)
-                .right_aligned(),
+            Paragraph::new(right).style(base_style).right_aligned(),
             area,
         );
         // Render left on top (overwrites the left portion)
-        frame.render_widget(
-            Paragraph::new(left)
-                .style(base_style),
-            area,
-        );
+        frame.render_widget(Paragraph::new(left).style(base_style), area);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 /// Calculate tab index from a local x-coordinate within the tab bar.

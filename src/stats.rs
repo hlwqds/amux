@@ -55,12 +55,14 @@ pub fn aggregate_daily(sessions: &[Session]) -> DailyStatsMap {
 pub fn render_session_count_chart(frame: &mut Frame, area: Rect, stats: &DailyStatsMap) {
     let data = last_n_days_data(stats, 30, |d| d.sessions as f64);
 
-    let datasets = vec![Dataset::default()
-        .name("Sessions")
-        .marker(symbols::Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(Style::default().fg(Color::Green))
-        .data(&data)];
+    let datasets = vec![
+        Dataset::default()
+            .name("Sessions")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Green))
+            .data(&data),
+    ];
 
     let max_val = data.iter().map(|p| p.1).fold(1.0_f64, f64::max);
 
@@ -90,12 +92,14 @@ pub fn render_session_count_chart(frame: &mut Frame, area: Rect, stats: &DailySt
 pub fn render_token_chart(frame: &mut Frame, area: Rect, stats: &DailyStatsMap) {
     let data = last_n_days_data(stats, 30, |d| d.total_tokens as f64 / 1000.0);
 
-    let datasets = vec![Dataset::default()
-        .name("Tokens (K)")
-        .marker(symbols::Marker::HalfBlock)
-        .graph_type(GraphType::Bar)
-        .style(Style::default().fg(Color::Cyan))
-        .data(&data)];
+    let datasets = vec![
+        Dataset::default()
+            .name("Tokens (K)")
+            .marker(symbols::Marker::HalfBlock)
+            .graph_type(GraphType::Bar)
+            .style(Style::default().fg(Color::Cyan))
+            .data(&data),
+    ];
 
     let max_val = data.iter().map(|p| p.1).fold(1.0_f64, f64::max);
 
@@ -114,18 +118,21 @@ pub fn render_token_chart(frame: &mut Frame, area: Rect, stats: &DailyStatsMap) 
                     "0".into(),
                     format!("{:.0}K", max_val / 2.0),
                     format!("{:.0}K", max_val),
-                ]));
+                ]),
+        );
 
     frame.render_widget(chart, area);
 }
 
 /// Render a session dashboard summary.
 pub fn render_dashboard(frame: &mut Frame, area: Rect, stats: &DailyStatsMap) {
-    let total: DailyStats = stats.values().fold(DailyStats::default(), |acc, d| DailyStats {
-        sessions: acc.sessions + d.sessions,
-        total_tokens: acc.total_tokens + d.total_tokens,
-        total_cost: acc.total_cost + d.total_cost,
-    });
+    let total: DailyStats = stats
+        .values()
+        .fold(DailyStats::default(), |acc, d| DailyStats {
+            sessions: acc.sessions + d.sessions,
+            total_tokens: acc.total_tokens + d.total_tokens,
+            total_cost: acc.total_cost + d.total_cost,
+        });
 
     let lines = vec![
         Line::from(vec![

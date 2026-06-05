@@ -206,7 +206,10 @@ mod tests {
         assert_eq!(app.sessions.workspaces.len(), 1);
         assert_eq!(app.sessions.workspaces[0].name, "myws");
         assert_eq!(
-            app.sessions.workspaces[0].path.as_ref().map(|p| p.as_os_str()),
+            app.sessions.workspaces[0]
+                .path
+                .as_ref()
+                .map(|p| p.as_os_str()),
             Some(std::ffi::OsStr::new("/tmp"))
         );
         assert_eq!(app.view.input_mode, InputMode::None);

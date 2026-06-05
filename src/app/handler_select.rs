@@ -167,7 +167,9 @@ impl super::App {
                         {
                             let expanded = crate::template::expand_template_vars(prompt, &ws_path);
                             let data = format!("{}\n", expanded);
-                            if let Err(e) = slot.handle.write_input(data.as_bytes()) { self.view.status = format!("Write error: {e}"); }
+                            if let Err(e) = slot.handle.write_input(data.as_bytes()) {
+                                self.view.status = format!("Write error: {e}");
+                            }
                         }
                         self.view.status = format!("Launched template: {}", tmpl.name);
                     } else {
@@ -276,8 +278,8 @@ impl super::App {
                             None,
                             name.as_deref(),
                             chat_size,
-                        &env,
-                        &[],
+                            &env,
+                            &[],
                         );
 
                         match pty {
@@ -316,7 +318,9 @@ impl super::App {
                                     let fire_at_ms = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .unwrap_or_default()
-                                        .as_millis().try_into().unwrap_or(u64::MAX)
+                                        .as_millis()
+                                        .try_into()
+                                        .unwrap_or(u64::MAX)
                                         + 1500;
                                     let pending = PendingInput {
                                         fire_at_ms,
@@ -384,7 +388,9 @@ impl super::App {
                         let now_ms = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
-                            .as_millis().try_into().unwrap_or(u64::MAX);
+                            .as_millis()
+                            .try_into()
+                            .unwrap_or(u64::MAX);
                         let mut offset_ms = 0u64;
                         for step in &auto.steps {
                             offset_ms += step.delay_ms;
@@ -485,7 +491,9 @@ impl super::App {
                                 let now_ms = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
-                                    .as_millis().try_into().unwrap_or(u64::MAX);
+                                    .as_millis()
+                                    .try_into()
+                                    .unwrap_or(u64::MAX);
                                 self.ptys.pending_inputs.push(PendingInput {
                                     fire_at_ms: now_ms + 3000,
                                     text: ctx,
@@ -606,7 +614,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Claude)
-                        .unwrap_or(0)
+                        .unwrap_or(0),
                 ));
                 self.confirm_input()?;
             }
@@ -617,7 +625,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Codex)
-                        .unwrap_or(0)
+                        .unwrap_or(0),
                 ));
                 self.confirm_input()?;
             }
@@ -628,7 +636,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Omp)
-                        .unwrap_or(0)
+                        .unwrap_or(0),
                 ));
                 self.confirm_input()?;
             }
@@ -794,9 +802,12 @@ mod tests {
     #[test]
     fn typing_chars_appends_to_picker_query() {
         let mut app = fresh_app();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('d'))).unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('a'))).unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Char('r'))).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('d')))
+            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('a')))
+            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Char('r')))
+            .unwrap();
         assert_eq!(app.view.picker_query, "dar");
         // Mode should remain ThemeSelect
         assert_eq!(app.view.input_mode, InputMode::ThemeSelect);
@@ -807,11 +818,13 @@ mod tests {
     fn backspace_removes_from_picker_query() {
         let mut app = fresh_app();
         app.view.picker_query = "mo".into();
-        app.handle_theme_select_key(theme_key(KeyCode::Backspace)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace))
+            .unwrap();
         assert_eq!(app.view.picker_query, "m");
         // Backspace on empty query is a no-op
         app.view.picker_query.clear();
-        app.handle_theme_select_key(theme_key(KeyCode::Backspace)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Backspace))
+            .unwrap();
         assert!(app.view.picker_query.is_empty());
     }
 
@@ -820,7 +833,8 @@ mod tests {
     fn escape_clears_and_exits() {
         let mut app = fresh_app();
         app.view.picker_query = "dark".into();
-        app.handle_theme_select_key(theme_key(KeyCode::Esc)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Esc))
+            .unwrap();
         assert!(app.view.picker_query.is_empty());
         assert_eq!(app.view.input_mode, InputMode::None);
         assert!(app.theme_list.is_empty());
@@ -833,7 +847,8 @@ mod tests {
         let mut app = fresh_app();
         app.view.picker_query = "da".into();
         // List has [Dark, Light], selection on index 0 (Dark)
-        app.handle_theme_select_key(theme_key(KeyCode::Enter)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Enter))
+            .unwrap();
         assert_eq!(app.view.theme_name, ThemeName::Dark);
         assert!(app.view.picker_query.is_empty());
         assert_eq!(app.view.input_mode, InputMode::None);
@@ -846,11 +861,13 @@ mod tests {
         let mut app = fresh_app();
         app.view.picker_query = "li".into();
         // Down: 0 -> 1
-        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down))
+            .unwrap();
         assert_eq!(app.theme_list_state.selected(), Some(1));
         assert_eq!(app.view.picker_query, "li");
         // Down again wraps: 1 -> 0
-        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down))
+            .unwrap();
         assert_eq!(app.theme_list_state.selected(), Some(0));
         // Up wraps back: 0 -> 1
         app.handle_theme_select_key(theme_key(KeyCode::Up)).unwrap();
@@ -863,8 +880,10 @@ mod tests {
     fn enter_on_second_item_applies_light() {
         let mut app = fresh_app();
         // Navigate to Light (index 1)
-        app.handle_theme_select_key(theme_key(KeyCode::Down)).unwrap();
-        app.handle_theme_select_key(theme_key(KeyCode::Enter)).unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Down))
+            .unwrap();
+        app.handle_theme_select_key(theme_key(KeyCode::Enter))
+            .unwrap();
         assert_eq!(app.view.theme_name, ThemeName::Light);
         assert_eq!(app.view.input_mode, InputMode::None);
     }
