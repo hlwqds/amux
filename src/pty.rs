@@ -578,7 +578,7 @@ impl PtyHandle {
     }
 
     /// Returns the PID of the child process, if available.
-    pub fn child_pid(&self) -> Option<u32> {
+    pub const fn child_pid(&self) -> Option<u32> {
         self.child_pid
     }
 

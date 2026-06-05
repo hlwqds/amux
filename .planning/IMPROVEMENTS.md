@@ -319,6 +319,12 @@
   - `run_fails_without_tmux()`: tmux 不存在时断言错误,存在时 skip
 - **效果**:消除非确定性测试失败,CI 和本地均稳定通过
 
+### 72. [x] P2 21 个函数标记为 `const fn` (编译时求值)
+- **位置**:ui, budget, discovery, headless, knowledge, pty, stats, theme, types (9 个文件)
+- **修复**:clippy `missing_const_for_fn` 标记的 21 个纯函数添加 `const` 限定符
+- **效果**:编译器可在编译时求值,减少运行时开销
+- **验证**:`cargo clippy -- -W clippy::missing_const_for_fn -D warnings` clean
+
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

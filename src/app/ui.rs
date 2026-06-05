@@ -14,7 +14,7 @@ use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::relative_time;
 
-fn ansi_to_ratatui_color(c: AnsiColor) -> Option<Color> {
+const fn ansi_to_ratatui_color(c: AnsiColor) -> Option<Color> {
     match c {
         AnsiColor::Spec(rgb) => Some(Color::Rgb(rgb.r, rgb.g, rgb.b)),
         AnsiColor::Indexed(i) => Some(Color::Indexed(i)),
@@ -22,7 +22,7 @@ fn ansi_to_ratatui_color(c: AnsiColor) -> Option<Color> {
     }
 }
 
-fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
+const fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
     use NamedColor::*;
     match n {
         Foreground | Background | Cursor | DimForeground | BrightForeground => None,
@@ -53,7 +53,7 @@ fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
     }
 }
 impl super::App {
-    pub(super) fn chat_size(&self) -> (u16, u16) {
+    pub(super) const fn chat_size(&self) -> (u16, u16) {
         (
             self.view.last_chat_area.width.saturating_sub(2),
             self.view.last_chat_area.height.saturating_sub(2),
@@ -1354,7 +1354,11 @@ impl super::App {
 
 /// Calculate tab index from a local x-coordinate within the tab bar.
 /// Returns `None` if `tab_width` is 0 or `num_tabs` is 0.
-pub(super) fn tab_index_from_x(local_x: u16, tab_width: usize, num_tabs: usize) -> Option<usize> {
+pub(super) const fn tab_index_from_x(
+    local_x: u16,
+    tab_width: usize,
+    num_tabs: usize,
+) -> Option<usize> {
     if tab_width == 0 || num_tabs == 0 {
         return None;
     }

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
@@ -63,7 +63,7 @@ impl PartialOrd for Agent {
 }
 
 impl Agent {
-    pub fn cmd(&self) -> &str {
+    pub const fn cmd(&self) -> &str {
         match self {
             Agent::Claude => "claude",
             Agent::Codex => "codex",
@@ -71,7 +71,7 @@ impl Agent {
         }
     }
 
-    pub fn label(&self) -> &str {
+    pub const fn label(&self) -> &str {
         match self {
             Agent::Claude => "Claude Code",
             Agent::Codex => "Codex",
@@ -91,7 +91,7 @@ impl Agent {
     /// All supported agent types.
     pub const ALL: &[Agent] = &[Agent::Claude, Agent::Codex, Agent::Omp];
 
-    pub fn icon(&self) -> &str {
+    pub const fn icon(&self) -> &str {
         match self {
             Agent::Claude => "C",
             Agent::Codex => "X",
@@ -99,7 +99,7 @@ impl Agent {
         }
     }
 
-    pub fn color(&self) -> Color {
+    pub const fn color(&self) -> Color {
         match self {
             Agent::Claude => Color::Cyan,
             Agent::Codex => Color::Green,
@@ -108,7 +108,7 @@ impl Agent {
     }
 
     /// Return an actionable install hint if the agent binary is not found.
-    pub fn install_hint(&self) -> &'static str {
+    pub const fn install_hint(&self) -> &'static str {
         match self {
             Agent::Claude => "Install: npm i -g @anthropic-ai/claude-code",
             Agent::Codex => "Install: npm i -g @openai/codex",
@@ -370,7 +370,7 @@ pub enum SortMode {
 }
 
 impl SortMode {
-    pub fn next(&self) -> SortMode {
+    pub const fn next(&self) -> SortMode {
         match self {
             SortMode::TimeDesc => SortMode::TimeAsc,
             SortMode::TimeAsc => SortMode::NameAsc,
@@ -380,7 +380,7 @@ impl SortMode {
         }
     }
 
-    pub fn label(&self) -> &'static str {
+    pub const fn label(&self) -> &'static str {
         match self {
             SortMode::TimeDesc => "time \u{2193}",
             SortMode::TimeAsc => "time \u{2191}",

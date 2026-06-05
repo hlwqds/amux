@@ -354,7 +354,7 @@ pub struct Theme {
 }
 
 impl Theme {
-    pub fn dark() -> Self {
+    pub const fn dark() -> Self {
         Theme {
             sidebar_bg: Color::Reset,
             sidebar_title: Color::Cyan,
@@ -390,7 +390,7 @@ impl Theme {
         }
     }
 
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Theme {
             sidebar_bg: Color::Reset,
             sidebar_title: Color::Blue,
@@ -428,7 +428,7 @@ impl Theme {
 
     /// Catppuccin Mocha — warm, soft pastels on dark blue-grey backgrounds.
     /// <https://catppuccin.com/palette/mocha>
-    pub fn mocha() -> Self {
+    pub const fn mocha() -> Self {
         Theme {
             // Surface colours
             sidebar_bg: Color::Rgb(0x18, 0x18, 0x25), // Mantle
@@ -467,7 +467,7 @@ impl Theme {
 
     /// Tokyo Night — deep blue-black with vibrant neon accents.
     /// <https://github.com/tokyo-night/tokyo-night-vscode-theme>
-    pub fn tokyo_night() -> Self {
+    pub const fn tokyo_night() -> Self {
         Theme {
             // Backgrounds
             sidebar_bg: Color::Rgb(0x1a, 0x1b, 0x26), // Editor Background

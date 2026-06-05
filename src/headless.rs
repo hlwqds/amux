@@ -412,7 +412,7 @@ struct StripAnsi {
 }
 
 impl StripAnsi {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             in_escape: false,
             in_csi: false,

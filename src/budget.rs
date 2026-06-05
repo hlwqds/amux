@@ -137,7 +137,7 @@ pub fn check_budget(
 }
 
 /// Returns what day-of-week (1=Mon, 7=Sun) the timestamp falls on in UTC.
-fn now_secs_of_weekday(secs: u64) -> u64 {
+const fn now_secs_of_weekday(secs: u64) -> u64 {
     // 1970-01-01 was a Thursday (day 4). We want Monday=1.
     ((secs / 86400 + 3) % 7) + 1
 }

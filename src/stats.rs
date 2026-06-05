@@ -220,7 +220,7 @@ fn epoch_to_date(secs: u64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-fn is_leap(year: u64) -> bool {
+const fn is_leap(year: u64) -> bool {
     (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
 }
 

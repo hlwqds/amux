@@ -55,7 +55,7 @@ impl ProjectType {
         }
     }
     /// A short unicode icon for the project type.
-    pub fn icon(&self) -> &'static str {
+    pub const fn icon(&self) -> &'static str {
         match self {
             Self::Rust => "\u{e7a8}",    //
             Self::Node => "\u{2b21}",    // ⬡
