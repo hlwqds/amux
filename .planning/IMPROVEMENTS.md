@@ -402,6 +402,12 @@
 - **位置**:session_ops.rs:944
 - **修复**: `if !selected_set.is_empty()` → `if selected_set.is_empty()` 并交换两个分支体
 - **验证**:`cargo clippy --all-targets -- -W clippy::if_not_else -D warnings` clean
+
+### 82. [x] P2 11 处 if-let-else 转为 Option::map_or_else/map_or
+- **问题**: clippy 检测到 `if let Some(x) = opt { ... } else { ... }` 应使用 `map_or_else`
+- **修复**: 转换为 `opt.as_ref().map_or_else(|| default, |x| computation)` 惯用法
+- **涉及**: session_ops, ui_popup, mod, util, handler_select 等文件
+- **验证**:`cargo clippy --all-targets -- -W clippy::option_if_let_else -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

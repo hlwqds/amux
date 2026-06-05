@@ -169,11 +169,10 @@ impl PtyHandle {
                 anyhow::bail!("failed to open PTY: {e:#}");
             }
         };
-        let mut cmd = if let Some(id) = session_id {
-            agent.build_resume_cmd(workspace_path, id, unset_env)
-        } else {
-            agent.build_new_cmd(workspace_path, session_name, unset_env)
-        };
+        let mut cmd = session_id.map_or_else(
+            || agent.build_new_cmd(workspace_path, session_name, unset_env),
+            |id| agent.build_resume_cmd(workspace_path, id, unset_env),
+        );
         for (key, value) in env_vars {
             cmd.env(key, value);
         }

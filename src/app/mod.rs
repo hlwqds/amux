@@ -517,11 +517,10 @@ impl App {
             .spawn();
     }
     fn pty_display_state(&self, pi: usize) -> PtyState {
-        if let Some(slot) = self.ptys.ptys.get(pi) {
-            slot.handle.state()
-        } else {
-            PtyState::Running
-        }
+        self.ptys
+            .ptys
+            .get(pi)
+            .map_or(PtyState::Running, |slot| slot.handle.state())
     }
     fn pty_index_for_session(&self, session_id: &str) -> Option<usize> {
         self.ptys
@@ -564,22 +563,22 @@ impl App {
             .and_then(|i| self.sessions.tree.get(i))
     }
     fn workspace_cwd(&self, wi: usize) -> PathBuf {
-        match &self.sessions.workspaces[wi].path {
-            Some(p) => p.clone(),
-            None => {
+        self.sessions.workspaces[wi].path.as_ref().map_or_else(
+            || {
                 let dir = data_dir()
                     .join("workspaces")
                     .join(&self.sessions.workspaces[wi].id);
                 let _ = fs::create_dir_all(&dir);
                 dir
-            }
-        }
+            },
+            |p| p.clone(),
+        )
     }
     fn ws_matches_path(&self, wi: usize, path: &Path) -> bool {
-        match &self.sessions.workspaces[wi].path {
-            Some(p) => p == path,
-            None => path == self.workspace_cwd(wi),
-        }
+        self.sessions.workspaces[wi]
+            .path
+            .as_ref()
+            .map_or_else(|| path == self.workspace_cwd(wi), |p| p == path)
     }
     /// Get the workspace path for a tree node, if applicable.
     fn node_workspace_path(&self, node: &TreeNode) -> Option<PathBuf> {

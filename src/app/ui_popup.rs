@@ -487,24 +487,25 @@ impl App {
         ]));
         lines.push(Line::from(""));
         // Show current budget status
-        let budget_status = if let Some(ref b) = self.token_budget {
-            let mut parts = Vec::new();
-            if let Some(dt) = b.daily_tokens {
-                parts.push(format!("{}k daily tokens", dt / 1000));
-            }
-            if let Some(dc) = b.daily_cost {
-                parts.push(format!("${dc:.2} daily cost"));
-            }
-            if let Some(wt) = b.weekly_tokens {
-                parts.push(format!("{}k weekly tokens", wt / 1000));
-            }
-            if let Some(wc) = b.weekly_cost {
-                parts.push(format!("${wc:.2} weekly cost"));
-            }
-            format!("Budget: {} (b to clear)", parts.join(", "))
-        } else {
-            "Budget: not set (b to set default 100k daily)".into()
-        };
+        let budget_status = self.token_budget.as_ref().map_or_else(
+            || "Budget: not set (b to set default 100k daily)".into(),
+            |b| {
+                let mut parts = Vec::new();
+                if let Some(dt) = b.daily_tokens {
+                    parts.push(format!("{}k daily tokens", dt / 1000));
+                }
+                if let Some(dc) = b.daily_cost {
+                    parts.push(format!("${dc:.2} daily cost"));
+                }
+                if let Some(wt) = b.weekly_tokens {
+                    parts.push(format!("{}k weekly tokens", wt / 1000));
+                }
+                if let Some(wc) = b.weekly_cost {
+                    parts.push(format!("${wc:.2} weekly cost"));
+                }
+                format!("Budget: {} (b to clear)", parts.join(", "))
+            },
+        );
         lines.push(Line::from(vec![Span::styled(
             format!("  {budget_status} "),
             Style::default().fg(Color::DarkGray),

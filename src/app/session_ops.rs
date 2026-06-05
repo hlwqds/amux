@@ -67,44 +67,47 @@ fn spawn_completion_check(idx: usize, slot: &mut PtySlot, check_override: Option
     slot.info.check_status = CheckStatus::Running;
     let ws = slot.info.workspace_path.clone();
     std::thread::spawn(move || {
-        let result = if let Some(ref cmd_str) = check_override {
-            let parts: Vec<&str> = cmd_str.split_whitespace().collect();
-            if parts.is_empty() {
-                CheckStatus::Passed
-            } else {
-                let (prog, args) = (parts[0], &parts[1..]);
-                let out = std::process::Command::new(prog)
-                    .args(args)
-                    .current_dir(&ws)
-                    .output();
-                if out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+        let result = check_override.as_ref().map_or_else(
+            || {
+                let commands = project_type.check_commands();
+                if commands.is_empty() {
                     CheckStatus::Passed
                 } else {
-                    CheckStatus::Failed(cmd_str.clone())
+                    let mut errs = Vec::new();
+                    for (prog, args) in &commands {
+                        let out = std::process::Command::new(*prog)
+                            .args(args)
+                            .current_dir(&ws)
+                            .output();
+                        if !out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                            errs.push(format!("{} {} failed", prog, args.join(" ")));
+                        }
+                    }
+                    if errs.is_empty() {
+                        CheckStatus::Passed
+                    } else {
+                        CheckStatus::Failed(errs.join(", "))
+                    }
                 }
-            }
-        } else {
-            let commands = project_type.check_commands();
-            if commands.is_empty() {
-                CheckStatus::Passed
-            } else {
-                let mut errs = Vec::new();
-                for (prog, args) in &commands {
-                    let out = std::process::Command::new(*prog)
+            },
+            |cmd_str| {
+                let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+                if parts.is_empty() {
+                    CheckStatus::Passed
+                } else {
+                    let (prog, args) = (parts[0], &parts[1..]);
+                    let out = std::process::Command::new(prog)
                         .args(args)
                         .current_dir(&ws)
                         .output();
-                    if !out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
-                        errs.push(format!("{} {} failed", prog, args.join(" ")));
+                    if out.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                        CheckStatus::Passed
+                    } else {
+                        CheckStatus::Failed(cmd_str.clone())
                     }
                 }
-                if errs.is_empty() {
-                    CheckStatus::Passed
-                } else {
-                    CheckStatus::Failed(errs.join(", "))
-                }
-            }
-        };
+            },
+        );
         let marker = crate::config::data_dir().join(format!(".check-result-{idx}"));
         let _ = std::fs::write(&marker, serde_json::to_string(&result).unwrap_or_default());
     });
@@ -133,15 +136,17 @@ fn save_recording_meta(slot: &PtySlot) {
 /// Merge session summary into the workspace knowledge base.
 fn merge_session_knowledge(slot: &PtySlot) {
     let ws = &slot.info.workspace_path;
-    let summary_text = if let Some(ref session_id) = slot.info.session_id {
-        let short_id = &session_id[..session_id.len().min(16)];
-        let summary_path = crate::config::data_dir()
-            .join("summaries")
-            .join(format!("{short_id}.md"));
-        std::fs::read_to_string(&summary_path).unwrap_or_default()
-    } else {
-        String::new()
-    };
+    let summary_text = slot
+        .info
+        .session_id
+        .as_ref()
+        .map_or_else(String::new, |session_id| {
+            let short_id = &session_id[..session_id.len().min(16)];
+            let summary_path = crate::config::data_dir()
+                .join("summaries")
+                .join(format!("{short_id}.md"));
+            std::fs::read_to_string(&summary_path).unwrap_or_default()
+        });
     if !summary_text.is_empty() {
         let mut kb = crate::knowledge::load_knowledge(ws);
         crate::knowledge::merge_from_session(&mut kb, &summary_text);

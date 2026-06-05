@@ -146,8 +146,9 @@ pub fn load_project_config(workspace_path: &Path) -> ProjectConfig {
     if !config_path.exists() {
         return ProjectConfig::default();
     }
-    match fs::read_to_string(&config_path) {
-        Ok(content) => match serde_json::from_str(&content) {
+    fs::read_to_string(&config_path).map_or_else(
+        |_| ProjectConfig::default(),
+        |content| match serde_json::from_str(&content) {
             Ok(config) => config,
             Err(e) => {
                 tracing::warn!(
@@ -157,8 +158,7 @@ pub fn load_project_config(workspace_path: &Path) -> ProjectConfig {
                 ProjectConfig::default()
             }
         },
-        Err(_) => ProjectConfig::default(),
-    }
+    )
 }
 
 pub fn save_config_file(config: &Config) -> Result<()> {

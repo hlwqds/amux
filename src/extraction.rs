@@ -791,10 +791,10 @@ const DEFAULT_REMOTE_SCAN_PATHS: &[&str] = &[
 /// (display_title, agent_type). On SSH failure, returns a single entry with
 /// an error indicator so the UI can display it.
 pub fn discover_remote_sessions(host: &crate::types::RemoteHost) -> Vec<(String, String)> {
-    let ssh_target = match &host.user {
-        Some(user) => format!("{}@{}", user, host.host),
-        None => host.host.clone(),
-    };
+    let ssh_target = host.user.as_ref().map_or_else(
+        || host.host.clone(),
+        |user| format!("{}@{}", user, host.host),
+    );
 
     // Use custom agent_paths if configured, otherwise use defaults.
     let scan_dirs: Vec<String> = if host.agent_paths.is_empty() {
@@ -873,13 +873,7 @@ pub fn discover_remote_sessions(host: &crate::types::RemoteHost) -> Vec<(String,
         }
 
         // Parse "mtime_epoch<TAB>fullpath"
-        let (mtime_str, filepath) = match line.split_once('\t') {
-            Some(pair) => pair,
-            None => {
-                // Fallback: treat whole line as path (no mtime from server)
-                ("0", line)
-            }
-        };
+        let (mtime_str, filepath) = line.split_once('\t').map_or(("0", line), |pair| pair);
 
         let filepath = filepath.trim();
         if filepath.is_empty() {

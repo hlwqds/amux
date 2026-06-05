@@ -175,45 +175,46 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
 
     // Try to match date prefix: >Nd, >Nh, >Nm
     let re = date_regex();
-    if let Some(caps) = re.captures(trimmed) {
-        let full_match = caps
-            .get(0)
-            .expect("regex match always has group 0")
-            .as_str();
-        let amount: u64 = caps
-            .get(1)
-            .expect("regex has capture group 1")
-            .as_str()
-            .parse()
-            .unwrap_or(1);
-        let unit = caps.get(2).expect("regex has capture group 2").as_str();
-
-        let cutoff = match unit {
-            "d" => now.saturating_sub(amount * 86400),
-            "h" => now.saturating_sub(amount * 3600),
-            "m" => now.saturating_sub(amount * 60),
-            _ => now,
-        };
-
-        let remaining = trimmed[full_match.len()..].trim().to_string();
-        ParsedSearch {
-            text: if remaining.is_empty() {
-                None
-            } else {
-                Some(remaining)
-            },
-            min_last_active: Some(cutoff),
-        }
-    } else {
-        ParsedSearch {
+    re.captures(trimmed).map_or_else(
+        || ParsedSearch {
             text: if trimmed.is_empty() {
                 None
             } else {
                 Some(trimmed.to_string())
             },
             min_last_active: None,
-        }
-    }
+        },
+        |caps| {
+            let full_match = caps
+                .get(0)
+                .expect("regex match always has group 0")
+                .as_str();
+            let amount: u64 = caps
+                .get(1)
+                .expect("regex has capture group 1")
+                .as_str()
+                .parse()
+                .unwrap_or(1);
+            let unit = caps.get(2).expect("regex has capture group 2").as_str();
+
+            let cutoff = match unit {
+                "d" => now.saturating_sub(amount * 86400),
+                "h" => now.saturating_sub(amount * 3600),
+                "m" => now.saturating_sub(amount * 60),
+                _ => now,
+            };
+
+            let remaining = trimmed[full_match.len()..].trim().to_string();
+            ParsedSearch {
+                text: if remaining.is_empty() {
+                    None
+                } else {
+                    Some(remaining)
+                },
+                min_last_active: Some(cutoff),
+            }
+        },
+    )
 }
 
 fn date_regex() -> &'static regex::Regex {
