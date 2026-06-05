@@ -378,13 +378,15 @@ impl super::App {
                 }
                 TreeNode::ActiveTab(pi) => {
                     let (state, title, agent, check, diff_summary) =
-                        active_tab_data.get(*pi).cloned().unwrap_or((
-                            PtyState::Running,
-                            "New Session".into(),
-                            Agent::Claude,
-                            CheckStatus::Pending,
-                            DiffSummary::default(),
-                        ));
+                        active_tab_data.get(*pi).cloned().unwrap_or_else(|| {
+                            (
+                                PtyState::Running,
+                                "New Session".into(),
+                                Agent::Claude,
+                                CheckStatus::Pending,
+                                DiffSummary::default(),
+                            )
+                        });
                     let (dot_color, state_text) = match state {
                         PtyState::Running => (self.view.theme.status_running, " [running]".into()),
                         PtyState::Completed => match &check {

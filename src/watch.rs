@@ -25,11 +25,10 @@ impl SessionWatcher {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
 
-        let tx_clone = tx.clone();
         let mut watcher = match RecommendedWatcher::new(
             move |_event: Result<notify::Event, notify::Error>| {
                 // Ignore errors; just signal that something changed
-                let _ = tx_clone.send(());
+                let _ = tx.send(());
             },
             Config::default().with_poll_interval(Duration::from_millis(500)),
         ) {

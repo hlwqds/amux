@@ -291,7 +291,7 @@ impl super::App {
                                     id: pty_id.clone(),
                                     handle: pty_handle,
                                     info: RunningInfo {
-                                        workspace_path: workspace_path.clone(),
+                                        workspace_path,
                                         title: format!("{} [1/{}]", chain_name, total_steps),
                                         session_id: None,
                                         started_at: now_secs(),

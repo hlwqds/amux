@@ -906,7 +906,7 @@ impl App {
                 if let Some(jsonl) = find_session_jsonl(&session) {
                     let _ = fs::remove_file(&jsonl);
                 }
-                let title = session.title.clone();
+                let title = session.title;
                 self.sessions.sessions.remove(si);
                 self.rebuild_tree();
                 self.view.status = format!("Deleted session: {}", title);

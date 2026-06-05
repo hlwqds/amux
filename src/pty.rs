@@ -257,7 +257,6 @@ impl PtyHandle {
             let output_notify = output_notify.clone();
             let snapshots = snapshots.clone();
             let snap_scroll = snap_scroll.clone();
-            let recording = recording.clone();
             thread::spawn(move || {
                 let mut processor = Processor::<StdSyncHandler>::new();
                 let mut buf = [0u8; 8192];

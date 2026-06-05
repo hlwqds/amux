@@ -148,7 +148,7 @@ impl super::App {
                 }
                 let path = session.workspace_path.clone();
                 let id = session.id.clone();
-                let title = session.title.clone();
+                let title = session.title;
                 self.view.status = format!("Resuming: {}...", &id[..8.min(id.len())]);
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);
@@ -233,7 +233,7 @@ impl super::App {
                 }
                 let path = session.workspace_path.clone();
                 let id = session.id.clone();
-                let title = session.title.clone();
+                let title = session.title;
                 self.view.status = format!("Resuming archived: {}...", &id[..8.min(id.len())]);
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);

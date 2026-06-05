@@ -698,8 +698,8 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 eprintln!("amux: port {} in use, trying random port", serve_port);
                 match rt.block_on(crate::server::run_server_with_state(
                     0,
-                    config.serve_token.clone().unwrap_or_default(),
-                    shared_ptys.clone(),
+                    config.serve_token.unwrap_or_default(),
+                    shared_ptys,
                 )) {
                     Ok((port, handle)) => {
                         app.server_handle = Some(handle);
@@ -891,27 +891,53 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         if crossterm::event::poll(std::time::Duration::from_millis(poll_ms))? {
             match crossterm::event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    // In passthrough Chat mode, accumulate rapid Char keys into
-                    // pending_paste instead of forwarding each one individually.
+                    // In passthrough Chat mode, accumulate rapid key sequences
+                    // into pending_paste instead of forwarding each one individually.
                     // This detects "paste without bracketed paste" — when the host
                     // terminal doesn't support DECSET 2004 and sends pasted content
                     // as individual keystroke events.
-                    if app.view.input_mode == InputMode::None
+                    let is_paste_char = app.view.input_mode == InputMode::None
                         && app.view.focus == Focus::Chat
                         && app.view.chat_mode == ChatMode::Passthrough
                         && !key
                             .modifiers
-                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-                        && let KeyCode::Char(c) = key.code
-                    {
-                        app.pending_paste.push(c);
-                        // If buffer exceeds threshold, flush immediately to avoid
-                        // unbounded memory growth on very long pastes.
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+
+                    if is_paste_char {
+                        match key.code {
+                            KeyCode::Char(c) => {
+                                app.pending_paste.push(c);
+                            }
+                            KeyCode::Enter => {
+                                // Map Enter → \r (what a terminal sends)
+                                app.pending_paste.push('\r');
+                            }
+                            KeyCode::Tab => {
+                                app.pending_paste.push('\t');
+                            }
+                            KeyCode::Backspace => {
+                                // Consume backspace in paste buffer (simulate edit)
+                                app.pending_paste.pop();
+                            }
+                            _ => {
+                                // Arrow keys, Escape, F-keys etc. break the paste
+                                // sequence — flush buffered chars, then handle normally.
+                                if !app.pending_paste.is_empty() {
+                                    app.flush_pending_paste();
+                                }
+                                match app.handle_key(key)? {
+                                    Action::Continue => {}
+                                    Action::Quit => break Ok(()),
+                                }
+                                app.view.screen_changed = true;
+                                continue;
+                            }
+                        }
                         if app.pending_paste.len() >= 8192 {
                             app.flush_pending_paste();
                         }
                     } else {
-                        // Non-char key or non-passthrough mode: flush any pending
+                        // Non-passthrough or modified key: flush any pending
                         // paste first, then handle the key normally.
                         if !app.pending_paste.is_empty() {
                             app.flush_pending_paste();

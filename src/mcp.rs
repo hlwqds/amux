@@ -205,7 +205,7 @@ fn handle_attach_pty(state: &AppState, params: &Value) -> Result<Value> {
         id.clone(),
         crate::server::RegisteredPty {
             handle: Arc::new(handle),
-            title: name.unwrap_or(agent.label()).to_string(),
+            title: name.unwrap_or_else(|| agent.label()).to_string(),
             agent,
             session_id: None,
             process_stats: None,
@@ -285,7 +285,11 @@ pub fn run() -> Result<()> {
 
             "tools/call" => {
                 let tool_name = req.params["name"].as_str().unwrap_or("").to_string();
-                let tool_args = req.params.get("arguments").cloned().unwrap_or(json!({}));
+                let tool_args = req
+                    .params
+                    .get("arguments")
+                    .cloned()
+                    .unwrap_or_else(|| json!({}));
 
                 match dispatch_tool(&state, &tool_name, &tool_args) {
                     Ok(val) => success(id, val),
