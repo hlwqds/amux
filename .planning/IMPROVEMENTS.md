@@ -268,6 +268,16 @@
 - **覆盖**:help/settings/keybind 内容生成 (4), centered_rect 计算 (3), popup 面积 (3), render smoke tests (4), ws 消息格式 (3)
 - **里程碑**:所有 src/ 下的 Rust 模块均有单元测试
 
+### 65. [x] P2 修复 12 个 clippy `unnested_or_patterns` + `needless_pass_by_ref_mut` 警告
+- **位置**:`handler.rs` (4), `handler_select.rs` (5), `mod.rs` (1), `ui_popup.rs` (2)
+- **修复**:所有 `KeyCode::Char('x') | KeyCode::Char('X')` → `KeyCode::Char('x' | 'Y')`,2 个 `&mut self` → `&self`
+- **验证**:`cargo clippy -- -W clippy::unnested_or_patterns -W clippy::needless_pass_by_ref_mut -D warnings` clean
+
+### 66. [x] P2 修复 9 个 rustdoc 警告 (unclosed HTML tags + bare URLs)
+- **位置**:`doctor.rs` (2), `headless.rs` (5), `theme.rs` (2)
+- **修复**:`Vec<String>` → `` `Vec<String>` ``,CLI usage → backtick code span,URLs → angle bracket links
+- **验证**:`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` clean
+
 ---
 
 ## 五、推荐的执行顺序

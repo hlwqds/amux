@@ -607,7 +607,7 @@ impl super::App {
             KeyCode::Enter => {
                 self.confirm_input()?;
             }
-            KeyCode::Char('c') | KeyCode::Char('C')
+            KeyCode::Char('c' | 'C')
                 if self.available_agents.contains(&Agent::Claude) =>
             {
                 self.agent_state.select(Some(
@@ -618,7 +618,7 @@ impl super::App {
                 ));
                 self.confirm_input()?;
             }
-            KeyCode::Char('x') | KeyCode::Char('X')
+            KeyCode::Char('x' | 'X')
                 if self.available_agents.contains(&Agent::Codex) =>
             {
                 self.agent_state.select(Some(
@@ -629,7 +629,7 @@ impl super::App {
                 ));
                 self.confirm_input()?;
             }
-            KeyCode::Char('o') | KeyCode::Char('O')
+            KeyCode::Char('o' | 'O')
                 if self.available_agents.contains(&Agent::Omp) =>
             {
                 self.agent_state.select(Some(
@@ -755,10 +755,10 @@ impl super::App {
 
     pub(super) fn handle_conflict_resolve_key(&mut self, key: KeyEvent) -> Result<Action> {
         match key.code {
-            KeyCode::Char('i') | KeyCode::Char('I') => {
+            KeyCode::Char('i' | 'I') => {
                 self.isolate_conflicts();
             }
-            KeyCode::Esc | KeyCode::Char('d') | KeyCode::Char('D') => {
+            KeyCode::Esc | KeyCode::Char('d' | 'D') => {
                 self.view.input_mode = InputMode::None;
                 self.popup.conflict_warnings.clear();
                 self.view.status = "Conflict warning dismissed.".into();

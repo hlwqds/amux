@@ -809,15 +809,15 @@ impl super::App {
         }
         if self.view.input_mode == InputMode::ConfirmDelete {
             match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => self.confirm_delete(),
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => self.cancel_delete(),
+                KeyCode::Char('y' | 'Y') => self.confirm_delete(),
+                KeyCode::Char('n' | 'N') | KeyCode::Esc => self.cancel_delete(),
                 _ => {}
             }
             return Ok(Action::Continue);
         }
         if self.view.input_mode == InputMode::RollbackConfirm {
             match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                KeyCode::Char('y' | 'Y') => {
                     if let (Some(commit), Some(wp)) = (
                         &self.popup.rollback_snapshot,
                         &self.popup.rollback_workspace,
@@ -846,7 +846,7 @@ impl super::App {
                     self.view.input_mode = InputMode::None;
                     self.refresh_sessions();
                 }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                KeyCode::Char('n' | 'N') | KeyCode::Esc => {
                     self.popup.rollback_files.clear();
                     self.popup.rollback_snapshot = None;
                     self.popup.rollback_workspace = None;

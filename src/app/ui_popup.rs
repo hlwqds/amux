@@ -186,7 +186,7 @@ impl App {
         frame.render_widget(block, popup);
     }
 
-    pub(super) fn build_tab_bar(&mut self, width: usize) -> Line<'static> {
+    pub(super) fn build_tab_bar(&self, width: usize) -> Line<'static> {
         if self.ptys.ptys.is_empty() {
             return Line::raw("");
         }
@@ -1705,7 +1705,7 @@ impl App {
         );
     }
 
-    pub(super) fn render_semantic_search(&mut self, frame: &mut Frame, area: Rect) {
+    pub(super) fn render_semantic_search(&self, frame: &mut Frame, area: Rect) {
         let popup_area = centered_rect(70, 24, area);
         let mut lines: Vec<Line<'static>> = vec![
             Line::from(vec![Span::styled(

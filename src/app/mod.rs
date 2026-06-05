@@ -901,10 +901,8 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                                 }
                             }
                             crossterm::event::MouseEventKind::Down(
-                                crossterm::event::MouseButton::Right,
-                            )
-                            | crossterm::event::MouseEventKind::Down(
-                                crossterm::event::MouseButton::Middle,
+                                crossterm::event::MouseButton::Right
+                                | crossterm::event::MouseButton::Middle,
                             ) => {
                                 app.handle_tab_close_click(mouse.column, mouse.row);
                             }
