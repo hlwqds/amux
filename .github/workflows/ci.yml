@@ -40,7 +40,7 @@ jobs:
           components: clippy
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --locked -- -W clippy::cast_possible_truncation -W clippy::cast_sign_loss -D warnings
+      - run: cargo clippy --all-targets --locked -- -W clippy::cast_possible_truncation -W clippy::cast_sign_loss -D warnings
 
   fmt:
     name: Formatting

@@ -1313,7 +1313,6 @@ pub fn cross_session_search(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write as IoWrite;
 
     /// Write JSON values as JSONL (one JSON object per line, no trailing blank line).
     fn write_jsonl(path: &Path, records: &[serde_json::Value]) {

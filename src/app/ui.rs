@@ -1563,10 +1563,12 @@ mod tab_bar_tests {
 
     #[test]
     fn session_secondary_text_collects_low_priority_metadata() {
-        let mut diff = DiffSummary::default();
-        diff.insertions = 12;
-        diff.deletions = 3;
-        diff.files_changed = vec!["src/lib.rs".into(), "README.md".into()];
+        let diff = DiffSummary {
+            insertions: 12,
+            deletions: 3,
+            files_changed: vec!["src/lib.rs".into(), "README.md".into()],
+            ..Default::default()
+        };
 
         let text = session_secondary_text(
             "2h ago",

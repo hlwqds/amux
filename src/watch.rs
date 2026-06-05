@@ -108,7 +108,7 @@ mod tests {
 
         // Point PI_CODING_AGENT_DIR at temp so the watcher monitors our dir.
         // SAFETY: test-only; env var is restored before return.
-        #[allow(clippy::env_set_var)]
+        #[allow(unknown_lints)]
         unsafe {
             std::env::set_var("PI_CODING_AGENT_DIR", temp.path());
         }
@@ -131,7 +131,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(100));
         }
 
-        #[allow(clippy::env_set_var)]
+        #[allow(unknown_lints)]
         unsafe {
             std::env::remove_var("PI_CODING_AGENT_DIR");
         }

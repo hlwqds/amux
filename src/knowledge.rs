@@ -475,12 +475,13 @@ mod tests {
         let dir = std::env::temp_dir().join("amux_test_knowledge_rt");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let mut k = WorkspaceKnowledge::default();
-        k.architecture = "Layered: handler -> service -> repo".into();
-        k.key_files.push("src/main.rs".into());
-        k.tech_stack.push("rust".into());
-        k.known_issues.push("bug: off-by-one in counter".into());
-        k.last_updated = Some("2026-01-01T00:00".into());
+        let k = WorkspaceKnowledge {
+            architecture: "Layered: handler -> service -> repo".into(),
+            key_files: vec!["src/main.rs".into()],
+            tech_stack: vec!["rust".into()],
+            known_issues: vec!["bug: off-by-one in counter".into()],
+            last_updated: Some("2026-01-01T00:00".into()),
+        };
         save_knowledge(&dir, &k).unwrap();
         let loaded = load_knowledge(&dir);
         assert_eq!(loaded.architecture, "Layered: handler -> service -> repo");

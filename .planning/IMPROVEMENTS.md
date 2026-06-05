@@ -365,6 +365,14 @@
   - `parse_codex_session` (3): Codex 会话解析
   - `extract_token_usage` (5): token 用量统计
 - **效果**: 测试数 309→348, extraction.rs 覆盖率从 0% 提升到关键路径全覆盖
+
+### 77. [x] P1 修复 `cargo clippy --all-targets -- -D warnings` 的 5 个遗漏警告
+- **问题**: `--all-targets` 包含测试代码时暴露 5 个新警告,普通 `cargo clippy` 无法捕获
+- **修复**:
+  - `extraction.rs`: 删除未使用的 `use std::io::Write as IoWrite`
+  - `watch.rs`: `clippy::env_set_var` lint 已在 Rust 1.94 移除, 改为 `#[allow(unknown_lints)]`
+  - `ui.rs` / `knowledge.rs`: `field_reassign_with_default` → 使用结构体字面量初始化
+- **效果**: `cargo clippy --all-targets -- -D warnings` 完全 clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
