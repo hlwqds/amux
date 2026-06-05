@@ -433,7 +433,7 @@ impl PtySlot {
             .create(true)
             .append(true)
             .open(&path)
-            .and_then(|mut f| std::io::Write::write_all(&mut f, format!("{}\n", frame).as_bytes()));
+            .and_then(|mut f| std::io::Write::write_all(&mut f, format!("{frame}\n").as_bytes()));
         true
     }
 }
@@ -649,7 +649,7 @@ impl KeyBinding {
             KeyCode::Down => self.key == "down",
             KeyCode::Backspace => self.key == "backspace",
             KeyCode::Tab => self.key == "tab",
-            KeyCode::F(n) => self.key == format!("f{}", n),
+            KeyCode::F(n) => self.key == format!("f{n}"),
             _ => false,
         }
     }

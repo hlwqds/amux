@@ -373,6 +373,14 @@
   - `watch.rs`: `clippy::env_set_var` lint 已在 Rust 1.94 移除, 改为 `#[allow(unknown_lints)]`
   - `ui.rs` / `knowledge.rs`: `field_reassign_with_default` → 使用结构体字面量初始化
 - **效果**: `cargo clippy --all-targets -- -D warnings` 完全 clean
+
+### 78. [x] P2 现代化 format! 和闭包写法 (clippy::uninlined_format_args + redundant_closure)
+- **问题**: 196 处 `format!("{}", var)` 未使用 Rust 1.58+ 内联语法; 34 处冗余闭包
+- **修复**:
+  - `format!("{}", name)` → `format!("{name}")` (196 处, 排除 tracing 宏)
+  - `.map(|x| f(x))` → `.map(f)` (34 处冗余闭包)
+- **效果**: 代码更符合现代 Rust 惯用法
+- **验证**:`cargo clippy --all-targets -- -W clippy::uninlined_format_args -W clippy::redundant_closure -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

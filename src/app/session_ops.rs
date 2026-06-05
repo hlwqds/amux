@@ -105,7 +105,7 @@ fn spawn_completion_check(idx: usize, slot: &mut PtySlot, check_override: Option
                 }
             }
         };
-        let marker = crate::config::data_dir().join(format!(".check-result-{}", idx));
+        let marker = crate::config::data_dir().join(format!(".check-result-{idx}"));
         let _ = std::fs::write(&marker, serde_json::to_string(&result).unwrap_or_default());
     });
 }
@@ -137,7 +137,7 @@ fn merge_session_knowledge(slot: &PtySlot) {
         let short_id = &session_id[..session_id.len().min(16)];
         let summary_path = crate::config::data_dir()
             .join("summaries")
-            .join(format!("{}.md", short_id));
+            .join(format!("{short_id}.md"));
         std::fs::read_to_string(&summary_path).unwrap_or_default()
     } else {
         String::new()
@@ -160,7 +160,7 @@ fn run_completion_hooks(slot: &PtySlot, plugins: &[crate::types::Plugin]) {
                 .replace("{workspace}", &slot.info.workspace_path.to_string_lossy())
                 .replace("{session_id}", &session_id)
                 .replace("{title}", &title);
-            cmd.push_str(&format!(" --event on_complete --session_id {}", session_id));
+            cmd.push_str(&format!(" --event on_complete --session_id {session_id}"));
             let _ = std::process::Command::new("sh")
                 .arg("-c")
                 .arg(&cmd)
@@ -574,22 +574,19 @@ impl App {
                             Err(e) => {
                                 // Clean up the worktree if PTY spawn fails
                                 let _ = crate::worktree::remove_worktree(&ws, &branch);
-                                errors.push(format!(
-                                    "{}: failed to restart in worktree: {}",
-                                    title, e
-                                ));
+                                errors.push(format!("{title}: failed to restart in worktree: {e}"));
                             }
                         }
                     }
                     Err(e) => {
-                        errors.push(format!("{}: worktree creation failed: {}", title, e));
+                        errors.push(format!("{title}: worktree creation failed: {e}"));
                     }
                 }
             }
         }
 
         if isolated > 0 {
-            self.view.status = format!("Isolated {} session(s) into worktrees.", isolated);
+            self.view.status = format!("Isolated {isolated} session(s) into worktrees.");
         } else if errors.is_empty() {
             self.view.status = "No conflicts to isolate.".into();
         }
@@ -606,7 +603,7 @@ impl App {
     pub(crate) fn cleanup_worktrees(&mut self) {
         for (repo_path, branch) in self.worktree_branches.drain(..) {
             if let Err(e) = crate::worktree::remove_worktree(&repo_path, &branch) {
-                eprintln!("warning: failed to clean up worktree {}: {}", branch, e);
+                eprintln!("warning: failed to clean up worktree {branch}: {e}");
             }
         }
     }
@@ -938,10 +935,8 @@ impl App {
                     .get(*wi)
                     .map(|v| v.len())
                     .unwrap_or(0);
-                self.view.status = format!(
-                    "Delete workspace \"{}\" ({} sessions)? y/n",
-                    name, session_count
-                );
+                self.view.status =
+                    format!("Delete workspace \"{name}\" ({session_count} sessions)? y/n");
                 self.pending_delete = node;
                 self.view.input_mode = InputMode::ConfirmDelete;
             }
@@ -949,7 +944,7 @@ impl App {
                 if !self.view.selected_set.is_empty() {
                     // Batch delete all marked sessions
                     let count = self.view.selected_set.len();
-                    self.view.status = format!("Delete {} marked session(s)? y/n", count);
+                    self.view.status = format!("Delete {count} marked session(s)? y/n");
                     self.pending_batch_delete = true;
                     self.view.input_mode = InputMode::ConfirmDelete;
                 } else {
@@ -958,7 +953,7 @@ impl App {
                             return;
                         }
                         let title = self.sessions.sessions[*si].title.clone();
-                        self.view.status = format!("Delete session \"{}\"? y/n", title);
+                        self.view.status = format!("Delete session \"{title}\"? y/n");
                         self.pending_delete = node;
                         self.view.input_mode = InputMode::ConfirmDelete;
                     }
@@ -989,7 +984,7 @@ impl App {
                     self.view.focus = Focus::Sidebar;
                 }
                 self.rebuild_tree();
-                self.view.status = format!("Closed tab: {}", title);
+                self.view.status = format!("Closed tab: {title}");
             }
             _ => {}
         }
@@ -1037,7 +1032,7 @@ impl App {
             self.view.selected_set.clear();
             self.pending_batch_delete = false;
             self.rebuild_tree();
-            self.view.status = format!("Deleted {} session(s)", count);
+            self.view.status = format!("Deleted {count} session(s)");
             return;
         }
 
@@ -1048,7 +1043,7 @@ impl App {
                 self.sessions.workspaces.remove(wi);
                 self.save_config();
                 self.refresh_sessions();
-                self.view.status = format!("Deleted workspace: {}", name);
+                self.view.status = format!("Deleted workspace: {name}");
             }
             Some(TreeNode::Session(_wi, si)) => {
                 if si >= self.sessions.sessions.len() {
@@ -1078,7 +1073,7 @@ impl App {
                 let title = session.title;
                 self.sessions.sessions.remove(si);
                 self.rebuild_tree();
-                self.view.status = format!("Deleted session: {}", title);
+                self.view.status = format!("Deleted session: {title}");
             }
             _ => {}
         }
@@ -1135,7 +1130,7 @@ impl App {
             let short_id = &sid[..sid.len().min(16)];
             let path = crate::config::data_dir()
                 .join("summaries")
-                .join(format!("{}.md", short_id));
+                .join(format!("{short_id}.md"));
             if let Ok(content) = std::fs::read_to_string(&path) {
                 self.popup.preview_lines = content
                     .lines()
@@ -1211,7 +1206,7 @@ impl App {
             for l in knowledge.architecture.lines() {
                 lines.push(PreviewLine {
                     role: "text".into(),
-                    text: format!("  {}", l),
+                    text: format!("  {l}"),
                 });
             }
             lines.push(PreviewLine {
@@ -1227,7 +1222,7 @@ impl App {
             for f in &knowledge.key_files {
                 lines.push(PreviewLine {
                     role: "text".into(),
-                    text: format!("  • {}", f),
+                    text: format!("  • {f}"),
                 });
             }
             lines.push(PreviewLine {
@@ -1257,7 +1252,7 @@ impl App {
             for issue in &knowledge.known_issues {
                 lines.push(PreviewLine {
                     role: "text".into(),
-                    text: format!("  • {}", issue),
+                    text: format!("  • {issue}"),
                 });
             }
             lines.push(PreviewLine {
@@ -1268,7 +1263,7 @@ impl App {
         if let Some(ref ts) = knowledge.last_updated {
             lines.push(PreviewLine {
                 role: "text".into(),
-                text: format!("  Last updated: {}", ts),
+                text: format!("  Last updated: {ts}"),
             });
         }
         if lines.len() <= 2 {
@@ -1315,7 +1310,7 @@ impl App {
                         self.view.status = format!("Exported to: {}", path.display());
                     }
                     Err(e) => {
-                        self.view.status = format!("Export failed: {}", e);
+                        self.view.status = format!("Export failed: {e}");
                     }
                 }
             } else {
@@ -1336,16 +1331,16 @@ impl App {
                     session.agent.label()
                 );
                 match clipboard_copy(&text) {
-                    Ok(()) => self.view.status = format!("Copied: {}", text),
-                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                    Ok(()) => self.view.status = format!("Copied: {text}"),
+                    Err(e) => self.view.status = format!("Copy failed: {e}"),
                 }
             }
             Some(TreeNode::ActiveTab(pi)) => {
                 if let Some(slot) = self.ptys.ptys.get(pi) {
                     let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
                     match clipboard_copy(&text) {
-                        Ok(()) => self.view.status = format!("Copied: {}", text),
-                        Err(e) => self.view.status = format!("Copy failed: {}", e),
+                        Ok(()) => self.view.status = format!("Copied: {text}"),
+                        Err(e) => self.view.status = format!("Copy failed: {e}"),
                     }
                 }
             }
@@ -1358,8 +1353,8 @@ impl App {
                     .unwrap_or_else(|| "virtual".into());
                 let text = format!("{} ({})", ws.name, path);
                 match clipboard_copy(&text) {
-                    Ok(()) => self.view.status = format!("Copied: {}", text),
-                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                    Ok(()) => self.view.status = format!("Copied: {text}"),
+                    Err(e) => self.view.status = format!("Copy failed: {e}"),
                 }
             }
             _ => {
@@ -1386,7 +1381,7 @@ impl App {
             unset_env: Vec::new(),
         };
         if let Err(e) = save_config_file(&config) {
-            eprintln!("Failed to save config: {}", e);
+            eprintln!("Failed to save config: {e}");
         }
     }
 
@@ -1547,7 +1542,7 @@ impl App {
         };
         match std::process::Command::new(opener).arg(&path).spawn() {
             Ok(_) => self.view.status = format!("Opened {}", path.display()),
-            Err(e) => self.view.status = format!("Failed to open: {}", e),
+            Err(e) => self.view.status = format!("Failed to open: {e}"),
         }
     }
 
@@ -1643,8 +1638,8 @@ impl App {
                 "xdg-open"
             };
             match std::process::Command::new(opener).arg(&url).spawn() {
-                Ok(_) => self.view.status = format!("Opened {}", url),
-                Err(e) => self.view.status = format!("Failed to open: {}", e),
+                Ok(_) => self.view.status = format!("Opened {url}"),
+                Err(e) => self.view.status = format!("Failed to open: {e}"),
             }
         }
     }
@@ -1715,7 +1710,7 @@ impl App {
                         let summary_dir = crate::config::data_dir().join("summaries");
                         let _ = std::fs::create_dir_all(&summary_dir);
                         let short_id = &session_id[..session_id.len().min(16)];
-                        let path = summary_dir.join(format!("{}.md", short_id));
+                        let path = summary_dir.join(format!("{short_id}.md"));
                         let _ = std::fs::write(&path, &summary);
                     }
                     // Merge session knowledge into workspace knowledge base
@@ -1758,7 +1753,7 @@ impl App {
 
         // Poll check results from background threads
         for i in 0..self.ptys.ptys.len() {
-            let marker = crate::config::data_dir().join(format!(".check-result-{}", i));
+            let marker = crate::config::data_dir().join(format!(".check-result-{i}"));
             if marker.exists() {
                 if let Ok(content) = std::fs::read_to_string(&marker)
                     && let Ok(status) = serde_json::from_str::<CheckStatus>(&content)

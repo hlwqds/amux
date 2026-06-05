@@ -176,8 +176,8 @@ pub fn find_session_jsonl(session: &Session) -> Option<PathBuf> {
 fn walk_codex_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
     // Codex sessions: <year>/<month>/<day>/<timestamp>_<sessionId>.jsonl
     // Match by checking if the file stem ends with _<sessionId> or equals sessionId
-    let suffix = format!("_{}", session_id);
-    let exact = format!("{}.jsonl", session_id);
+    let suffix = format!("_{session_id}");
+    let exact = format!("{session_id}.jsonl");
     if let Ok(years) = fs::read_dir(root) {
         for year in years.flatten() {
             if !year.path().is_dir() {
@@ -222,7 +222,7 @@ fn walk_omp_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
                 continue;
             }
             // Try direct filename match first: <timestamp>_<sessionId>.jsonl
-            let expected = format!("{}.jsonl", session_id);
+            let expected = format!("{session_id}.jsonl");
             if let Ok(files) = fs::read_dir(subdir.path()) {
                 for file in files.flatten() {
                     if file.file_name() == expected.as_str() {
@@ -622,7 +622,7 @@ mod tests {
             "customType": "gsd-run",
             "message": long_title
         });
-        let jsonl = format!("{}\n{}", session_line, msg_line);
+        let jsonl = format!("{session_line}\n{msg_line}");
         let dir = std::env::temp_dir().join("agent-test-gsd-truncate");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("gsd-sess-004.jsonl");
@@ -671,7 +671,7 @@ mod tests {
             "customType": "gsd-run",
             "message": "discovery test"
         });
-        let jsonl = format!("{}\n{}", session_line, msg_line);
+        let jsonl = format!("{session_line}\n{msg_line}");
         std::fs::write(session_dir.join("gsd-disc-001.jsonl"), jsonl).unwrap();
 
         // Verify parse_gsd_session can read it

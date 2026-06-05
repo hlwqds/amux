@@ -420,7 +420,7 @@ mod tests {
         let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
         for i in 0..ids.len() {
             for j in (i + 1)..ids.len() {
-                assert_ne!(ids[i], ids[j], "duplicate id at indices {} and {}", i, j);
+                assert_ne!(ids[i], ids[j], "duplicate id at indices {i} and {j}");
             }
         }
     }

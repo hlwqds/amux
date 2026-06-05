@@ -207,7 +207,7 @@ pub(crate) fn extract_last_user_message(path: &Path) -> Option<String> {
             } else {
                 ""
             };
-            return Some(format!("{}{}", truncated, suffix));
+            return Some(format!("{truncated}{suffix}"));
         }
     }
     None
@@ -280,7 +280,7 @@ pub fn preview_session_content(path: &Path, max_pairs: usize) -> Option<Vec<Prev
             };
             messages.push(PreviewLine {
                 role,
-                text: format!("{}{}", truncated, suffix),
+                text: format!("{truncated}{suffix}"),
             });
         }
     }
@@ -309,7 +309,7 @@ pub fn export_session_to_markdown(
     let content = std::fs::read_to_string(jsonl_path)?;
 
     let mut lines: Vec<String> = Vec::new();
-    lines.push(format!("# {}", session_title));
+    lines.push(format!("# {session_title}"));
     lines.push(String::new());
     lines.push(format!("Exported: {}", chrono_now_or_fallback()));
     lines.push(String::new());
@@ -385,7 +385,7 @@ pub fn export_session_to_markdown(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("session");
-    let export_path = output_dir.join(format!("{}.md", filename));
+    let export_path = output_dir.join(format!("{filename}.md"));
     std::fs::write(&export_path, lines.join("\n"))?;
     Ok(export_path)
 }
@@ -406,10 +406,7 @@ fn chrono_now_or_fallback() -> String {
     let day_of_year = days % 365;
     let month = (day_of_year / 30) + 1;
     let day = (day_of_year % 30) + 1;
-    format!(
-        "{}-{:02}-{:02} {:02}:{:02}",
-        year, month, day, hours, minutes
-    )
+    format!("{year}-{month:02}-{day:02} {hours:02}:{minutes:02}")
 }
 
 /// A single conversation turn for branch point selection.
@@ -947,14 +944,14 @@ fn format_mtime(mtime_str: &str) -> String {
     if mins < 1 {
         "just now".to_string()
     } else if mins < 60 {
-        format!("{}m ago", mins)
+        format!("{mins}m ago")
     } else {
         let hours = mins / 60;
         if hours < 24 {
-            format!("{}h ago", hours)
+            format!("{hours}h ago")
         } else {
             let days = hours / 24;
-            format!("{}d ago", days)
+            format!("{days}d ago")
         }
     }
 }
@@ -1216,7 +1213,7 @@ pub fn generate_session_summary(session: &crate::types::Session) -> Option<Strin
     if !user_msgs.is_empty() {
         md.push_str("## User Messages\n\n");
         for msg in user_msgs.iter().take(10) {
-            md.push_str(&format!("- {}\n", msg));
+            md.push_str(&format!("- {msg}\n"));
         }
         md.push('\n');
     }
@@ -1224,7 +1221,7 @@ pub fn generate_session_summary(session: &crate::types::Session) -> Option<Strin
     if !file_paths.is_empty() {
         md.push_str("## Files Touched\n\n");
         for f in file_paths.iter().take(20) {
-            md.push_str(&format!("- `{}`\n", f));
+            md.push_str(&format!("- `{f}`\n"));
         }
         md.push('\n');
     }
@@ -1232,7 +1229,7 @@ pub fn generate_session_summary(session: &crate::types::Session) -> Option<Strin
     if !assistant_msgs.is_empty() {
         md.push_str("## Key Responses\n\n");
         for msg in assistant_msgs.iter().take(5) {
-            md.push_str(&format!("- {}\n", msg));
+            md.push_str(&format!("- {msg}\n"));
         }
     }
 
@@ -1292,7 +1289,7 @@ pub fn cross_session_search(
             && note.to_lowercase().contains(&query_lower)
         {
             let snippet: String = note.chars().take(80).collect();
-            matches.push(format!("[note] {}", snippet));
+            matches.push(format!("[note] {snippet}"));
         }
 
         if !matches.is_empty() {

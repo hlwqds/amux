@@ -110,7 +110,7 @@ fn create_recording(path: &std::path::Path, cols: u16, rows: u16) -> Result<std:
         }
     });
     use std::io::Write;
-    writeln!(file, "{}", header)?;
+    writeln!(file, "{header}")?;
     Ok(file)
 }
 

@@ -34,7 +34,7 @@ pub fn git_available() -> bool {
 /// new orphan branch named `amux/<branch_name>`. The caller can then restart the
 /// PTY in this new directory.
 pub fn create_worktree(repo_path: &Path, branch_name: &str) -> Result<PathBuf> {
-    let worktree_path = repo_path.join(format!(".amux-worktree-{}", branch_name));
+    let worktree_path = repo_path.join(format!(".amux-worktree-{branch_name}"));
 
     // Don't recreate if it already exists
     if worktree_path.exists() {
@@ -63,7 +63,7 @@ pub fn create_worktree(repo_path: &Path, branch_name: &str) -> Result<PathBuf> {
 
     // Create an orphan branch in the worktree so we can identify it
     let branch_output = std::process::Command::new("git")
-        .args(["checkout", "-b", &format!("amux/{}", branch_name)])
+        .args(["checkout", "-b", &format!("amux/{branch_name}")])
         .current_dir(&worktree_path)
         .output()
         .context("failed to create worktree branch")?;
@@ -86,7 +86,7 @@ pub fn create_worktree(repo_path: &Path, branch_name: &str) -> Result<PathBuf> {
 
 /// Remove a worktree and its associated branch.
 pub fn remove_worktree(repo_path: &Path, branch_name: &str) -> Result<()> {
-    let worktree_path = repo_path.join(format!(".amux-worktree-{}", branch_name));
+    let worktree_path = repo_path.join(format!(".amux-worktree-{branch_name}"));
 
     if worktree_path.exists() {
         let output = std::process::Command::new("git")
@@ -111,7 +111,7 @@ pub fn remove_worktree(repo_path: &Path, branch_name: &str) -> Result<()> {
 
     // Delete the branch regardless
     let _ = std::process::Command::new("git")
-        .args(["branch", "-D", &format!("amux/{}", branch_name)])
+        .args(["branch", "-D", &format!("amux/{branch_name}")])
         .current_dir(repo_path)
         .output();
 
@@ -121,7 +121,7 @@ pub fn remove_worktree(repo_path: &Path, branch_name: &str) -> Result<()> {
 /// Merge a worktree branch back into the current HEAD of `repo_path` using
 /// `git merge --squash`. The caller should stage and commit after this.
 pub fn merge_worktree(repo_path: &Path, branch_name: &str) -> Result<()> {
-    let branch_ref = format!("amux/{}", branch_name);
+    let branch_ref = format!("amux/{branch_name}");
 
     let output = std::process::Command::new("git")
         .args(["merge", "--squash", &branch_ref])
@@ -164,7 +164,7 @@ pub fn branch_name(title: &str, pty_idx: usize, counter: u64) -> String {
         &sanitized
     };
 
-    format!("{}-{}-{}", short, pty_idx, counter)
+    format!("{short}-{pty_idx}-{counter}")
 }
 
 #[cfg(test)]

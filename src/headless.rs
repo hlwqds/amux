@@ -260,7 +260,7 @@ pub fn status(session_id_prefix: &str) -> Result<()> {
         .iter()
         .find(|s| s.id.starts_with(session_id_prefix))
         .or_else(|| sessions.iter().find(|s| s.id == session_id_prefix))
-        .context(format!("No session found matching '{}'", session_id_prefix))?;
+        .context(format!("No session found matching '{session_id_prefix}'"))?;
 
     let jsonl_path = crate::discovery::find_session_jsonl(session);
     let line_count = jsonl_path
@@ -326,8 +326,7 @@ fn cmd_run(rest: &[String]) -> Result<i32> {
                 i += 1;
                 let name = rest.get(i).context("--agent requires a value")?;
                 agent = Some(Agent::from_label(name).context(format!(
-                    "unknown agent '{}'. Supported: claude, codex, omp",
-                    name
+                    "unknown agent '{name}'. Supported: claude, codex, omp"
                 ))?);
             }
             "--prompt" => {
@@ -350,7 +349,7 @@ fn cmd_run(rest: &[String]) -> Result<i32> {
                 );
             }
             other => {
-                bail!("unknown flag: {}", other);
+                bail!("unknown flag: {other}");
             }
         }
         i += 1;

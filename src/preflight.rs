@@ -47,7 +47,7 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
             let count = output.lines().count();
             result.checks.push((
                 "Git status".into(),
-                CheckStatus::Warn(format!("{} uncommitted file(s)", count)),
+                CheckStatus::Warn(format!("{count} uncommitted file(s)")),
             ));
             result
                 .suggestions
@@ -65,17 +65,16 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
         Ok(branch) if branch == "main" || branch == "master" => {
             result.checks.push((
                 "Branch".into(),
-                CheckStatus::Warn(format!("On '{}' — consider a feature branch", branch)),
+                CheckStatus::Warn(format!("On '{branch}' — consider a feature branch")),
             ));
             result
                 .suggestions
                 .push("Create a feature branch for your work".into());
         }
         Ok(branch) if !branch.is_empty() => {
-            result.checks.push((
-                "Branch".into(),
-                CheckStatus::Pass(format!("On '{}'", branch)),
-            ));
+            result
+                .checks
+                .push(("Branch".into(), CheckStatus::Pass(format!("On '{branch}'"))));
         }
         Ok(_) => {
             // Empty output — possibly detached HEAD or no branches.
@@ -138,7 +137,7 @@ pub fn run_preflight(workspace: &Path) -> PreflightResult {
             Err(e) => {
                 result.checks.push((
                     "Compilation".into(),
-                    CheckStatus::Fail(format!("cargo check failed: {}", e)),
+                    CheckStatus::Fail(format!("cargo check failed: {e}")),
                 ));
             }
         }

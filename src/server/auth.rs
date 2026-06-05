@@ -16,7 +16,7 @@ pub async fn auth_middleware(
     if let Some(auth) = request.headers().get("authorization")
         && let Ok(val) = auth.to_str()
     {
-        let expected = format!("Bearer {}", expected_token);
+        let expected = format!("Bearer {expected_token}");
         if val.as_bytes().ct_eq(expected.as_bytes()).into() {
             return Ok(next.run(request).await);
         }

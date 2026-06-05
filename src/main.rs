@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
                 println!("  {}", r.message);
             }
             if let Some(ref hint) = r.fix_hint {
-                println!("  Fix: {}", hint);
+                println!("  Fix: {hint}");
             }
             if !r.passed {
                 failed += 1;
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         }
         if failed > 0 {
             println!();
-            println!("{} check(s) failed.", failed);
+            println!("{failed} check(s) failed.");
             std::process::exit(1);
         }
         return Ok(());

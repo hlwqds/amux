@@ -23,7 +23,7 @@ impl super::App {
                 // Delete last workspace (simple approach: delete the one currently selected in sidebar)
                 if self.sessions.workspaces.len() > 1 {
                     let count = self.sessions.workspaces.len();
-                    self.view.status = format!("Delete workspace #{}? y/n", count);
+                    self.view.status = format!("Delete workspace #{count}? y/n");
                     self.pending_delete = Some(TreeNode::Workspace(count - 1));
                     self.pending_batch_delete = false;
                     self.view.input_mode = InputMode::ConfirmDelete;
@@ -166,7 +166,7 @@ impl super::App {
                             && let Some(slot) = self.ptys.ptys.get(pi)
                         {
                             let expanded = crate::template::expand_template_vars(prompt, &ws_path);
-                            let data = format!("{}\n", expanded);
+                            let data = format!("{expanded}\n");
                             if let Err(e) = slot.handle.write_input(data.as_bytes()) {
                                 self.view.status = format!("Write error: {e}");
                             }
@@ -270,7 +270,7 @@ impl super::App {
                             self.sessions.tree_state.select(Some(ti));
                         }
                         let chat_size = self.chat_size();
-                        let name = Some(format!("{}-step1", chain_name));
+                        let name = Some(format!("{chain_name}-step1"));
                         let env = self.project_env(&workspace_path);
                         let pty = crate::pty::PtyHandle::spawn(
                             agent,
@@ -292,7 +292,7 @@ impl super::App {
                                     handle: pty_handle,
                                     info: RunningInfo {
                                         workspace_path,
-                                        title: format!("{} [1/{}]", chain_name, total_steps),
+                                        title: format!("{chain_name} [1/{total_steps}]"),
                                         session_id: None,
                                         started_at: now_secs(),
                                         completed: false,
@@ -337,7 +337,7 @@ impl super::App {
                                 );
                             }
                             Err(e) => {
-                                self.view.status = format!("Chain start failed: {}", e);
+                                self.view.status = format!("Chain start failed: {e}");
                                 self.chains.active_chain = None;
                             }
                         }
@@ -573,7 +573,7 @@ impl super::App {
                             let combined: String = stdout
                                 .lines()
                                 .chain(stderr.lines())
-                                .map(|l| format!("{}\n", l))
+                                .map(|l| format!("{l}\n"))
                                 .collect();
                             self.plugin_output = vec![format!("$ {}", plugin.name)];
                             for line in stdout.lines().chain(stderr.lines()) {
@@ -711,7 +711,7 @@ impl super::App {
                             && let Err(e) = self.spawn_with_agent(agent, None)
                         {
                             self.view.status =
-                                format!("Plugin {} create_session failed: {}", plugin_name, e);
+                                format!("Plugin {plugin_name} create_session failed: {e}");
                         }
                     }
                     PluginAction::SwitchWorkspace { id } => {
@@ -735,10 +735,7 @@ impl super::App {
                         }
                     }
                     PluginAction::Notify { message } => {
-                        self.send_desktop_notification(
-                            &format!("Plugin: {}", plugin_name),
-                            &message,
-                        );
+                        self.send_desktop_notification(&format!("Plugin: {plugin_name}"), &message);
                         self.view.status = message;
                     }
                 }

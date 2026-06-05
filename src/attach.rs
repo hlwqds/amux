@@ -50,7 +50,7 @@ pub fn run() -> Result<()> {
         .exec();
 
     // exec only returns on error.
-    bail!("failed to exec tmux attach: {}", err);
+    bail!("failed to exec tmux attach: {err}");
 }
 
 /// Locate the `tmux` binary, printing a helpful message if missing.

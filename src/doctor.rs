@@ -95,7 +95,7 @@ pub fn run_doctor_fix() -> (Vec<String>, Vec<String>) {
                     failed.push(format!("{}: {}", fix.description, stderr.trim()));
                 }
                 Err(e) => {
-                    eprintln!("  ✗ Failed: {}", e);
+                    eprintln!("  ✗ Failed: {e}");
                     failed.push(format!("{}: {}", fix.description, e));
                 }
             }
@@ -164,7 +164,7 @@ fn check_agents(results: &mut Vec<CheckResult>) {
         match which(cmd) {
             Some(path) => {
                 results.push(CheckResult {
-                    name: format!("agent: {}", label),
+                    name: format!("agent: {label}"),
                     passed: true,
                     message: path.display().to_string(),
                     fix_hint: None,
@@ -174,9 +174,9 @@ fn check_agents(results: &mut Vec<CheckResult>) {
             None => {
                 let hint = install_hint(cmd)
                     .map(|h| h.to_string())
-                    .unwrap_or_else(|| format!("Install {}", label));
+                    .unwrap_or_else(|| format!("Install {label}"));
                 results.push(CheckResult {
-                    name: format!("agent: {}", label),
+                    name: format!("agent: {label}"),
                     passed: false,
                     message: "not found in PATH".into(),
                     fix_hint: Some(hint),
@@ -195,11 +195,11 @@ fn check_data_dir(results: &mut Vec<CheckResult>) {
         results.push(CheckResult {
             name: "data directory".into(),
             passed: false,
-            message: format!("{} does not exist", dir_str),
+            message: format!("{dir_str} does not exist"),
             fix_hint: Some("Run any amux command to auto-create it".into()),
             auto_fix: Some(AutoFix {
-                description: format!("Create {}", dir_str),
-                command: format!("mkdir -p {}", dir_str),
+                description: format!("Create {dir_str}"),
+                command: format!("mkdir -p {dir_str}"),
             }),
         });
         return;
@@ -222,7 +222,7 @@ fn check_data_dir(results: &mut Vec<CheckResult>) {
             results.push(CheckResult {
                 name: "data directory".into(),
                 passed: false,
-                message: format!("{} not writable: {}", dir_str, e),
+                message: format!("{dir_str} not writable: {e}"),
                 fix_hint: Some("Check directory permissions".into()),
                 auto_fix: None,
             });
@@ -237,11 +237,11 @@ fn check_sessions_dir(results: &mut Vec<CheckResult>) {
         results.push(CheckResult {
             name: "sessions directory".into(),
             passed: false,
-            message: format!("{} does not exist", dir_str),
+            message: format!("{dir_str} does not exist"),
             fix_hint: Some("Run any amux command to auto-create it".into()),
             auto_fix: Some(AutoFix {
-                description: format!("Create {}", dir_str),
-                command: format!("mkdir -p {}", dir_str),
+                description: format!("Create {dir_str}"),
+                command: format!("mkdir -p {dir_str}"),
             }),
         });
         return;
@@ -251,7 +251,7 @@ fn check_sessions_dir(results: &mut Vec<CheckResult>) {
     results.push(CheckResult {
         name: "sessions directory".into(),
         passed: true,
-        message: format!("{} ({} entries)", dir_str, count),
+        message: format!("{dir_str} ({count} entries)"),
         fix_hint: None,
         auto_fix: None,
     });
@@ -265,7 +265,7 @@ fn check_config(results: &mut Vec<CheckResult>) {
         results.push(CheckResult {
             name: "config file".into(),
             passed: true,
-            message: format!("{} (will be created on first use)", path_str),
+            message: format!("{path_str} (will be created on first use)"),
             fix_hint: None,
             auto_fix: None,
         });
@@ -278,7 +278,7 @@ fn check_config(results: &mut Vec<CheckResult>) {
             results.push(CheckResult {
                 name: "config file".into(),
                 passed: true,
-                message: format!("{} ({} workspace(s))", path_str, ws_count),
+                message: format!("{path_str} ({ws_count} workspace(s))"),
                 fix_hint: None,
                 auto_fix: None,
             });
@@ -287,7 +287,7 @@ fn check_config(results: &mut Vec<CheckResult>) {
             results.push(CheckResult {
                 name: "config file".into(),
                 passed: false,
-                message: format!("{}: parse error: {}", path_str, e),
+                message: format!("{path_str}: parse error: {e}"),
                 fix_hint: Some("Fix or delete the config file to regenerate".into()),
                 auto_fix: None,
             });

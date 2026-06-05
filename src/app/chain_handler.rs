@@ -171,7 +171,7 @@ impl App {
             self.sessions.tree_state.select(Some(ti));
         }
         let chat_size = self.chat_size();
-        let name = Some(format!("{}-step{}", chain_name, step_num));
+        let name = Some(format!("{chain_name}-step{step_num}"));
         let env = self.project_env(workspace_path);
         let pty_result = crate::pty::PtyHandle::spawn(
             agent,
@@ -191,7 +191,7 @@ impl App {
                 handle: pty,
                 info: RunningInfo {
                     workspace_path: workspace_path.to_path_buf(),
-                    title: format!("{} [{}/{}]", chain_name, step_num, total),
+                    title: format!("{chain_name} [{step_num}/{total}]"),
                     session_id: None,
                     started_at: crate::util::now_secs(),
                     completed: false,
@@ -236,7 +236,7 @@ impl App {
                 agent.label()
             );
         } else {
-            self.view.status = format!("Chain step {} failed to spawn", step_num);
+            self.view.status = format!("Chain step {step_num} failed to spawn");
             self.chains.active_chain = None;
         }
     }

@@ -24,8 +24,7 @@ async fn handle_pty_ws(
     let Some(handle) = pty_handle else {
         let _ = socket
             .send(Message::Text(format!(
-                "amux: PTY '{}' not found. Is the TUI running with this session?",
-                pty_id
+                "amux: PTY '{pty_id}' not found. Is the TUI running with this session?"
             )))
             .await;
         return;
@@ -73,12 +72,12 @@ async fn handle_pty_ws(
                 match msg {
                     Some(Ok(Message::Text(text))) => {
                         if let Err(e) = handle.write_input(text.as_bytes()) {
-                            let _ = socket.send(Message::Text(format!("[error: {}]", e))).await;
+                            let _ = socket.send(Message::Text(format!("[error: {e}]"))).await;
                         }
                     }
                     Some(Ok(Message::Binary(data))) => {
                         if let Err(e) = handle.write_input(&data) {
-                            let _ = socket.send(Message::Text(format!("[error: {}]", e))).await;
+                            let _ = socket.send(Message::Text(format!("[error: {e}]"))).await;
                         }
                     }
                     _ => return,
@@ -109,10 +108,7 @@ mod tests {
     #[test]
     fn not_found_message_formats_correctly() {
         let pty_id = "session-abc-123";
-        let msg = format!(
-            "amux: PTY '{}' not found. Is the TUI running with this session?",
-            pty_id
-        );
+        let msg = format!("amux: PTY '{pty_id}' not found. Is the TUI running with this session?");
         assert!(msg.contains(pty_id));
         assert!(msg.starts_with("amux:"));
         assert!(msg.contains("not found"));

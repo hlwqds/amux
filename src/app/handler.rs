@@ -130,8 +130,8 @@ impl super::App {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
                 match clipboard_copy(&text) {
-                    Ok(()) => self.view.status = format!("Copied: {}", text),
-                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                    Ok(()) => self.view.status = format!("Copied: {text}"),
+                    Err(e) => self.view.status = format!("Copy failed: {e}"),
                 }
             }
             return Ok(Action::Continue);
@@ -189,8 +189,8 @@ impl super::App {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 let text = format!("{} ({})", slot.info.title, slot.info.agent.label());
                 match clipboard_copy(&text) {
-                    Ok(()) => self.view.status = format!("Copied: {}", text),
-                    Err(e) => self.view.status = format!("Copy failed: {}", e),
+                    Ok(()) => self.view.status = format!("Copied: {text}"),
+                    Err(e) => self.view.status = format!("Copy failed: {e}"),
                 }
             }
             return Ok(Some(Action::Continue));
@@ -843,7 +843,7 @@ impl super::App {
                                 self.view.status = format!("Rollback failed: {}", err.trim());
                             }
                             Err(e) => {
-                                self.view.status = format!("Rollback error: {}", e);
+                                self.view.status = format!("Rollback error: {e}");
                             }
                         }
                     }
@@ -1014,7 +1014,7 @@ impl super::App {
             self.view.focus = Focus::Sidebar;
         }
         self.rebuild_tree();
-        self.view.status = format!("Closed tab: {}", title);
+        self.view.status = format!("Closed tab: {title}");
     }
 
     /// Flush the rapid-key-sequence buffer (simulated paste) to the PTY.

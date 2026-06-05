@@ -49,9 +49,9 @@ pub fn read_process_stats(pid: u32) -> Result<ProcessStats> {
 
 #[cfg(target_os = "linux")]
 fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
-    let stat_path = format!("/proc/{}/stat", pid);
+    let stat_path = format!("/proc/{pid}/stat");
     let stat_content = std::fs::read_to_string(&stat_path)
-        .map_err(|e| anyhow::anyhow!("failed to read {}: {}", stat_path, e))?;
+        .map_err(|e| anyhow::anyhow!("failed to read {stat_path}: {e}"))?;
 
     // Field 14 (0-indexed 13): utime
     // Field 15 (0-indexed 14): stime
@@ -63,7 +63,7 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
     // TRICKY: (comm) can contain spaces and parens, so find the LAST ')' first.
     let close_paren = stat_content
         .rfind(')')
-        .ok_or_else(|| anyhow::anyhow!("malformed /proc/{}/stat: no closing paren", pid))?;
+        .ok_or_else(|| anyhow::anyhow!("malformed /proc/{pid}/stat: no closing paren"))?;
     let after_comm = &stat_content[close_paren + 1..]; // starts with " state ..."
     let fields: Vec<&str> = after_comm.split_whitespace().collect();
     // fields[0] = state, fields[1] = ppid, ...
@@ -122,7 +122,7 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
     };
 
     // Read /proc/{pid}/io
-    let io_path = format!("/proc/{}/io", pid);
+    let io_path = format!("/proc/{pid}/io");
     let io_content = std::fs::read_to_string(&io_path).unwrap_or_default();
     let mut read_bytes: u64 = 0;
     let mut write_bytes: u64 = 0;
@@ -163,7 +163,7 @@ fn collect_descendants(root_pid: u32) -> Vec<u32> {
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
             if let Ok(pid) = name_str.parse::<u32>() {
-                let stat_path = format!("/proc/{}/stat", pid);
+                let stat_path = format!("/proc/{pid}/stat");
                 if let Ok(content) = std::fs::read_to_string(&stat_path) {
                     // Extract ppid: find last ')', then split, field[1] is ppid
                     if let Some(close) = content.rfind(')') {
@@ -241,7 +241,7 @@ pub fn format_bytes(bytes: u64) -> String {
     const MB: u64 = 1024 * KB;
     const GB: u64 = 1024 * MB;
     if bytes < KB {
-        format!("{}B", bytes)
+        format!("{bytes}B")
     } else if bytes < MB {
         format!("{:.0}KB", bytes as f64 / KB as f64)
     } else if bytes < GB {

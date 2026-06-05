@@ -53,12 +53,12 @@ pub async fn run_server_with_state(
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .with_context(|| format!("failed to bind port {}", port))?;
+        .with_context(|| format!("failed to bind port {port}"))?;
     let actual_port = listener.local_addr()?.port();
-    eprintln!("amux: server listening on http://localhost:{}", actual_port);
+    eprintln!("amux: server listening on http://localhost:{actual_port}");
     let handle = tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("amux: server error: {}", e);
+            eprintln!("amux: server error: {e}");
         }
     });
     Ok((actual_port, handle))
@@ -76,9 +76,9 @@ pub async fn run_server(port: u16, token: String) -> Result<()> {
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     if token.is_empty() {
-        eprintln!("amux serve: listening on http://{} (no auth)", addr);
+        eprintln!("amux serve: listening on http://{addr} (no auth)");
     } else {
-        eprintln!("amux serve: listening on http://{} (auth enabled)", addr);
+        eprintln!("amux serve: listening on http://{addr} (auth enabled)");
     }
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -165,8 +165,7 @@ mod tests {
             assert_eq!(
                 resp.status(),
                 StatusCode::UNAUTHORIZED,
-                "unauthenticated GET {} should be 401",
-                path
+                "unauthenticated GET {path} should be 401"
             );
         }
 
@@ -183,8 +182,7 @@ mod tests {
             assert_eq!(
                 resp.status(),
                 StatusCode::UNAUTHORIZED,
-                "unauthenticated POST {} should be 401",
-                path
+                "unauthenticated POST {path} should be 401"
             );
         }
 

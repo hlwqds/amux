@@ -413,7 +413,7 @@ fn chrono_now() -> String {
     let (year, month, day) = epoch_days_to_ymd(days);
     let hour = (secs % 86400) / 3600;
     let min = (secs % 3600) / 60;
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}", year, month, day, hour, min)
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{min:02}")
 }
 
 /// Convert days since Unix epoch to (year, month, day).

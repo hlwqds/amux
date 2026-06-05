@@ -111,7 +111,7 @@ impl App {
         frame.render_widget(Clear, popup);
 
         let ws_name = self.new_workspace_name.as_deref().unwrap_or("?");
-        let title = format!(" {} \u{2192} Select Directory ", ws_name);
+        let title = format!(" {ws_name} \u{2192} Select Directory ");
 
         let items: Vec<ListItem> = self
             .browse_entries
@@ -249,7 +249,7 @@ impl App {
                         .add_modifier(Modifier::BOLD),
                 ));
                 spans.push(Span::styled(
-                    format!("{} ", title),
+                    format!("{title} "),
                     Style::default()
                         .fg(self.view.theme.sidebar_text)
                         .bg(active_bg)
@@ -271,11 +271,11 @@ impl App {
                     Style::default().fg(self.view.theme.sidebar_dim),
                 ));
                 spans.push(Span::styled(
-                    format!("{} ", title),
+                    format!("{title} "),
                     Style::default().fg(self.view.theme.sidebar_dim),
                 ));
                 spans.push(Span::styled(
-                    format!("{} ", state_char),
+                    format!("{state_char} "),
                     Style::default().fg(state_color),
                 ));
                 // Spacer between inactive tabs
@@ -302,7 +302,7 @@ impl App {
             )]),
             Line::from(""),
             Line::from(Span::styled(
-                format!("  {}", msg),
+                format!("  {msg}"),
                 Style::default().fg(Color::Yellow),
             )),
             Line::from(""),
@@ -349,7 +349,7 @@ impl App {
             Line::from(""),
         ];
         for (action, key) in self.view.keybinds.help_sidebar_pairs() {
-            lines.push(Line::from(format!("  {:<14} {}", key, action)));
+            lines.push(Line::from(format!("  {key:<14} {action}")));
         }
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
@@ -430,10 +430,10 @@ impl App {
                 " "
             };
             lines.push(Line::from(vec![
-                Span::styled(format!(" {} ", marker), Style::default().fg(Color::Yellow)),
+                Span::styled(format!(" {marker} "), Style::default().fg(Color::Yellow)),
                 Span::styled(ws.name.clone(), Style::default().fg(Color::White)),
                 Span::styled(
-                    format!("  {}", path_str),
+                    format!("  {path_str}"),
                     Style::default().fg(Color::DarkGray),
                 ),
             ]));
@@ -493,20 +493,20 @@ impl App {
                 parts.push(format!("{}k daily tokens", dt / 1000));
             }
             if let Some(dc) = b.daily_cost {
-                parts.push(format!("${:.2} daily cost", dc));
+                parts.push(format!("${dc:.2} daily cost"));
             }
             if let Some(wt) = b.weekly_tokens {
                 parts.push(format!("{}k weekly tokens", wt / 1000));
             }
             if let Some(wc) = b.weekly_cost {
-                parts.push(format!("${:.2} weekly cost", wc));
+                parts.push(format!("${wc:.2} weekly cost"));
             }
             format!("Budget: {} (b to clear)", parts.join(", "))
         } else {
             "Budget: not set (b to set default 100k daily)".into()
         };
         lines.push(Line::from(vec![Span::styled(
-            format!("  {} ", budget_status),
+            format!("  {budget_status} "),
             Style::default().fg(Color::DarkGray),
         )]));
         lines.push(Line::from(vec![Span::styled(
@@ -609,7 +609,7 @@ impl App {
         )));
         lines.push(Line::from(""));
         for line in kb.display_lines() {
-            lines.push(Line::from(format!("  {}", line)));
+            lines.push(Line::from(format!("  {line}")));
         }
         // Section: Navigation
         lines.push(Line::from(""));
@@ -708,7 +708,7 @@ impl App {
                 Style::default().fg(Color::Red),
             )));
             for (a, b) in &conflicts {
-                lines.push(Line::from(format!("    {} <-> {}", a, b)));
+                lines.push(Line::from(format!("    {a} <-> {b}")));
             }
         }
         lines.push(Line::from(""));
@@ -759,14 +759,11 @@ impl App {
                 let ws = t.workspace_id.as_deref().unwrap_or("current");
                 ratatui::widgets::ListItem::new(Line::from(vec![
                     Span::styled(
-                        format!(" {} ", agent_label),
+                        format!(" {agent_label} "),
                         Style::default().fg(t.agent.color()),
                     ),
                     Span::styled(t.name.clone(), Style::default().fg(Color::White)),
-                    Span::styled(
-                        format!("  ws: {}", ws),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(format!("  ws: {ws}"), Style::default().fg(Color::DarkGray)),
                 ]))
             })
             .collect();
@@ -856,7 +853,7 @@ impl App {
                         ),
                         Span::styled(c.name.clone(), Style::default().fg(Color::White)),
                     ]),
-                    Line::from(format!("    {}", steps_str))
+                    Line::from(format!("    {steps_str}"))
                         .style(Style::default().fg(Color::DarkGray)),
                 ])
             })
@@ -984,14 +981,14 @@ impl App {
         lines.push(Line::from(vec![
             Span::styled(" Total Sessions: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("{}", total_all),
+                format!("{total_all}"),
                 Style::default()
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled("   Active: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("{}", active_all),
+                format!("{active_all}"),
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
@@ -1014,7 +1011,7 @@ impl App {
             let label = st.agent.label();
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!(" {:<16} ", label),
+                    format!(" {label:<16} "),
                     Style::default().fg(st.agent.color()),
                 ),
                 Span::styled(
@@ -1097,7 +1094,7 @@ impl App {
             } else if n >= 1_000 {
                 format!("{:.1}K", n as f64 / 1_000.0)
             } else {
-                format!("{}", n)
+                format!("{n}")
             }
         };
 
@@ -1117,7 +1114,7 @@ impl App {
         ]));
         if total_cost > 0.0 {
             lines.push(Line::from(vec![Span::styled(
-                format!(" Total Cost: ${:.4}", total_cost),
+                format!(" Total Cost: ${total_cost:.4}"),
                 Style::default().fg(Color::Green),
             )]));
         }
@@ -1154,7 +1151,7 @@ impl App {
             ];
             if *cost > 0.0 {
                 spans.push(Span::styled(
-                    format!("  ${:.3}", cost),
+                    format!("  ${cost:.3}"),
                     Style::default().fg(Color::Green),
                 ));
             }
@@ -1249,7 +1246,7 @@ impl App {
                     _ => Color::DarkGray,
                 };
                 Line::from(vec![
-                    Span::styled(format!(" {} ", agent), Style::default().fg(color)),
+                    Span::styled(format!(" {agent} "), Style::default().fg(color)),
                     Span::styled(name.clone(), Style::default().fg(Color::White)),
                 ])
             })
@@ -1281,7 +1278,7 @@ impl App {
             .plugins
             .iter()
             .map(|p| {
-                let key_label = p.key.map(|k| format!(" ({})", k)).unwrap_or_default();
+                let key_label = p.key.map(|k| format!(" ({k})")).unwrap_or_default();
                 let hook_label = if p.hooks.is_empty() {
                     String::new()
                 } else {
@@ -1464,7 +1461,7 @@ impl App {
                     relative_time(now - ev.timestamp)
                 };
                 Line::from(vec![
-                    Span::styled(format!(" {} ", time), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!(" {time} "), Style::default().fg(Color::DarkGray)),
                     Span::styled(format!("{} ", ev.agent), Style::default().fg(agent_color)),
                     Span::styled(
                         type_icon,
@@ -1595,7 +1592,7 @@ impl App {
                 _ => Color::White,
             };
             lines.push(Line::from(vec![
-                Span::styled(format!(" {} ", medal), Style::default()),
+                Span::styled(format!(" {medal} "), Style::default()),
                 Span::styled(
                     format!("{:<8}", m.agent),
                     Style::default()
@@ -1768,12 +1765,9 @@ impl App {
                             Color::DarkGray
                         }),
                     ),
-                    Span::styled(
-                        format!("{} ", short_id),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(format!("{short_id} "), Style::default().fg(Color::DarkGray)),
                     Span::styled(truncate_str(title, 45), style),
-                    Span::styled(format!("  {}%", pct), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("  {pct}%"), Style::default().fg(Color::DarkGray)),
                 ]));
             }
 
@@ -1858,12 +1852,12 @@ impl App {
                     }
                     if in_code_block {
                         lines.push(Line::from(vec![Span::styled(
-                            format!("  {}", text),
+                            format!("  {text}"),
                             Style::default().fg(Color::DarkGray),
                         )]));
                     } else if let Some(stripped) = text.strip_prefix("# ") {
                         lines.push(Line::from(vec![Span::styled(
-                            format!("  {}", stripped),
+                            format!("  {stripped}"),
                             Style::default()
                                 .fg(Color::Cyan)
                                 .add_modifier(Modifier::BOLD),
@@ -1871,7 +1865,7 @@ impl App {
                         lines.push(Line::from(""));
                     } else if let Some(stripped) = text.strip_prefix("## ") {
                         lines.push(Line::from(vec![Span::styled(
-                            format!("  {}", stripped),
+                            format!("  {stripped}"),
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
@@ -1879,7 +1873,7 @@ impl App {
                         lines.push(Line::from(""));
                     } else if let Some(stripped) = text.strip_prefix("### ") {
                         lines.push(Line::from(vec![Span::styled(
-                            format!("  {}", stripped),
+                            format!("  {stripped}"),
                             Style::default()
                                 .fg(Color::Green)
                                 .add_modifier(Modifier::BOLD),
@@ -1892,7 +1886,7 @@ impl App {
                     } else if text.trim().is_empty() {
                         lines.push(Line::from(""));
                     } else {
-                        lines.push(Line::from(format!("  {}", text)));
+                        lines.push(Line::from(format!("  {text}")));
                     }
                 }
             }
@@ -1909,7 +1903,7 @@ impl App {
                     };
                     lines.push(Line::from(vec![
                         Span::styled(
-                            format!("  {} ", label),
+                            format!("  {label} "),
                             Style::default().fg(color).add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(entry.text.clone(), Style::default().fg(Color::White)),
@@ -1987,7 +1981,7 @@ impl App {
                     crate::preflight::CheckStatus::Fail(m) => ("\u{2717}", Color::Red, m),
                 };
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {} ", icon), Style::default().fg(color)),
+                    Span::styled(format!("  {icon} "), Style::default().fg(color)),
                     Span::styled(
                         format!("{:16}", format!("{}:", label)),
                         Style::default().fg(Color::White),
@@ -2093,7 +2087,7 @@ impl App {
             for (i, file) in self.popup.rollback_files.iter().enumerate() {
                 if i >= max_show {
                     let remaining = self.popup.rollback_files.len() - max_show;
-                    lines.push(Line::from(format!("    ... and {} more", remaining)));
+                    lines.push(Line::from(format!("    ... and {remaining} more")));
                     break;
                 }
                 lines.push(Line::from(vec![
@@ -2172,7 +2166,7 @@ impl App {
                     ]));
                     lines.push(Line::from(vec![
                         Span::styled("  Sessions: ", Style::default().fg(Color::DarkGray)),
-                        Span::styled(format!("{}", count), Style::default().fg(Color::Yellow)),
+                        Span::styled(format!("{count}"), Style::default().fg(Color::Yellow)),
                     ]));
                 }
                 TreeNode::Session(_, si) => {
@@ -2239,7 +2233,7 @@ mod tests {
         assert_eq!(pairs[0].0, "Move selection");
         assert_eq!(pairs.last().unwrap().0, "Quit");
         for (action, key) in &pairs {
-            assert!(!key.is_empty(), "key for '{}' must not be empty", action);
+            assert!(!key.is_empty(), "key for '{action}' must not be empty");
         }
     }
 
@@ -2260,7 +2254,7 @@ mod tests {
             parts.push(format!("{}k daily tokens", dt / 1000));
         }
         if let Some(dc) = b.daily_cost {
-            parts.push(format!("${:.2} daily cost", dc));
+            parts.push(format!("${dc:.2} daily cost"));
         }
         let expected = format!("Budget: {}", parts.join(", "));
         assert_eq!(expected, "Budget: 200k daily tokens, $5.50 daily cost");
@@ -2279,12 +2273,8 @@ mod tests {
         let lines = app.view.keybinds.display_lines();
         assert_eq!(lines.len(), 17);
         for line in &lines {
-            assert!(
-                line.starts_with("  "),
-                "line should be indented: {:?}",
-                line
-            );
-            assert!(line.contains(": "), "line should contain ': ': {:?}", line);
+            assert!(line.starts_with("  "), "line should be indented: {line:?}");
+            assert!(line.contains(": "), "line should contain ': ': {line:?}");
         }
         assert!(lines[0].contains("move_up"));
         assert!(lines.last().unwrap().contains("quit"));

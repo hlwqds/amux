@@ -433,7 +433,7 @@ impl App {
         let conflicts = app.view.keybinds.validate();
         if !conflicts.is_empty() {
             for (a, b) in &conflicts {
-                eprintln!("warning: keybind conflict: {} <-> {}", a, b);
+                eprintln!("warning: keybind conflict: {a} <-> {b}");
             }
             app.view.status = format!(
                 "⚠ {} keybind conflict(s) detected — check logs",
@@ -643,7 +643,7 @@ pub(crate) fn git_cmd(dir: &Path, args: &[&str]) -> Result<String, String> {
         .args(args)
         .current_dir(dir)
         .output()
-        .map_err(|e| format!("git not available: {}", e))?;
+        .map_err(|e| format!("git not available: {e}"))?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -686,7 +686,7 @@ fn start_server(app: &mut App, shared_ptys: std::sync::Arc<crate::server::Shared
             port
         }
         Err(_) => {
-            eprintln!("amux: port {} in use, trying random port", serve_port);
+            eprintln!("amux: port {serve_port} in use, trying random port");
             match rt.block_on(crate::server::run_server_with_state(
                 0,
                 config.serve_token.unwrap_or_default(),
@@ -697,7 +697,7 @@ fn start_server(app: &mut App, shared_ptys: std::sync::Arc<crate::server::Shared
                     port
                 }
                 Err(e) => {
-                    eprintln!("amux: server disabled ({})", e);
+                    eprintln!("amux: server disabled ({e})");
                     0u16
                 }
             }

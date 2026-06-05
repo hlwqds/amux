@@ -236,7 +236,7 @@ impl super::App {
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                format!("{} 📌 ", arrow),
+                                format!("{arrow} 📌 "),
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                             Span::styled(
@@ -244,7 +244,7 @@ impl super::App {
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                         ]),
-                        Line::from(format!("   {} pinned sessions", count))
+                        Line::from(format!("   {count} pinned sessions"))
                             .style(Style::default().fg(self.view.theme.sidebar_dim)),
                     ])
                 }
@@ -258,7 +258,7 @@ impl super::App {
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                format!("{} 🕐 ", arrow),
+                                format!("{arrow} 🕐 "),
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                             Span::styled(
@@ -266,7 +266,7 @@ impl super::App {
                                 Style::default().fg(self.view.theme.sidebar_highlight),
                             ),
                         ]),
-                        Line::from(format!("   {} recent sessions", count))
+                        Line::from(format!("   {count} recent sessions"))
                             .style(Style::default().fg(self.view.theme.sidebar_dim)),
                     ])
                 }
@@ -289,14 +289,14 @@ impl super::App {
                         None => (
                             "\u{25c7}",
                             Style::default().fg(self.view.theme.sidebar_highlight),
-                            format!("   {} sessions \u{00b7} virtual", count),
+                            format!("   {count} sessions \u{00b7} virtual"),
                         ),
                     };
 
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                format!("{} {} ", icon, binding_icon),
+                                format!("{icon} {binding_icon} "),
                                 binding_style.add_modifier(Modifier::BOLD),
                             ),
                             Span::styled(
@@ -428,7 +428,7 @@ impl super::App {
                         PtyState::Running => (self.view.theme.status_running, " [running]".into()),
                         PtyState::Completed => match &check {
                             CheckStatus::Failed(e) => {
-                                (self.view.theme.status_error, format!(" \u{26a0} {}", e))
+                                (self.view.theme.status_error, format!(" \u{26a0} {e}"))
                             }
                             CheckStatus::Running => (
                                 self.view.theme.status_running,
@@ -487,7 +487,7 @@ impl super::App {
                 }
                 TreeNode::WorkspaceWarning(_, msg) => {
                     ListItem::new(Line::from(vec![Span::styled(
-                        format!("  \u{26a0} {}", msg),
+                        format!("  \u{26a0} {msg}"),
                         Style::default().fg(self.view.theme.sidebar_highlight),
                     )]))
                 }
@@ -504,7 +504,7 @@ impl super::App {
                 TreeNode::ArchivedHeader => {
                     let count = self.sessions.archived_sessions.len();
                     ListItem::new(Line::from(vec![Span::styled(
-                        format!("  \u{25b6} Archived ({})", count),
+                        format!("  \u{25b6} Archived ({count})"),
                         Style::default().fg(self.view.theme.sidebar_dim),
                     )]))
                 }
@@ -522,7 +522,7 @@ impl super::App {
                                     Style::default().fg(self.view.theme.sidebar_dim),
                                 ),
                                 Span::styled(
-                                    format!(" ({})", short_id),
+                                    format!(" ({short_id})"),
                                     Style::default().fg(self.view.theme.sidebar_dim),
                                 ),
                                 Span::styled(
@@ -566,12 +566,9 @@ impl super::App {
                 )
             }
             (true, None, Some(tag)) => {
-                format!(
-                    " [search: {}] [tag: {}] [sort: {}] ",
-                    search_query, tag, sort_label
-                )
+                format!(" [search: {search_query}] [tag: {tag}] [sort: {sort_label}] ")
             }
-            (true, None, None) => format!(" [search: {}] [sort: {}] ", search_query, sort_label),
+            (true, None, None) => format!(" [search: {search_query}] [sort: {sort_label}] "),
             (false, Some(agent), Some(tag)) => {
                 format!(
                     " [{}] [tag: {}] Workspaces [sort: {}] ",
@@ -584,9 +581,9 @@ impl super::App {
                 format!(" [{}] Workspaces [sort: {}] ", agent.label(), sort_label)
             }
             (false, None, Some(tag)) => {
-                format!(" [tag: {}] Workspaces [sort: {}] ", tag, sort_label)
+                format!(" [tag: {tag}] Workspaces [sort: {sort_label}] ")
             }
-            (false, None, None) => format!(" Workspaces [sort: {}] ", sort_label),
+            (false, None, None) => format!(" Workspaces [sort: {sort_label}] "),
         };
 
         let block = Block::default()
@@ -622,7 +619,7 @@ impl super::App {
             let filter_text = match filter_count {
                 0 => "0 matches".to_string(),
                 1 => "1 match".to_string(),
-                n => format!("{} matches", n),
+                n => format!("{n} matches"),
             };
 
             let search_line = Line::from(vec![
@@ -636,7 +633,7 @@ impl super::App {
                 ),
                 Span::styled("|", Style::default().fg(self.view.theme.sidebar_dim)),
                 Span::styled(
-                    format!(" {}", filter_text),
+                    format!(" {filter_text}"),
                     Style::default().fg(self.view.theme.sidebar_dim),
                 ),
             ]);
@@ -673,7 +670,7 @@ impl super::App {
         let title = if let Some(idx) = self.ptys.active_pty {
             if let Some(slot) = self.ptys.ptys.get(idx) {
                 let scroll_hint = if scroll_offset > 0 {
-                    format!(" [↑{} PgDn:bottom]", scroll_offset)
+                    format!(" [↑{scroll_offset} PgDn:bottom]")
                 } else {
                     String::new()
                 };
@@ -738,11 +735,11 @@ impl super::App {
                     },
                 );
                 let search_text = if query.is_empty() {
-                    format!(" Search:_{}", mode_tags)
+                    format!(" Search:_{mode_tags}")
                 } else if total == 0 {
-                    format!(" Search: {} (no matches){}", query, mode_tags)
+                    format!(" Search: {query} (no matches){mode_tags}")
                 } else {
-                    format!(" Search: {} ({}/{}){}", query, current, total, mode_tags)
+                    format!(" Search: {query} ({current}/{total}){mode_tags}")
                 };
                 let search_bar = Paragraph::new(Line::from(vec![
                     Span::styled(
@@ -1052,8 +1049,7 @@ impl super::App {
                     ),
                 );
                 lines.push(Line::from(format!(
-                    "{} pinned session(s) from all workspaces",
-                    count
+                    "{count} pinned session(s) from all workspaces"
                 )));
                 lines.push(Line::from(""));
                 lines.push(
@@ -1071,8 +1067,7 @@ impl super::App {
                     ),
                 );
                 lines.push(Line::from(format!(
-                    "{} recent session(s) from all workspaces",
-                    count
+                    "{count} recent session(s) from all workspaces"
                 )));
                 lines.push(Line::from(
                     "Most recently active sessions from all workspaces",
@@ -1190,7 +1185,7 @@ impl super::App {
             self.popup.budget_flash_on = !self.popup.budget_flash_on;
             if self.popup.budget_flash_on {
                 Span::styled(
-                    format!(" {} ", msg),
+                    format!(" {msg} "),
                     Style::default()
                         .fg(self.view.theme.bold_text)
                         .bg(self.view.theme.status_error)
@@ -1198,7 +1193,7 @@ impl super::App {
                 )
             } else {
                 Span::styled(
-                    format!(" {} ", msg),
+                    format!(" {msg} "),
                     Style::default().fg(self.view.theme.status_error),
                 )
             }
@@ -1269,7 +1264,7 @@ impl super::App {
             Focus::Chat => "CHAT ▸",
         };
         let focus_span = Span::styled(
-            format!(" {} ", focus_label),
+            format!(" {focus_label} "),
             Style::default()
                 .fg(Color::Black)
                 .bg(self.view.theme.accent)

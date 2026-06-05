@@ -168,7 +168,7 @@ impl super::App {
                         {
                             format!("{} not found. {}", agent.label(), agent.install_hint())
                         } else {
-                            format!("Failed to resume session: {}", e)
+                            format!("Failed to resume session: {e}")
                         };
                         self.view.status = msg;
                         anyhow::bail!(e);
@@ -253,7 +253,7 @@ impl super::App {
                         {
                             format!("{} not found. {}", agent.label(), agent.install_hint())
                         } else {
-                            format!("Failed to resume archived session: {}", e)
+                            format!("Failed to resume archived session: {e}")
                         };
                         self.view.status = msg;
                         anyhow::bail!(e);
@@ -345,7 +345,7 @@ impl super::App {
                     };
                     let _ = save_session_title(&self.sessions.sessions[si].id, &new_title);
                     self.sessions.sessions[si].title = new_title.clone();
-                    self.view.status = format!("Renamed to: {}", new_title);
+                    self.view.status = format!("Renamed to: {new_title}");
                     self.rebuild_tree();
                 }
                 self.view.input_mode = InputMode::None;
@@ -373,7 +373,7 @@ impl super::App {
                     };
                     self.sessions.workspaces[wi].name = new_name.clone();
                     self.save_config();
-                    self.view.status = format!("Workspace renamed to: {}", new_name);
+                    self.view.status = format!("Workspace renamed to: {new_name}");
                     self.rebuild_tree();
                 }
                 self.view.input_mode = InputMode::None;
@@ -399,7 +399,7 @@ impl super::App {
                     self.search_results = self.search_index.search(&query, 10);
                     self.input_buffer.clear();
                     if self.search_results.is_empty() {
-                        self.view.status = format!("No results for '{}'.", query);
+                        self.view.status = format!("No results for '{query}'.");
                         self.view.input_mode = InputMode::None;
                     } else {
                         self.search_result_state.select(Some(0));
@@ -509,7 +509,7 @@ impl super::App {
             let pinned = session.pinned;
             let id = session.id.clone();
             if let Err(e) = crate::config::save_session_pinned(&id, pinned) {
-                self.view.status = format!("Failed to save pin: {}", e);
+                self.view.status = format!("Failed to save pin: {e}");
             } else {
                 self.view.status = if pinned {
                     "📌 Pinned".into()

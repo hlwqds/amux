@@ -159,7 +159,7 @@ impl super::App {
                                 self.view.status = "Terminal opened (c to close)".into();
                             }
                             Err(e) => {
-                                self.view.status = format!("Failed to open terminal: {}", e);
+                                self.view.status = format!("Failed to open terminal: {e}");
                             }
                         }
                     }
@@ -355,8 +355,7 @@ mod tests {
         assert!(matches!(result, Action::Continue));
         assert!(
             matches!(result, Action::Continue),
-            "'?' should return Continue, got {:?}",
-            result
+            "'?' should return Continue, got {result:?}"
         );
     }
 
