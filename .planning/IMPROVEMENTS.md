@@ -408,6 +408,11 @@
 - **修复**: 转换为 `opt.as_ref().map_or_else(|| default, |x| computation)` 惯用法
 - **涉及**: session_ops, ui_popup, mod, util, handler_select 等文件
 - **验证**:`cargo clippy --all-targets -- -W clippy::option_if_let_else -D warnings` clean
+
+### 83. [x] P3 移除不必要的 raw string literal
+- **位置**:knowledge.rs:136
+- **修复**:`r"`([^`]+)`"` → `"`([^`]+)`"` (不含反斜杠或引号,无需 raw literal)
+- **验证**:`cargo clippy --all-targets -- -W clippy::needless_raw_strings -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

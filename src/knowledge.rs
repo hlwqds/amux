@@ -133,7 +133,7 @@ pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge
         extract_paths_from_line(&mut knowledge.key_files, line);
     }
     // Also extract paths that appear inline in prose: backtick-quoted or quoted paths
-    if let Ok(re) = Regex::new(r"`([^`]+)`") {
+    if let Ok(re) = Regex::new("`([^`]+)`") {
         for caps in re.captures_iter(raw_text) {
             if let Some(m) = caps.get(1) {
                 let candidate = m.as_str();
