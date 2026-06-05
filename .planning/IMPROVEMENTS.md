@@ -397,6 +397,11 @@
   - match arm 表达式添加分号 (handler_search, ui)
 - **涉及**: 8 个文件
 - **验证**:`cargo clippy --all-targets -- -W clippy::items_after_statements -W clippy::semicolon_if_nothing_returned -D warnings` clean
+
+### 81. [x] P2 修复 if_not_else: 交换 if/else 分支消除布尔取反
+- **位置**:session_ops.rs:944
+- **修复**: `if !selected_set.is_empty()` → `if selected_set.is_empty()` 并交换两个分支体
+- **验证**:`cargo clippy --all-targets -- -W clippy::if_not_else -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

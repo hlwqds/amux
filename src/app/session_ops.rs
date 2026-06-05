@@ -941,13 +941,7 @@ impl App {
                 self.view.input_mode = InputMode::ConfirmDelete;
             }
             Some(TreeNode::Session(_wi, _si)) => {
-                if !self.view.selected_set.is_empty() {
-                    // Batch delete all marked sessions
-                    let count = self.view.selected_set.len();
-                    self.view.status = format!("Delete {count} marked session(s)? y/n");
-                    self.pending_batch_delete = true;
-                    self.view.input_mode = InputMode::ConfirmDelete;
-                } else {
+                if self.view.selected_set.is_empty() {
                     if let Some(TreeNode::Session(_, si)) = node.as_ref() {
                         if *si >= self.sessions.sessions.len() {
                             return;
@@ -957,6 +951,12 @@ impl App {
                         self.pending_delete = node;
                         self.view.input_mode = InputMode::ConfirmDelete;
                     }
+                } else {
+                    // Batch delete all marked sessions
+                    let count = self.view.selected_set.len();
+                    self.view.status = format!("Delete {count} marked session(s)? y/n");
+                    self.pending_batch_delete = true;
+                    self.view.input_mode = InputMode::ConfirmDelete;
                 }
             }
             Some(TreeNode::ActiveTab(pi)) => {
