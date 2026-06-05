@@ -48,18 +48,7 @@ pub fn load_config() -> Result<Config> {
     if !path.exists() {
         return Ok(Config {
             workspaces: Vec::new(),
-            theme: crate::theme::ThemeName::default(),
-            keybinds: crate::types::Keybinds::default(),
-            templates: Vec::new(),
-            automations: Vec::new(),
-            archive_days: None,
-            remote_hosts: Vec::new(),
-            plugins: Vec::new(),
-            serve_port: None,
-            serve_token: None,
-            check_command: None,
-            token_budget: None,
-            chains: Vec::new(),
+            ..Default::default()
         });
     }
     let content = fs::read_to_string(&path).context("failed to read config.json")?;

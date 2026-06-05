@@ -23,7 +23,7 @@ use crate::types::Agent;
 use crate::util::now_secs;
 
 pub const IDLE_THRESHOLD_SECS: u64 = 3;
-const SCROLLBACK_LINES: usize = 10000;
+pub const DEFAULT_SCROLLBACK_LINES: usize = 10000;
 
 // ---------------------------------------------------------------------------
 // EventListener — forwards DA1/DSR/OSC replies back to the PTY
@@ -163,7 +163,7 @@ impl PtyHandle {
         // Set up alacritty_terminal Term with event listener for query responses.
         let term_size = TermSize::new(size.0 as usize, size.1 as usize);
         let term_config = Config {
-            scrolling_history: SCROLLBACK_LINES,
+            scrolling_history: DEFAULT_SCROLLBACK_LINES,
             ..Config::default()
         };
         let size_shared = Arc::new(std::sync::Mutex::new((size.0, size.1)));
@@ -353,7 +353,7 @@ impl PtyHandle {
 
         let term_size = TermSize::new(size.0 as usize, size.1 as usize);
         let term_config = Config {
-            scrolling_history: SCROLLBACK_LINES,
+            scrolling_history: DEFAULT_SCROLLBACK_LINES,
             ..Config::default()
         };
         let size_shared = Arc::new(std::sync::Mutex::new((size.0, size.1)));

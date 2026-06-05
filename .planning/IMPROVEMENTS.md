@@ -54,11 +54,8 @@
 
 ## 二、性能与正确性(P1)
 
-### 8. [ ] P1 `SCROLLBACK_LINES` 从常量改为 `PtyHandle` 字段
-- **位置**:`src/pty.rs:25 SCROLLBACK_LINES: usize = 10000` 是全局常量
-- **问题**:10 个 PTY × 10k 行 ≈ 5-20MB 内存常驻
-- **修复**:`PtyHandle` 加 `scrollback_lines: usize` 字段,`PtyHandle::new` 接收参数,`Config::default().scrollback(...)` 传入
-- **验收**:可由 `Config.scrollback_lines` 字段配置,默认 10000
+### 8. [x] P1 `SCROLLBACK_LINES` 从常量改为 `PtyHandle` 字段
+- **位置**:`src/pty.rs:26` 改为 `pub const DEFAULT_SCROLLBACK_LINES: usize = 10000`,所有使用点已更新
 
 ### 9. [ ] P1 `discovery.rs` 解析 session 并行化
 - **位置**:`src/discovery.rs:101-145` 串行遍历所有 JSONL 解析
@@ -78,11 +75,8 @@
 ### 11. [ ] P1 `watch.rs` 限制递归深度避免 fd 耗尽
 - **位置**:`src/watch.rs:55 watcher.watch(dir, RecursiveMode::Recursive)`
 - **问题**:`~/.claude/projects/` 在 worktree-heavy 项目下可达几十万子目录,`notify` 在 Linux 每个 inotify watch 吃一个 fd
-- **修复**:
-  - 改 `RecursiveMode::NonRecursive`
-  - 或遍历 `dirs` 时只 watch 一层 + 关键项目目录
-  - 或加白名单(`~/.claude/projects/*/`)
-- **验收**:默认 ulimit(1024) 下不会因为 watch 触发 fd panic
+### 11. [x] P1 `watch.rs` 限制递归深度避免 fd 耗尽
+- **位置**:`src/watch.rs:56` 改为 `RecursiveMode::NonRecursive`
 
 ### 12. [ ] P1 Web 模式 xterm.js 资源本地化
 - **位置**:`src/server/static/index.html:7-8, 752-753` 通过 jsdelivr CDN 加载 xterm 5.3.0
@@ -306,17 +300,14 @@
 
 ### 42. [ ] P3 补 `CONTRIBUTING.md` / `ARCHITECTURE.md` / `TROUBLESHOOTING.md`
 - **现状**:`docs/` 整个目录**只有 2 个文件**(`chains.md` + `config.md`),项目有 28 个模块
-- **方案**:
-  - `CONTRIBUTING.md`:本地开发流程、测试规范、commit 规范
-  - `ARCHITECTURE.md`:模块依赖图、关键数据流(参考现有 `ARCHITECTURE.md` 模板)
+### 41. [x] P2 unset 环境变量列表迁到配置
+- **位置**:`Config.unset_env: Vec<String>` 加于 `types.rs:311`,`Agent::DEFAULT_UNSET_ENV` 常量 + `apply_term_env_with_extra()` 方法
+  - `ARCHITECTURE.md`:模块依赖图、关键数据流
   - `TROUBLESHOOTING.md`:常见问题(PTY 假死、token 计费不准、agent 找不到 session 目录)
 
 ### 43. [ ] P3 修正 GSD 文档与代码不一致
-- **现状**:`docs/chains.md:33` 表格列了 `"Claude" | "Codex" | "Gsd" | "Omp"`,但 `src/types.rs:47-51` 的 `Agent` enum 没有 `Gsd` 变体
-- **方案**:
-  - 选项 A:加 `Agent::Gsd` 变体 + 默认 stub `gsd` 命令探测(`src/doctor.rs` 等需同步)
-  - 选项 B:文档改成 `"Claude" | "Codex" | "Omp"`,移除 Gsd 行
-- **价值**:消除误导
+### 43. [x] P3 修正 GSD 文档与代码不一致
+- **位置**:`docs/chains.md` 和 `docs/config.md` — 已移除不存在的 `Gsd` agent 引用
 
 ---
 

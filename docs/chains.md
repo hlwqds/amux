@@ -30,7 +30,7 @@ Add chains to `config.json` under the `"chains"` array:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `agent` | `"Claude" \| "Codex" \| "Gsd" \| "Omp"` | Agent for this step. |
+| `agent` | `"Claude" \| "Codex" \| "Omp"` | Agent for this step. |
 | `prompt` | `string` | Prompt template. Supports `{prev_output}` substitution. |
 
 ### SessionChain
@@ -81,7 +81,7 @@ Only `{prev_output}` is currently supported. The variable is replaced with the p
 {
   "name": "gsd-execute",
   "steps": [
-    { "agent": "Gsd",    "prompt": "Plan the database migration for adding user preferences" },
+    { "agent": "Omp",    "prompt": "Plan the database migration for adding user preferences" },
     { "agent": "Claude", "prompt": "Execute this plan step by step:\n{prev_output}" }
   ]
 }

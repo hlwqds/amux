@@ -214,14 +214,7 @@ impl super::App {
                     ])
                 }
                 TreeNode::RecentWorkspace => {
-                    let count = self
-                        .sessions
-                        .tree
-                        .iter()
-                        .skip_while(|n| !matches!(n, TreeNode::RecentWorkspace))
-                        .skip(1)
-                        .take_while(|n| matches!(n, TreeNode::Session(_, _)))
-                        .count();
+                    let count = self.sessions.recent_count;
                     let arrow = if self.sessions.recent_expanded { "▼" } else { "▶" };
                     ListItem::new(vec![
                         Line::from(vec![
@@ -1025,7 +1018,7 @@ impl super::App {
                 }
                 lines.push(Line::from(""));
                 lines.push(
-                    Line::from("Press Enter to start a named Claude Code session")
+                    Line::from("Press Enter to start a new session")
                         .style(Style::default().fg(self.view.theme.sidebar_highlight)),
                 );
             }
@@ -1110,14 +1103,7 @@ impl super::App {
                 );
             }
             Some(&TreeNode::RecentWorkspace) => {
-                let count = self
-                    .sessions
-                    .tree
-                    .iter()
-                    .skip_while(|n| !matches!(n, TreeNode::RecentWorkspace))
-                    .skip(1)
-                    .take_while(|n| matches!(n, TreeNode::Session(_, _)))
-                    .count();
+                let count = self.sessions.recent_count;
                 lines.push(
                     Line::from("🕐 Recent Sessions").style(
                         Style::default()
@@ -1953,9 +1939,6 @@ impl super::App {
                 .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from("  Tab              Sidebar ↔ Chat"));
-        lines.push(Line::from("  Alt+h            Chat → Sidebar"));
-        lines.push(Line::from("  Alt+h/Alt+l      Cycle popup panels"));
-        lines.push(Line::from("  Alt+h/Alt+l      Cycle popup panels"));
         // Section: Sidebar extra
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -1965,9 +1948,8 @@ impl super::App {
                 .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(
-            "  c/x/o            Quick create Claude/Codex/OMP",
+            "  c/x/o            Quick select agent (in agent picker)",
         ));
-        lines.push(Line::from("  1/2/3            Filter by agent type"));
         lines.push(Line::from("  Space            Mark/unmark session"));
         lines.push(Line::from("  s                Cycle sort mode"));
         lines.push(Line::from("  S                Semantic search (BM25)"));

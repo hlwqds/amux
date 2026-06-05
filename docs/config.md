@@ -79,7 +79,7 @@ All keys are rebindable. Unset fields use defaults.
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Template display name. |
-| `agent` | `"Claude" \| "Codex" \| "Gsd" \| "Omp"` | Agent type. |
+| `agent` | `"Claude" \| "Codex" \| "Omp"` | Agent type. |
 | `workspace_id` | `string \| null` | Target workspace. `null` = current. |
 | `initial_prompt` | `string \| null` | Prompt sent on session start. |
 

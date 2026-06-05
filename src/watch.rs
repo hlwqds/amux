@@ -53,7 +53,7 @@ impl SessionWatcher {
 
         for dir in &dirs {
             if dir.exists() {
-                let _ = watcher.watch(dir, RecursiveMode::Recursive);
+                let _ = watcher.watch(dir, RecursiveMode::NonRecursive);
             }
         }
 

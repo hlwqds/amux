@@ -11,18 +11,7 @@ fn fallback_config() -> crate::types::Config {
     use crate::types::*;
     Config {
         workspaces: Vec::new(),
-        theme: Default::default(),
-        keybinds: Default::default(),
-        templates: Vec::new(),
-        automations: Vec::new(),
-        archive_days: None,
-        remote_hosts: Vec::new(),
-        plugins: Vec::new(),
-        serve_port: None,
-        serve_token: None,
-        check_command: None,
-        token_budget: None,
-        chains: Vec::new(),
+        ..Default::default()
     }
 }
 

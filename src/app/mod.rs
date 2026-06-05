@@ -76,6 +76,8 @@ struct SessionStore {
     pinned_expanded: bool,
     /// Whether the virtual "Recent" workspace is expanded.
     recent_expanded: bool,
+    /// Number of recent sessions (cached during rebuild_tree).
+    recent_count: usize,
     /// Cache for incremental session discovery — maps file path to (mtime, Session).
     session_cache: SessionCache,
     /// Per-project configs keyed by workspace path, loaded from `.amux.json`.
@@ -301,18 +303,7 @@ impl App {
     ) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
             workspaces: Vec::new(),
-            theme: crate::theme::ThemeName::Dark,
-            keybinds: Keybinds::default(),
-            templates: Vec::new(),
-            automations: Vec::new(),
-            archive_days: None,
-            remote_hosts: Vec::new(),
-            plugins: Vec::new(),
-            serve_port: None,
-            serve_token: None,
-            check_command: None,
-            token_budget: None,
-            chains: Vec::new(),
+            ..Default::default()
         });
 
         if config.workspaces.is_empty() {
@@ -364,6 +355,7 @@ impl App {
                 archive_days: config.archive_days,
                 pinned_expanded: false,
                 recent_expanded: false,
+                recent_count: 0,
                 session_cache: SessionCache::new(),
                 project_configs: std::collections::HashMap::new(),
                 project_config_mtimes: std::collections::HashMap::new(),
@@ -1370,6 +1362,7 @@ impl App {
                 .cmp(&self.sessions.sessions[a].last_active)
         });
         recent_idxs.truncate(10);
+        self.sessions.recent_count = recent_idxs.len();
         if !recent_idxs.is_empty() {
             tree.push(TreeNode::RecentWorkspace);
             if self.sessions.recent_expanded {
@@ -2115,6 +2108,7 @@ impl App {
             check_command: self.check_command.clone(),
             token_budget: self.token_budget.clone(),
             chains: self.chains.chains.clone(),
+            unset_env: Vec::new(),
         };
         if let Err(e) = save_config_file(&config) {
             eprintln!("Failed to save config: {}", e);
@@ -2618,18 +2612,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         let _guard = rt.enter();
         let config = crate::config::load_config().unwrap_or_else(|_| Config {
             workspaces: Vec::new(),
-            theme: crate::theme::ThemeName::Dark,
-            keybinds: Keybinds::default(),
-            templates: Vec::new(),
-            automations: Vec::new(),
-            archive_days: None,
-            remote_hosts: Vec::new(),
-            plugins: Vec::new(),
-            serve_port: None,
-            serve_token: None,
-            check_command: None,
-            token_budget: None,
-            chains: Vec::new(),
+            ..Default::default()
         });
         let serve_port = config.serve_port.unwrap_or(8080);
         let serve_token = config.serve_token.clone().unwrap_or_default();

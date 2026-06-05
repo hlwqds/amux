@@ -116,12 +116,30 @@ impl Agent {
         }
     }
 
+    /// Default environment variables to unset from PTY processes.
+    const DEFAULT_UNSET_ENV: &[&str] = &[
+        "KITTY_WINDOW_ID",
+        "KITTY_LISTEN_ON",
+        "TERM_PROGRAM",
+        "GHOSTTY_RESOURCES_DIR",
+    ];
+
     pub(crate) fn apply_term_env(cmd: &mut portable_pty::CommandBuilder) {
         cmd.env("TERM", "xterm-256color");
-        cmd.env_remove("KITTY_WINDOW_ID");
-        cmd.env_remove("KITTY_LISTEN_ON");
-        cmd.env_remove("TERM_PROGRAM");
-        cmd.env_remove("GHOSTTY_RESOURCES_DIR");
+        for var in Self::DEFAULT_UNSET_ENV {
+            cmd.env_remove(var);
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn apply_term_env_with_extra(
+        cmd: &mut portable_pty::CommandBuilder,
+        extra_unset: &[String],
+    ) {
+        Self::apply_term_env(cmd);
+        for var in extra_unset {
+            cmd.env_remove(var);
+        }
     }
 
     pub fn build_new_cmd(
@@ -270,7 +288,7 @@ pub enum PluginAction {
     Notify { message: String },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     pub workspaces: Vec<Workspace>,
     #[serde(default)]
@@ -305,6 +323,10 @@ pub struct Config {
     /// Session chains: named sequences of agent steps with prompt templates.
     #[serde(default)]
     pub chains: Vec<crate::chain::SessionChain>,
+    /// Environment variables to unset from child PTY processes.
+    /// Defaults to terminal multiplexer vars (KITTY_WINDOW_ID, etc).
+    #[serde(default)]
+    pub unset_env: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -881,17 +903,7 @@ mod tests {
                 },
             ],
             theme: crate::theme::ThemeName::Dark,
-            keybinds: Keybinds::default(),
-            templates: Vec::new(),
-            automations: Vec::new(),
-            archive_days: None,
-            remote_hosts: Vec::new(),
-            plugins: Vec::new(),
-            serve_port: None,
-            serve_token: None,
-            check_command: None,
-            token_budget: None,
-            chains: Vec::new(),
+            ..Default::default()
         };
         let json = serde_json::to_string(&config).unwrap();
         let parsed: Config = serde_json::from_str(&json).unwrap();
