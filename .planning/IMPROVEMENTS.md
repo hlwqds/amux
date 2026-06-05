@@ -352,6 +352,19 @@
   - `session_ops.rs`: 提取 6 个辅助函数 (`collect_git_info`, `spawn_completion_check` 等)
 - **效果**: 全部 7 个超标函数降至 25 以下, 最复杂的从 43/25 降至 ~15/25
 - **验证**:`cargo clippy -- -W clippy::cognitive_complexity -D warnings` clean
+
+### 76. [x] P1 为 extraction.rs (1311行, 0测试) 添加单元测试
+- **问题**: extraction.rs 从 discovery.rs 提取后完全没有测试覆盖
+- **修复**: 添加 39 个单元测试覆盖 8 个核心纯函数:
+  - `clean_user_message` (6): ANSI/HTML 清理, 空白处理
+  - `extract_text_from_content` (6): JSON Value → String 提取
+  - `compute_diff` (5): 行级 diff 计算
+  - `detect_agent_from_path` (4): 路径→agent 类型映射
+  - `format_mtime` (6): 时间戳格式化
+  - `parse_gsd_session` (4): GSD 会话解析
+  - `parse_codex_session` (3): Codex 会话解析
+  - `extract_token_usage` (5): token 用量统计
+- **效果**: 测试数 309→348, extraction.rs 覆盖率从 0% 提升到关键路径全覆盖
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

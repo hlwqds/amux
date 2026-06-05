@@ -1309,3 +1309,407 @@ pub fn cross_session_search(
     results.truncate(20);
     results
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write as IoWrite;
+
+    /// Write JSON values as JSONL (one JSON object per line, no trailing blank line).
+    fn write_jsonl(path: &Path, records: &[serde_json::Value]) {
+        let jsonl: String = records
+            .iter()
+            .map(|r| serde_json::to_string(r).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(path, jsonl).unwrap();
+    }
+
+    // ── clean_user_message ──────────────────────────────────────────
+
+    #[test]
+    fn clean_user_message_ansi_escape_stripped() {
+        let input = "\x1b[32mgreen text\x1b[0m";
+        // Starts with \x1b → noise prefix → empty
+        assert_eq!(clean_user_message(input), "");
+    }
+
+    #[test]
+    fn clean_user_message_leading_noise_returns_empty() {
+        assert_eq!(clean_user_message("P>|something"), "");
+        assert_eq!(clean_user_message("P<|something"), "");
+    }
+
+    #[test]
+    fn clean_user_message_embedded_p_pipe_removed() {
+        // "hello P>|world\"rest" → "hello rest"
+        let input = "hello P>|world\\rest";
+        let cleaned = clean_user_message(input);
+        assert_eq!(cleaned, "hello rest");
+    }
+
+    #[test]
+    fn clean_user_message_trims_whitespace() {
+        assert_eq!(clean_user_message("  hello world  "), "hello world");
+    }
+
+    #[test]
+    fn clean_user_message_plain_text_unchanged() {
+        assert_eq!(clean_user_message("hello world"), "hello world");
+    }
+
+    #[test]
+    fn clean_user_message_empty_string() {
+        assert_eq!(clean_user_message(""), "");
+    }
+
+    // ── extract_text_from_content ───────────────────────────────────
+
+    #[test]
+    fn extract_text_from_string_value() {
+        let v = serde_json::Value::String("hello".into());
+        assert_eq!(extract_text_from_content(v), Some("hello".to_string()));
+    }
+
+    #[test]
+    fn extract_text_from_array_of_text_blocks() {
+        let v = serde_json::json!([
+            {"type": "text", "text": "hello"},
+            {"type": "text", "text": "world"}
+        ]);
+        assert_eq!(
+            extract_text_from_content(v),
+            Some("hello world".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_text_from_array_ignores_non_text_blocks() {
+        let v = serde_json::json!([
+            {"type": "image", "url": "http://x"},
+            {"type": "text", "text": "only this"}
+        ]);
+        assert_eq!(extract_text_from_content(v), Some("only this".to_string()));
+    }
+
+    #[test]
+    fn extract_text_from_empty_array_returns_none() {
+        let v = serde_json::json!([]);
+        assert_eq!(extract_text_from_content(v), None);
+    }
+
+    #[test]
+    fn extract_text_from_null_returns_none() {
+        assert_eq!(extract_text_from_content(serde_json::Value::Null), None);
+    }
+
+    #[test]
+    fn extract_text_from_object_without_text_returns_none() {
+        let v = serde_json::json!({"key": "value"});
+        assert_eq!(extract_text_from_content(v), None);
+    }
+
+    // ── compute_diff ────────────────────────────────────────────────
+
+    #[test]
+    fn compute_diff_identical_strings() {
+        let diff = compute_diff("a\nb\nc", "a\nb\nc");
+        assert!(diff.iter().all(|d| d.kind == DiffKind::Context));
+        assert_eq!(diff.len(), 3);
+    }
+
+    #[test]
+    fn compute_diff_added_lines() {
+        let diff = compute_diff("", "new line");
+        assert_eq!(diff.len(), 1);
+        assert_eq!(diff[0].kind, DiffKind::RightOnly);
+        assert_eq!(diff[0].content, "new line");
+    }
+
+    #[test]
+    fn compute_diff_removed_lines() {
+        let diff = compute_diff("old line", "");
+        assert_eq!(diff.len(), 1);
+        assert_eq!(diff[0].kind, DiffKind::LeftOnly);
+        assert_eq!(diff[0].content, "old line");
+    }
+
+    #[test]
+    fn compute_diff_both_empty() {
+        let diff = compute_diff("", "");
+        assert!(diff.is_empty());
+    }
+
+    #[test]
+    fn compute_diff_mixed_changes() {
+        let diff = compute_diff("a\nb\nc", "a\nx\nc");
+        // Should have Context("a"), LeftOnly("b"), RightOnly("x"), Context("c")
+        assert_eq!(diff.len(), 4);
+        assert_eq!(diff[0].kind, DiffKind::Context);
+        assert_eq!(diff[0].content, "a");
+        assert_eq!(diff[1].kind, DiffKind::LeftOnly);
+        assert_eq!(diff[1].content, "b");
+        assert_eq!(diff[2].kind, DiffKind::RightOnly);
+        assert_eq!(diff[2].content, "x");
+        assert_eq!(diff[3].kind, DiffKind::Context);
+        assert_eq!(diff[3].content, "c");
+    }
+
+    // ── detect_agent_from_path ──────────────────────────────────────
+
+    #[test]
+    fn detect_agent_claude() {
+        assert_eq!(
+            detect_agent_from_path("/home/user/.claude/projects/abc/session.jsonl"),
+            "Claude"
+        );
+    }
+
+    #[test]
+    fn detect_agent_codex() {
+        assert_eq!(
+            detect_agent_from_path("/home/user/.codex/sessions/xyz.jsonl"),
+            "Codex"
+        );
+    }
+
+    #[test]
+    fn detect_agent_omp() {
+        assert_eq!(
+            detect_agent_from_path("/home/user/.omp/sessions/def.jsonl"),
+            "OMP"
+        );
+    }
+
+    #[test]
+    fn detect_agent_unknown() {
+        assert_eq!(
+            detect_agent_from_path("/tmp/random/session.jsonl"),
+            "Unknown"
+        );
+    }
+
+    // ── format_mtime ────────────────────────────────────────────────
+
+    #[test]
+    fn format_mtime_invalid_returns_empty() {
+        assert_eq!(format_mtime("not-a-number"), "");
+    }
+
+    #[test]
+    fn format_mtime_future_returns_empty() {
+        // A far-future timestamp should produce negative elapsed → empty
+        let future = format!("{}", u64::MAX);
+        assert_eq!(format_mtime(&future), "");
+    }
+
+    #[test]
+    fn format_mtime_recent_returns_just_now() {
+        // 10 seconds ago — well under the 1-minute boundary
+        let ts = format!("{}", now_secs() - 10);
+        assert_eq!(format_mtime(&ts), "just now");
+    }
+
+    #[test]
+    fn format_mtime_minutes_ago() {
+        let ts = format!("{}", now_secs() - 300); // 5 min ago
+        assert_eq!(format_mtime(&ts), "5m ago");
+    }
+
+    #[test]
+    fn format_mtime_hours_ago() {
+        let ts = format!("{}", now_secs() - 7200); // 2h ago
+        assert_eq!(format_mtime(&ts), "2h ago");
+    }
+
+    #[test]
+    fn format_mtime_days_ago() {
+        let ts = format!("{}", now_secs() - 172_800); // 2 days ago
+        assert_eq!(format_mtime(&ts), "2d ago");
+    }
+
+    // ── parse_gsd_session ───────────────────────────────────────────
+
+    #[test]
+    fn parse_gsd_session_basic() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"session","version":3,"id":"gsd-123","timestamp":"2024-01-01T00:00:00Z","cwd":"/home/user"}),
+                serde_json::json!({"type":"custom_message","customType":"gsd-run","message":"build the feature"}),
+            ],
+        );
+
+        let result = parse_gsd_session(&path).unwrap();
+        assert_eq!(result.0, "gsd-123");
+        assert_eq!(result.1, Some("build the feature".to_string()));
+        assert_eq!(result.2, Some("/home/user".to_string()));
+    }
+
+    #[test]
+    fn parse_gsd_session_title_truncated_at_50_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        let long_msg = "x".repeat(80);
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"session","version":3,"id":"gsd-456","timestamp":"2024-01-01T00:00:00Z","cwd":"/tmp"}),
+                serde_json::json!({"type":"custom_message","customType":"gsd-run","message":long_msg}),
+            ],
+        );
+
+        let result = parse_gsd_session(&path).unwrap();
+        assert_eq!(result.1.unwrap().len(), 50);
+    }
+
+    #[test]
+    fn parse_gsd_session_fallback_to_user_message() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"session","version":3,"id":"gsd-789","timestamp":"2024-01-01T00:00:00Z"}),
+                serde_json::json!({"type":"message","role":"user","message":"hello from user"}),
+            ],
+        );
+
+        let result = parse_gsd_session(&path).unwrap();
+        assert_eq!(result.0, "gsd-789");
+        assert_eq!(result.1, Some("hello from user".to_string()));
+        assert_eq!(result.2, None);
+    }
+
+    #[test]
+    fn parse_gsd_session_no_id_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[serde_json::json!({"type":"message","role":"user","message":"no session header"})],
+        );
+        assert!(parse_gsd_session(&path).is_none());
+    }
+
+    // ── parse_codex_session ─────────────────────────────────────────
+
+    #[test]
+    fn parse_codex_session_basic() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"session_meta","payload":{"id":"codex-abc","cwd":"/work"}}),
+                serde_json::json!({"type":"user_message","payload":{"text":"fix the bug"}}),
+            ],
+        );
+
+        let result = parse_codex_session(&path).unwrap();
+        assert_eq!(result.0, "codex-abc");
+        assert_eq!(result.1, Some("fix the bug".to_string()));
+        assert_eq!(result.2, "/work");
+    }
+
+    #[test]
+    fn parse_codex_session_no_user_message() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"session_meta","payload":{"id":"codex-def","cwd":"/home"}}),
+            ],
+        );
+
+        let result = parse_codex_session(&path).unwrap();
+        assert_eq!(result.0, "codex-def");
+        assert!(result.1.is_none());
+    }
+
+    #[test]
+    fn parse_codex_session_empty_id_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[serde_json::json!({"type":"user_message","payload":{"text":"no meta"}})],
+        );
+        assert!(parse_codex_session(&path).is_none());
+    }
+
+    // ── extract_token_usage ─────────────────────────────────────────
+
+    #[test]
+    fn extract_token_usage_claude_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"assistant","message":{"usage":{"input_tokens":100,"output_tokens":50}}}),
+                serde_json::json!({"type":"assistant","message":{"usage":{"input_tokens":200,"output_tokens":100}}}),
+            ],
+        );
+
+        let usage = extract_token_usage(&path).unwrap();
+        assert_eq!(usage.input_tokens, 300);
+        assert_eq!(usage.output_tokens, 150);
+        assert_eq!(usage.total_tokens, 450);
+    }
+
+    #[test]
+    fn extract_token_usage_omp_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"message","message":{"usage":{"totalTokens":500,"input":200,"output":300,"cost":{"total":0.05}}}}),
+                serde_json::json!({"type":"message","message":{"usage":{"totalTokens":800,"input":350,"output":450,"cost":{"total":0.08}}}}),
+            ],
+        );
+
+        let usage = extract_token_usage(&path).unwrap();
+        assert_eq!(usage.total_tokens, 800);
+        assert_eq!(usage.input_tokens, 350);
+        assert_eq!(usage.output_tokens, 450);
+        assert!((usage.cost - 0.13).abs() < 0.001);
+    }
+
+    #[test]
+    fn extract_token_usage_codex_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[
+                serde_json::json!({"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":600,"input_tokens":250,"output_tokens":350}}}}),
+            ],
+        );
+
+        let usage = extract_token_usage(&path).unwrap();
+        assert_eq!(usage.total_tokens, 600);
+        assert_eq!(usage.input_tokens, 250);
+        assert_eq!(usage.output_tokens, 350);
+    }
+
+    #[test]
+    fn extract_token_usage_no_data_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        write_jsonl(
+            &path,
+            &[serde_json::json!({"type":"user","message":"no tokens here"})],
+        );
+        assert!(extract_token_usage(&path).is_none());
+    }
+
+    #[test]
+    fn extract_token_usage_missing_file_returns_none() {
+        assert!(extract_token_usage(Path::new("/nonexistent/file.jsonl")).is_none());
+    }
+}
