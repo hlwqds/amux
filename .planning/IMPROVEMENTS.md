@@ -227,6 +227,10 @@
 - **位置**:`src/attach.rs` (2 tests), `src/preflight.rs` (7 tests), `src/watch.rs` (4 tests)
 - **覆盖**:tmux 检测、preflight 空目录/git repo/main branch 分支、watcher 新建/poll/notify
 
+### 54. [x] P2 拆分 `ui.rs` god-file (3880→1706 行)
+- **位置**:`src/app/ui_popup.rs` — 新文件,27 个 popup/dialog render 函数从 `ui.rs` 提取
+- **效果**:`ui.rs` 从 3880 行降至 1706 行,`ui_popup.rs` 2214 行
+
 ---
 
 ## 五、推荐的执行顺序

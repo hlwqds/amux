@@ -303,6 +303,7 @@ mod handler_search;
 mod handler_select;
 mod session;
 mod ui;
+mod ui_popup;
 impl App {
     fn new(
         shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>,
