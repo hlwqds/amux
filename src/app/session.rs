@@ -483,7 +483,7 @@ impl super::App {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis() as u64;
+            .as_millis().try_into().unwrap_or(u64::MAX);
         self.ptys.pending_inputs.push(PendingInput {
             fire_at_ms: now_ms + 3000,
             text: prompt,

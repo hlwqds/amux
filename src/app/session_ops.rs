@@ -1321,7 +1321,7 @@ impl App {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis() as u64;
+            .as_millis().try_into().unwrap_or(u64::MAX);
         let mut i = 0;
         while i < self.ptys.pending_inputs.len() {
             if self.ptys.pending_inputs[i].fire_at_ms <= now_ms {

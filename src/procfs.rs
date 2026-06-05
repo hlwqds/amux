@@ -99,8 +99,8 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
         .ok_or_else(|| anyhow::anyhow!("missing rss field"))?
         .parse()?;
 
-    let clk_tck = clock_ticks_per_sec().max(1) as u64;
-    let pg_size = page_size().max(1) as u64;
+    let clk_tck = u64::try_from(clock_ticks_per_sec().max(1)).unwrap_or(1);
+    let pg_size = u64::try_from(page_size().max(1)).unwrap_or(1);
 
     // Read /proc/uptime for system uptime
     let uptime_secs = std::fs::read_to_string("/proc/uptime")
@@ -112,8 +112,9 @@ fn read_process_stats_linux(pid: u32) -> Result<ProcessStats> {
         })
         .unwrap_or(0.0);
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let process_uptime = if uptime_secs > 0.0 {
-        (uptime_secs - starttime as f64 / clk_tck as f64).max(0.0) as u64
+        (uptime_secs - starttime as f64 / clk_tck as f64).round().clamp(0.0, u64::MAX as f64) as u64
     } else {
         0
     };

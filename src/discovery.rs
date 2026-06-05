@@ -830,7 +830,7 @@ fn chrono_now_or_fallback() -> String {
     let hours = time_of_day / 3600;
     let minutes = (time_of_day % 3600) / 60;
     // Years since 1970 approximation (not accounting for leap years precisely)
-    let year = 1970 + (days / 365) as u32;
+    let year = 1970 + u32::try_from(days / 365).unwrap_or(u32::MAX);
     let day_of_year = days % 365;
     let month = (day_of_year / 30) + 1;
     let day = (day_of_year % 30) + 1;
@@ -1370,7 +1370,8 @@ fn format_mtime(mtime_str: &str) -> String {
     if elapsed_secs < 0.0 {
         return String::new();
     }
-    let mins = (elapsed_secs / 60.0) as u64;
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let mins = (elapsed_secs / 60.0).round().clamp(0.0, u64::MAX as f64) as u64;
     if mins < 1 {
         "just now".to_string()
     } else if mins < 60 {
@@ -1423,17 +1424,19 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
 
             let (event_type, summary, ts) = if r#type == "user" {
                 let text = extract_claude_message_text(&record);
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else if r#type == "assistant" {
                 let text = extract_claude_message_text(&record);
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
                 (
                     "assistant".into(),
                     text.chars().take(80).collect::<String>(),
@@ -1449,11 +1452,12 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                     .get("content")
                     .and_then(|c| extract_text_from_content(c.clone()))
                     .unwrap_or_default();
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let ts = record
                     .get("timestamp")
                     .or_else(|| record.get("createdAt"))
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
                 (
                     role.to_string(),
                     text.chars().take(80).collect::<String>(),
@@ -1466,10 +1470,11 @@ pub fn extract_timeline(sessions: &[crate::types::Session]) -> Vec<TimelineEvent
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let ts = record
                     .get("timestamp")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                    .unwrap_or(0.0).round().clamp(0.0, u64::MAX as f64) as u64;
                 ("user".into(), text.chars().take(80).collect::<String>(), ts)
             } else {
                 continue;

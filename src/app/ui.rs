@@ -760,12 +760,12 @@ impl super::App {
                     let guard = term.lock();
                     let display_offset = guard.grid().display_offset();
                     let grid = guard.grid();
-                    let screen_rows = guard.screen_lines() as u16;
-                    let screen_cols = guard.columns() as u16;
+                    let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
+                    let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
                     let max_rows = pty_area.height.min(screen_rows);
                     let max_cols = pty_area.width.min(screen_cols);
                     for y in 0..max_rows {
-                        let line_idx = y as i32 - display_offset as i32;
+                        let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
                         for x in 0..max_cols {
                             let p = Point::new(AlacLine(line_idx), Column(x as usize));
                             let cell = &grid[p];
@@ -822,9 +822,9 @@ impl super::App {
                             if row < vis_start || row >= vis_end {
                                 continue;
                             }
-                            let screen_y = pty_area.y + (row - vis_start) as u16;
+                            let screen_y = pty_area.y + u16::try_from(row - vis_start).unwrap_or(u16::MAX);
                             let screen_x = pty_area.x + col;
-                            if screen_x + len as u16 > pty_area.x + pty_area.width {
+                            if screen_x + u16::try_from(len).unwrap_or(u16::MAX) > pty_area.x + pty_area.width {
                                 continue;
                             }
                             let highlight_style = if mi == self.view.scrollback_match_idx {
@@ -838,7 +838,7 @@ impl super::App {
                                     .fg(self.view.theme.sidebar_text)
                             };
                             let mut text = String::new();
-                            for c in col..col + len as u16 {
+                            for c in col..col + u16::try_from(len).unwrap_or(u16::MAX) {
                                 match slot.handle.cell_contents(row, c as usize) {
                                     Some(t) => text.push_str(&t),
                                     None => text.push(' '),
@@ -848,7 +848,7 @@ impl super::App {
                             let highlight_area = Rect {
                                 x: screen_x,
                                 y: screen_y,
-                                width: len as u16,
+                                width: u16::try_from(len).unwrap_or(u16::MAX),
                                 height: 1,
                             };
                             frame.render_widget(
@@ -874,12 +874,12 @@ impl super::App {
             let guard = term_arc.lock();
             let display_offset = guard.grid().display_offset();
             let grid = guard.grid();
-            let screen_rows = guard.screen_lines() as u16;
-            let screen_cols = guard.columns() as u16;
+            let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
+            let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
             let max_rows = inner.height.min(screen_rows);
             let max_cols = inner.width.min(screen_cols);
             for y in 0..max_rows {
-                let line_idx = y as i32 - display_offset as i32;
+                let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
                 for x in 0..max_cols {
                     let p = Point::new(AlacLine(line_idx), Column(x as usize));
                     let cell = &grid[p];
@@ -951,12 +951,12 @@ impl super::App {
         let guard = term_arc.lock();
         let display_offset = guard.grid().display_offset();
         let grid = guard.grid();
-        let screen_rows = guard.screen_lines() as u16;
-        let screen_cols = guard.columns() as u16;
+        let screen_rows = u16::try_from(guard.screen_lines()).unwrap_or(u16::MAX);
+        let screen_cols = u16::try_from(guard.columns()).unwrap_or(u16::MAX);
         let max_rows = inner.height.min(screen_rows);
         let max_cols = inner.width.min(screen_cols);
         for y in 0..max_rows {
-            let line_idx = y as i32 - display_offset as i32;
+            let line_idx = i32::from(y) - i32::try_from(display_offset).unwrap_or(i32::MAX);
             for x in 0..max_cols {
                 let p = Point::new(AlacLine(line_idx), Column(x as usize));
                 let cell = &grid[p];
@@ -1283,10 +1283,11 @@ impl super::App {
             };
             if let Some(ref stats) = stats {
                 if stats.cpu_percent > 0.0 || stats.mem_rss_kb > 0 {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    let cpu_pct = stats.cpu_percent.round().clamp(0.0, u32::MAX as f64) as u32;
                     Span::styled(
                         format!(
-                            " ⚡{}% 🧠{}",
-                            stats.cpu_percent as u32,
+                            " ⚡{}% 🧠{}", cpu_pct,
                             crate::procfs::format_bytes(stats.mem_rss_kb * 1024)
                         ),
                         Style::default().fg(self.view.theme.status_text),

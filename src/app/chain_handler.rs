@@ -209,7 +209,7 @@ impl App {
                 let fire_at_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_millis() as u64
+                    .as_millis().try_into().unwrap_or(u64::MAX)
                     + 1500;
                 let pending = PendingInput {
                     fire_at_ms,

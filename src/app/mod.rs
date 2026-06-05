@@ -791,8 +791,9 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 let guard = term.lock();
                 let grid = guard.grid();
                 let cursor_point = grid.cursor.point;
-                let cursor_col = cursor_point.column.0 as u16;
-                let cursor_row = (grid.display_offset() as i32 + cursor_point.line.0) as u16;
+                let cursor_col = u16::try_from(cursor_point.column.0).unwrap_or(u16::MAX);
+                let cursor_row_i32 = i32::try_from(grid.display_offset()).unwrap_or(i32::MAX).saturating_add(cursor_point.line.0);
+                let cursor_row = u16::try_from(u32::try_from(cursor_row_i32.max(0)).unwrap_or(u32::MAX)).unwrap_or(u16::MAX);
                 let cursor_visible = guard.mode().contains(
                     alacritty_terminal::term::TermMode::SHOW_CURSOR,
                 );

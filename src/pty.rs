@@ -282,7 +282,7 @@ impl PtyHandle {
                                         .map(|r| {
                                             let mut line = String::with_capacity(cols);
                                             for c in 0..cols {
-                                                let p = Point::new(Line(r as i32), Column(c));
+                                                let p = Point::new(Line(i32::try_from(r).unwrap_or(i32::MAX)), Column(c));
                                                 let cell = &grid[p];
                                                 if cell.flags.contains(
                                                     alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
@@ -471,7 +471,7 @@ impl PtyHandle {
                                         .map(|r| {
                                             let mut line = String::with_capacity(cols);
                                             for c in 0..cols {
-                                                let p = Point::new(Line(r as i32), Column(c));
+                                                let p = Point::new(Line(i32::try_from(r).unwrap_or(i32::MAX)), Column(c));
                                                 let cell = &grid[p];
                                                 if cell.flags.contains(
                                                     alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER,
@@ -601,7 +601,7 @@ impl PtyHandle {
             self.snap_scroll.store(new_scroll, Ordering::Relaxed);
         } else {
             let mut t = self.term.lock();
-            t.scroll_display(Scroll::Delta(page_size as i32));
+            t.scroll_display(Scroll::Delta(i32::try_from(page_size).unwrap_or(i32::MAX)));
         }
     }
 
@@ -611,7 +611,7 @@ impl PtyHandle {
             self.snap_scroll.store(current.saturating_sub(1), Ordering::Relaxed);
         } else {
             let mut t = self.term.lock();
-            t.scroll_display(Scroll::Delta(-(page_size as i32)));
+            t.scroll_display(Scroll::Delta(-i32::try_from(page_size).unwrap_or(i32::MAX)));
         }
     }
 
@@ -628,7 +628,7 @@ impl PtyHandle {
         // Actually, let's use a direct approach.
         let total = t.grid().display_offset();
         if offset < total {
-            t.scroll_display(Scroll::Delta((total - offset) as i32));
+            t.scroll_display(Scroll::Delta(i32::try_from(total - offset).unwrap_or(i32::MAX)));
         }
     }
 
@@ -676,7 +676,7 @@ impl PtyHandle {
     pub fn cell_contents(&self, row: usize, col: usize) -> Option<String> {
         let t = self.term.lock();
         let display_offset = t.grid().display_offset();
-        let line_idx = row as i32 - display_offset as i32;
+        let line_idx = i32::try_from(row).unwrap_or(i32::MAX) - i32::try_from(display_offset).unwrap_or(i32::MAX);
         let cols = t.columns();
         if col >= cols {
             return None;
@@ -697,7 +697,7 @@ impl PtyHandle {
         let cols = t.columns();
         let mut out = String::with_capacity(rows * cols);
         for r in 0..rows {
-            let line_idx = r as i32 - display_offset as i32;
+            let line_idx = i32::try_from(r).unwrap_or(i32::MAX) - i32::try_from(display_offset).unwrap_or(i32::MAX);
             let mut line_buf = String::with_capacity(cols);
             for c in 0..cols {
                 let p = Point::new(Line(line_idx), Column(c));

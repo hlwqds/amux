@@ -316,8 +316,7 @@ impl super::App {
                                     let fire_at_ms = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .unwrap_or_default()
-                                        .as_millis()
-                                        as u64
+                                        .as_millis().try_into().unwrap_or(u64::MAX)
                                         + 1500;
                                     let pending = PendingInput {
                                         fire_at_ms,
@@ -385,7 +384,7 @@ impl super::App {
                         let now_ms = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
-                            .as_millis() as u64;
+                            .as_millis().try_into().unwrap_or(u64::MAX);
                         let mut offset_ms = 0u64;
                         for step in &auto.steps {
                             offset_ms += step.delay_ms;
@@ -486,8 +485,7 @@ impl super::App {
                                 let now_ms = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
-                                    .as_millis()
-                                    as u64;
+                                    .as_millis().try_into().unwrap_or(u64::MAX);
                                 self.ptys.pending_inputs.push(PendingInput {
                                     fire_at_ms: now_ms + 3000,
                                     text: ctx,

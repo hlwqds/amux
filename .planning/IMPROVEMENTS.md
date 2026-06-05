@@ -255,7 +255,11 @@
 
 ### 61. [x] P3 补全 3 个模块单元测试 (14 新测试)
 - **位置**:`chain_handler.rs` (5 tests), `session_ops.rs` (6 tests), `server/api.rs` (3 tests)
-- **覆盖**:chain 执行/schema 验证/ChainMode serde (5), sort/filter/move_sel (6), list_sessions/create_session/pty_input (3)
+
+### 62. [x] P1 修复全部 59 个类型转换截断/符号丢失警告
+- **位置**:11 个文件 (handler, ui, ui_popup, mod, discovery, procfs, pty, chain_handler, handler_select, session, session_ops)
+- **修复**:所有 `usize as u16`/`usize as i32`/`u128 as u64`/`f64 as u64`/`i64 as u64` 等不安全转换替换为 `try_into().unwrap_or(TYPE::MAX)` / `.clamp()` / `.round()` 安全替代
+- **验证**:`cargo clippy -- -W clippy::cast_possible_truncation -W clippy::cast_sign_loss -D warnings` 零警告
 
 ---
 

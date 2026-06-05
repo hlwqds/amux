@@ -716,7 +716,7 @@ impl App {
             "  ↑/↓ or j/k scroll · Alt+h/Alt+l cycle panels · Esc close",
             Style::default().fg(Color::DarkGray),
         )));
-        let total_lines = lines.len() as u16;
+        let total_lines = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let visible_height = popup_area.height.saturating_sub(2); // minus borders
         let max_scroll = total_lines.saturating_sub(visible_height);
         if self.popup.keybind_scroll > max_scroll {
@@ -1494,7 +1494,7 @@ impl App {
     }
 
     pub(super) fn render_conflict_resolve(&self, frame: &mut Frame, area: Rect) {
-        let height = (self.popup.conflict_warnings.len() * 2 + 9).min(30) as u16;
+        let height = u16::try_from((self.popup.conflict_warnings.len() * 2 + 9).min(30)).unwrap_or(u16::MAX);
         let popup_area = centered_rect(80, height, area);
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![Span::styled(
@@ -1738,7 +1738,8 @@ impl App {
                     .map(|s| s.title.as_str())
                     .unwrap_or("(unknown)");
 
-                let pct = (score * 100.0).round() as u8;
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let pct = (score * 100.0).round().clamp(0.0, 255.0) as u8;
                 let prefix = if is_sel { " > " } else { "   " };
                 let style = if is_sel {
                     Style::default()

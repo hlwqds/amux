@@ -1111,7 +1111,7 @@ impl super::App {
             if let Some(ref re) = regex_ok {
                 // Regex mode: find all matches
                 for m in re.find_iter(&line) {
-                    self.view.scrollback_matches.push((row as u16, m.start() as u16, m.end() - m.start()));
+                    self.view.scrollback_matches.push((u16::try_from(row).unwrap_or(u16::MAX), u16::try_from(m.start()).unwrap_or(u16::MAX), m.end() - m.start()));
                 }
             } else {
                 // Plain substring mode (case-insensitive unless toggled)
@@ -1128,7 +1128,7 @@ impl super::App {
                 let mut start = 0;
                 while let Some(pos) = haystack[start..].find(&needle) {
                     let abs_pos = start + pos;
-                    self.view.scrollback_matches.push((row as u16, abs_pos as u16, needle.len()));
+                    self.view.scrollback_matches.push((u16::try_from(row).unwrap_or(u16::MAX), u16::try_from(abs_pos).unwrap_or(u16::MAX), needle.len()));
                     start = abs_pos + needle.len();
                     if start >= haystack.len() {
                         break;
@@ -1202,11 +1202,11 @@ impl super::App {
                 }
                 // Compute frame width: chat_area.x + chat_area.width
                 let chat_area = self.view.last_chat_area;
-                let frame_width = (chat_area.x as u32 + chat_area.width as u32) as u16;
+                let frame_width = u16::try_from(chat_area.x as u32 + chat_area.width as u32).unwrap_or(u16::MAX);
                 if frame_width == 0 {
                     return true;
                 }
-                let new_ratio = (column as u32 * 100 / frame_width as u32) as u16;
+                let new_ratio = u16::try_from(column as u32 * 100 / u32::from(frame_width)).unwrap_or(u16::MAX);
                 // Clamp to 20-50
                 self.view.split_ratio = new_ratio.clamp(20, 50);
                 true
