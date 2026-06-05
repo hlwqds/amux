@@ -607,9 +607,7 @@ impl super::App {
             KeyCode::Enter => {
                 self.confirm_input()?;
             }
-            KeyCode::Char('c' | 'C')
-                if self.available_agents.contains(&Agent::Claude) =>
-            {
+            KeyCode::Char('c' | 'C') if self.available_agents.contains(&Agent::Claude) => {
                 self.agent_state.select(Some(
                     self.available_agents
                         .iter()
@@ -618,9 +616,7 @@ impl super::App {
                 ));
                 self.confirm_input()?;
             }
-            KeyCode::Char('x' | 'X')
-                if self.available_agents.contains(&Agent::Codex) =>
-            {
+            KeyCode::Char('x' | 'X') if self.available_agents.contains(&Agent::Codex) => {
                 self.agent_state.select(Some(
                     self.available_agents
                         .iter()
@@ -629,9 +625,7 @@ impl super::App {
                 ));
                 self.confirm_input()?;
             }
-            KeyCode::Char('o' | 'O')
-                if self.available_agents.contains(&Agent::Omp) =>
-            {
+            KeyCode::Char('o' | 'O') if self.available_agents.contains(&Agent::Omp) => {
                 self.agent_state.select(Some(
                     self.available_agents
                         .iter()
