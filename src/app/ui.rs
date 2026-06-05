@@ -26,14 +26,14 @@ const fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
     use NamedColor::*;
     match n {
         Foreground | Background | Cursor | DimForeground | BrightForeground => None,
-        Black => Some(Color::Black),
-        Red => Some(Color::Red),
-        Green => Some(Color::Green),
-        Yellow => Some(Color::Yellow),
-        Blue => Some(Color::Blue),
-        Magenta => Some(Color::Magenta),
-        Cyan => Some(Color::Cyan),
-        White => Some(Color::Gray),
+        Black | DimBlack => Some(Color::Black),
+        Red | DimRed => Some(Color::Red),
+        Green | DimGreen => Some(Color::Green),
+        Yellow | DimYellow => Some(Color::Yellow),
+        Blue | DimBlue => Some(Color::Blue),
+        Magenta | DimMagenta => Some(Color::Magenta),
+        Cyan | DimCyan => Some(Color::Cyan),
+        White | DimWhite => Some(Color::Gray),
         BrightBlack => Some(Color::DarkGray),
         BrightRed => Some(Color::LightRed),
         BrightGreen => Some(Color::LightGreen),
@@ -42,14 +42,6 @@ const fn named_to_ratatui_color(n: NamedColor) -> Option<Color> {
         BrightMagenta => Some(Color::LightMagenta),
         BrightCyan => Some(Color::LightCyan),
         BrightWhite => Some(Color::White),
-        DimBlack => Some(Color::Black),
-        DimRed => Some(Color::Red),
-        DimGreen => Some(Color::Green),
-        DimYellow => Some(Color::Yellow),
-        DimBlue => Some(Color::Blue),
-        DimMagenta => Some(Color::Magenta),
-        DimCyan => Some(Color::Cyan),
-        DimWhite => Some(Color::Gray),
     }
 }
 
@@ -434,10 +426,7 @@ impl super::App {
                                 self.view.theme.status_running,
                                 " \u{23f3} checking...".into(),
                             ),
-                            CheckStatus::Passed => {
-                                (self.view.theme.status_done, " \u{2714} done".into())
-                            }
-                            CheckStatus::Pending => {
+                            CheckStatus::Passed | CheckStatus::Pending => {
                                 (self.view.theme.status_done, " \u{2714} done".into())
                             }
                         },

@@ -334,7 +334,7 @@ impl App {
                 focus: Focus::Sidebar,
                 input_mode: InputMode::None,
                 chat_mode: ChatMode::default(),
-                status: Default::default(),
+                status: String::default(),
                 prev_status: String::new(),
                 status_set_at: std::time::Instant::now(),
                 sort_mode: SortMode::default(),

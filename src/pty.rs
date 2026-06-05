@@ -451,7 +451,7 @@ impl PtyHandle {
                 let mut snap_counter: u32 = 0;
                 loop {
                     match std::io::Read::read(&mut reader, &mut buf) {
-                        Ok(0) => break,
+                        Ok(0) | Err(_) => break,
                         Ok(n) => {
                             let data = &buf[..n];
                             {
@@ -504,7 +504,6 @@ impl PtyHandle {
                             last_output_at.store(now_secs(), Ordering::Relaxed);
                             output_notify.notify_waiters();
                         }
-                        Err(_) => break,
                     }
                 }
             });

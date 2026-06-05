@@ -1017,7 +1017,7 @@ mod tests {
             ignore_sessions: vec!["temp-".into()],
             env: vec![("NODE_ENV".into(), "development".into())],
             auto_inject_knowledge: true,
-            preflight: Default::default(),
+            preflight: PreflightConfig::default(),
         };
         let json = serde_json::to_string(&config).unwrap();
         let parsed: ProjectConfig = serde_json::from_str(&json).unwrap();

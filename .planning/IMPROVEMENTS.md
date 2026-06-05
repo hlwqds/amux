@@ -381,6 +381,14 @@
   - `.map(|x| f(x))` → `.map(f)` (34 处冗余闭包)
 - **效果**: 代码更符合现代 Rust 惯用法
 - **验证**:`cargo clippy --all-targets -- -W clippy::uninlined_format_args -W clippy::redundant_closure -D warnings` clean
+
+### 79. [x] P2 合并 18 处重复 match arm + 2 处 default_trait_access
+- **问题**: clippy pedantic 检测到 18 处 match 分支体相同未合并; 2 处 `Default::default()` 应使用类型限定
+- **修复**:
+  - match arms: 合并相同体的分支用 `|` (如 `Black | DimBlack => Some(Color::Black)`)
+  - `"".to_string()` → `String::default()`, `Default::default()` → `PreflightConfig::default()`
+- **涉及**: browse, handler_select, session, session_ops, ui, headless, pty, types
+- **验证**:`cargo clippy --all-targets -- -W clippy::match_same_arms -W clippy::default_trait_access -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

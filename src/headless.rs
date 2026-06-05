@@ -108,7 +108,7 @@ pub fn run(agent: Agent, prompt: &str, workspace: &Path, timeout_secs: Option<u6
         let mut strip = StripAnsi::new();
         loop {
             match io::Read::read(&mut reader, &mut buf) {
-                Ok(0) => break,
+                Ok(0) | Err(_) => break,
                 Ok(n) => {
                     let clean = strip.process(&buf[..n]);
                     if !clean.is_empty() {
@@ -116,7 +116,6 @@ pub fn run(agent: Agent, prompt: &str, workspace: &Path, timeout_secs: Option<u6
                         let _ = stdout.flush();
                     }
                 }
-                Err(_) => break,
             }
         }
     });
@@ -173,8 +172,7 @@ pub fn run(agent: Agent, prompt: &str, workspace: &Path, timeout_secs: Option<u6
 
     match exit_status {
         Some(status) if status.success() => Ok(EXIT_SUCCESS),
-        Some(_) => Ok(EXIT_FAILURE),
-        None => Ok(EXIT_FAILURE), // shouldn't happen, but safe default
+        Some(_) | None => Ok(EXIT_FAILURE),
     }
 }
 

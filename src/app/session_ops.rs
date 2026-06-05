@@ -1583,19 +1583,13 @@ impl App {
                 self.view.focus = Focus::Chat;
                 self.update_related_sessions();
             }
-            Some(TreeNode::AgentHeader(_)) => {}
-            Some(TreeNode::PinnedWorkspace) => {}
-            Some(TreeNode::RecentWorkspace) => {}
-            Some(TreeNode::ArchivedHeader) => {}
-            Some(TreeNode::WorkspaceWarning(_, _)) => {}
-            Some(TreeNode::ArchivedSession(_wi, ai))
-                if ai < self.sessions.archived_sessions.len() =>
-            {
-                let session = self.sessions.archived_sessions[ai].clone();
-                self.spawn_with_agent(session.agent, None)?;
-            }
-            Some(TreeNode::ArchivedSession(_, _)) => {}
-            None => {}
+            Some(TreeNode::AgentHeader(_))
+            | Some(TreeNode::PinnedWorkspace)
+            | Some(TreeNode::RecentWorkspace)
+            | Some(TreeNode::ArchivedHeader)
+            | Some(TreeNode::WorkspaceWarning(_, _))
+            | Some(TreeNode::ArchivedSession(_, _))
+            | None => {}
         }
         Ok(())
     }

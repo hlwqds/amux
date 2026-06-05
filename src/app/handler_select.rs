@@ -153,8 +153,7 @@ impl super::App {
                         .and_then(|id| self.sessions.workspaces.iter().position(|ws| ws.id == *id))
                         .or_else(|| {
                             self.selected_node().and_then(|n| match n {
-                                TreeNode::Workspace(wi) => Some(*wi),
-                                TreeNode::Session(wi, _) => Some(*wi),
+                                TreeNode::Workspace(wi) | TreeNode::Session(wi, _) => Some(*wi),
                                 _ => None,
                             })
                         });
@@ -550,8 +549,9 @@ impl super::App {
                     let ws_path = self
                         .selected_node()
                         .and_then(|n| match n {
-                            TreeNode::Workspace(wi) => self.sessions.workspaces[*wi].path.clone(),
-                            TreeNode::Session(wi, _) => self.sessions.workspaces[*wi].path.clone(),
+                            TreeNode::Workspace(wi) | TreeNode::Session(wi, _) => {
+                                self.sessions.workspaces[*wi].path.clone()
+                            }
                             _ => None,
                         })
                         .unwrap_or_default();
@@ -658,11 +658,6 @@ impl super::App {
     pub(super) fn handle_plugin_output_key(&mut self, key: KeyEvent) -> Action {
         let line_count = self.plugin_output.len();
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => {
-                self.view.input_mode = InputMode::None;
-                self.plugin_output.clear();
-                self.plugin_scroll = 0;
-            }
             KeyCode::Down | KeyCode::Char('j') => {
                 if self.plugin_scroll + 1 < line_count {
                     self.plugin_scroll += 1;

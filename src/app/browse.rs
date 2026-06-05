@@ -119,10 +119,6 @@ impl super::App {
                 self.rebuild_tree();
                 self.view.input_mode = InputMode::None;
             }
-            PARENT_DIR => {
-                self.browse_dir = entry.path;
-                self.load_browse_entries();
-            }
             _ => {
                 self.browse_dir = entry.path;
                 self.load_browse_entries();
