@@ -413,6 +413,12 @@
 - **位置**:knowledge.rs:136
 - **修复**:`r"`([^`]+)`"` → `"`([^`]+)`"` (不含反斜杠或引号,无需 raw literal)
 - **验证**:`cargo clippy --all-targets -- -W clippy::needless_raw_strings -D warnings` clean
+
+### 84. [x] P2 2 处 HashMap 迭代改为 BTreeMap (iter_over_hash_type)
+- **问题**: `detect_file_conflicts` 和 `isolate_conflicts` 使用 `HashMap` 迭代,顺序不确定
+- **修复**: `HashMap<PathBuf, Vec<usize>>` → `BTreeMap<PathBuf, Vec<usize>>`,确保按路径排序
+- **位置**:session_ops.rs:383, 492
+- **验证**:`cargo clippy --all-targets -- -W clippy::iter_over_hash_type -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |

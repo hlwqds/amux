@@ -380,8 +380,8 @@ impl App {
 
     pub(crate) fn detect_file_conflicts(&mut self) {
         // Group running PTYs by workspace
-        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> =
-            std::collections::HashMap::new();
+        let mut ws_ptys: std::collections::BTreeMap<PathBuf, Vec<usize>> =
+            std::collections::BTreeMap::new();
         for (i, slot) in self.ptys.ptys.iter().enumerate() {
             if !slot.info.completed {
                 ws_ptys
@@ -489,8 +489,8 @@ impl App {
         }
 
         // Identify PTYs involved in conflicts
-        let mut ws_ptys: std::collections::HashMap<PathBuf, Vec<usize>> =
-            std::collections::HashMap::new();
+        let mut ws_ptys: std::collections::BTreeMap<PathBuf, Vec<usize>> =
+            std::collections::BTreeMap::new();
         for (i, slot) in self.ptys.ptys.iter().enumerate() {
             if !slot.info.completed && slot.info.worktree_branch.is_none() {
                 ws_ptys
