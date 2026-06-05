@@ -196,7 +196,7 @@ impl super::App {
                         // to the bottom (live content) when the user types —
                         // same behaviour as Kitty.
                         slot.handle.reset_scroll();
-                        let _ = slot.handle.write_input(&bytes);
+                        if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                         self.view.screen_changed = true;
                     }
                     return Ok(Action::Continue);
@@ -377,7 +377,7 @@ impl super::App {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let bytes = crate::util::key_to_bytes(&key);
-                            let _ = slot.handle.write_input(&bytes);
+                            if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                         } else if key.code == KeyCode::PageUp {
                             slot.handle.scroll_page_up(
                                 self.view.last_chat_area.height.saturating_sub(2) as usize,
@@ -395,7 +395,7 @@ impl super::App {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let bytes = crate::util::key_to_bytes(&key);
-                            let _ = slot.handle.write_input(&bytes);
+                            if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                         } else {
                             slot.handle.scroll_page_up(99999);
                         }
@@ -407,7 +407,7 @@ impl super::App {
                     if let Some(slot) = self.ptys.ptys.get(idx) {
                         if slot.handle.is_alternate_screen() {
                             let bytes = crate::util::key_to_bytes(&key);
-                            let _ = slot.handle.write_input(&bytes);
+                            if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                         } else {
                             slot.handle.reset_scroll();
                         }
@@ -420,10 +420,10 @@ impl super::App {
                 if !bytes.is_empty() {
                     // When terminal split is open, forward to shell instead of main PTY
                     if let Some(term) = &self.terminal {
-                        let _ = term.handle.write_input(&bytes);
+                        if let Err(e) = term.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                     } else if let Some(slot) = self.ptys.ptys.get(idx) {
                         slot.handle.reset_scroll();
-                        let _ = slot.handle.write_input(&bytes);
+                        if let Err(e) = slot.handle.write_input(&bytes) { self.view.status = format!("Write error: {e}"); }
                     }
                 }
                 return Ok(Action::Continue);
@@ -1243,7 +1243,10 @@ impl super::App {
             && let Some(idx) = self.ptys.active_pty
             && let Some(slot) = self.ptys.ptys.get(idx)
         {
-            let _ = slot.handle.write_input(text.as_bytes());
+            let res = slot.handle.write_input(text.as_bytes());
+            if let Err(e) = res {
+                self.view.status = format!("Write error: {e}");
+            }
         }
         Ok(Action::Continue)
     }

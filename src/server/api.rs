@@ -15,6 +15,7 @@ fn fallback_config() -> crate::types::Config {
     }
 }
 
+/// List all discovered sessions with their active status.
 pub async fn list_sessions(State(state): State<Arc<AppState>>) -> Json<Value> {
     let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
     let sessions = crate::discovery::discover_sessions(&config.workspaces);
@@ -51,6 +52,7 @@ pub async fn list_sessions(State(state): State<Arc<AppState>>) -> Json<Value> {
     Json(json!({ "sessions": list }))
 }
 
+/// List all configured workspaces.
 pub async fn list_workspaces(State(_state): State<Arc<AppState>>) -> Json<Value> {
     let config = crate::config::load_config().unwrap_or_else(|_| fallback_config());
     let list: Vec<Value> = config
@@ -140,6 +142,7 @@ pub struct CreateSessionRequest {
     pub name: Option<String>,
 }
 
+/// Spawn a new agent session from an HTTP request.
 pub async fn create_session(AxumJson(body): AxumJson<CreateSessionRequest>) -> Json<Value> {
     // Parse agent
     let agent = match body.agent.to_lowercase().as_str() {

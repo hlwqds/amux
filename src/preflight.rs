@@ -23,6 +23,7 @@ pub struct PreflightResult {
 }
 
 impl PreflightResult {
+/// Whether any check produced a warning or failure.
     pub fn has_warnings(&self) -> bool {
         self.checks
             .iter()

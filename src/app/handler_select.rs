@@ -167,7 +167,7 @@ impl super::App {
                         {
                             let expanded = crate::template::expand_template_vars(prompt, &ws_path);
                             let data = format!("{}\n", expanded);
-                            let _ = slot.handle.write_input(data.as_bytes());
+                            if let Err(e) = slot.handle.write_input(data.as_bytes()) { self.view.status = format!("Write error: {e}"); }
                         }
                         self.view.status = format!("Launched template: {}", tmpl.name);
                     } else {

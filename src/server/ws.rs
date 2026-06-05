@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use super::AppState;
 
+/// WebSocket handler that proxies bidirectional PTY I/O.
 pub async fn pty_ws_handler(
     ws: WebSocketUpgrade,
     Path(pty_id): Path<String>,

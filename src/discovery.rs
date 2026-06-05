@@ -67,6 +67,7 @@ impl ProjectType {
     }
 }
 
+/// Scan filesystem roots for git repositories and return them as workspaces.
 pub fn discover_workspaces_from_fs() -> Vec<Workspace> {
     let roots = env::var_os("AGENT_WORKSPACES")
         .map(|v| env::split_paths(&v).collect())
@@ -93,6 +94,7 @@ pub fn discover_workspaces_from_fs() -> Vec<Workspace> {
 /// Cache for incremental session discovery — maps file path to (mtime, Session).
 pub type SessionCache = std::collections::HashMap<PathBuf, (SystemTime, Session)>;
 
+/// Discover all sessions across the given workspaces (no caching).
 pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
     discover_sessions_cached(workspaces, &mut SessionCache::new())
 }

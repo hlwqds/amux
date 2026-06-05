@@ -22,6 +22,7 @@ pub const SELECT_CURRENT: &str = "\u{2713} Select this directory";
 pub const SELECT_VIRTUAL: &str = "\u{25cb} Virtual (no directory)";
 pub const PARENT_DIR: &str = "..";
 
+/// Return the current time as seconds since the Unix epoch.
 pub fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -29,6 +30,7 @@ pub fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+/// Convert a Unix timestamp into a human-readable relative time string (e.g. "5m ago").
 pub fn relative_time(secs: u64) -> String {
     let diff = now_secs().saturating_sub(secs);
     match diff {
@@ -39,6 +41,7 @@ pub fn relative_time(secs: u64) -> String {
     }
 }
 
+/// Locate an executable on `$PATH` by name.
 pub fn which(cmd: &str) -> Option<PathBuf> {
     env::var_os("PATH").and_then(|paths| {
         env::split_paths(&paths).find_map(|dir| {
@@ -48,6 +51,7 @@ pub fn which(cmd: &str) -> Option<PathBuf> {
     })
 }
 
+/// Detect which agent CLIs are installed and available on `$PATH`.
 pub fn detect_agents() -> Vec<Agent> {
     Agent::ALL
         .iter()
@@ -56,6 +60,7 @@ pub fn detect_agents() -> Vec<Agent> {
         .collect()
 }
 
+/// Convert a crossterm `KeyEvent` into raw terminal bytes.
 pub fn key_to_bytes(key: &KeyEvent) -> Vec<u8> {
     match key.code {
         KeyCode::Enter => vec![b'\r'],
@@ -102,6 +107,7 @@ pub fn key_to_bytes(key: &KeyEvent) -> Vec<u8> {
     }
 }
 
+/// Compute a centered sub-rectangle within `area` using percentage-based sizing.
 pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -121,6 +127,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
         .split(vertical[1])[1]
 }
 
+/// Initialize the terminal for raw-mode TUI rendering.
 pub fn init_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -128,6 +135,7 @@ pub fn init_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
     Terminal::new(CrosstermBackend::new(stdout)).context("failed to initialize terminal")
 }
 
+/// Restore the terminal to its original cooked-mode state.
 pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
     disable_raw_mode()?;
     execute!(

@@ -2269,7 +2269,7 @@ impl App {
                     && let Some(slot) = self.ptys.ptys.get(pi)
                 {
                     let data = format!("{}\n", step.text);
-                    let _ = slot.handle.write_input(data.as_bytes());
+                    if let Err(e) = slot.handle.write_input(data.as_bytes()) { self.view.status = format!("Write error: {e}"); }
                 }
             } else {
                 i += 1;

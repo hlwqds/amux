@@ -10,6 +10,7 @@ use anyhow::{Context, Result};
 use crate::types::{Config, ProjectConfig};
 use crate::util::now_secs;
 
+/// Return the amux data directory, respecting `$XDG_DATA_HOME`.
 pub fn data_dir() -> PathBuf {
     if let Some(p) = env::var_os("XDG_DATA_HOME").map(PathBuf::from) {
         return p.join("amux");
@@ -27,10 +28,12 @@ pub fn data_dir() -> PathBuf {
     }
 }
 
+/// Path to the global `config.json` file.
 pub fn config_path() -> PathBuf {
     data_dir().join("config.json")
 }
 
+/// Ensure the data directory and sessions subdirectory exist.
 pub fn ensure_data_dir() -> io::Result<()> {
     let dir = data_dir();
     if !dir.exists() {
@@ -43,6 +46,7 @@ pub fn ensure_data_dir() -> io::Result<()> {
     Ok(())
 }
 
+/// Load the global config, overlaying any `config.d/*.json` drop-ins.
 pub fn load_config() -> Result<Config> {
     let path = config_path();
     let mut config: Config = if path.exists() {
@@ -200,17 +204,20 @@ pub fn save_config_file(config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Generate a unique workspace ID from the current timestamp and a counter.
 pub fn generate_id() -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let count = COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("ws-{}-{}", now_secs(), count)
 }
 
+/// Encode a filesystem path by replacing `/` with `-`.
 pub fn encode_project_path(path: &Path) -> String {
     let s = path.to_string_lossy();
     s.replace('/', "-")
 }
 
+/// Return default workspace root directories (siblings of the current working directory).
 pub fn default_roots() -> Vec<PathBuf> {
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let parent = cwd.parent().unwrap_or(&cwd);
@@ -223,12 +230,14 @@ pub fn default_roots() -> Vec<PathBuf> {
         .collect()
 }
 
+/// Path to the title override file for a session.
 pub fn title_override_path(session_id: &str) -> PathBuf {
     data_dir()
         .join("sessions")
         .join(format!("{session_id}.title"))
 }
 
+/// Path to the legacy (pre-v0.3) title override file inside `.claude/`.
 pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> PathBuf {
     let encoded = workspace_path.to_string_lossy().replace('/', "-");
     workspace_path
@@ -236,6 +245,7 @@ pub fn legacy_title_override_path(workspace_path: &Path, session_id: &str) -> Pa
         .join(format!("{encoded}-{session_id}.title"))
 }
 
+/// Save the session title, preserving existing tags/note/pinned state.
 pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
     let existing = load_session_meta(session_id, None);
     let (tags, note, pinned) = match existing {
@@ -245,6 +255,7 @@ pub fn save_session_title(session_id: &str, title: &str) -> io::Result<()> {
     save_session_meta(session_id, title, &tags, note.as_deref(), pinned)
 }
 
+/// Persist full session metadata (title, tags, note, pinned) to the override file.
 pub fn save_session_meta(
     session_id: &str,
     title: &str,
@@ -379,6 +390,7 @@ pub fn load_session_meta(session_id: &str, workspace_path: Option<&Path>) -> Opt
     None
 }
 
+/// Load just the session title, if a title override exists.
 pub fn load_session_title(session_id: &str, workspace_path: Option<&Path>) -> Option<String> {
     load_session_meta(session_id, workspace_path).map(|m| m.title)
 }

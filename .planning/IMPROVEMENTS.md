@@ -215,8 +215,16 @@
 - **位置**:`src/pty.rs:145` — `PtyHandle::spawn()` / `spawn_shell()` 新增 `unset_env: &[String]` 参数
 - **修复**:所有 8 处 spawn 调用点 + 6 处 `apply_term_env` → `apply_term_env_with_extra`,删除 `#[allow(dead_code)]`
 
----
+### 51. [x] P3 公共 API 补全 doc comments
+- **位置**:7 个文件 28 个 `pub fn` 补全 `///` 文档注释 (config, util, discovery, server/api, server/ws, preflight)
+- **覆盖**:所有 public 函数接口均有文档
 
+### 52. [x] P2 关键 `write_input` 调用点错误反馈
+- **位置**:8 处用户可见的 `let _ = slot.handle.write_input(...)` 改为检查 Result
+- **错误反馈**:`self.view.status = format!(\"Write error: {e}\")` 在 PTY 关闭时通知用户
+- **文件**:handler.rs (7处), handler_select.rs (1处), mod.rs (1处 chain step)
+
+---
 ## 五、推荐的执行顺序
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|
