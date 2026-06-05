@@ -178,17 +178,9 @@
   - `mcp__amux__search_history(query)`
 - **价值**:**Claude Code 在跑的同时,通过 MCP 操作另一个 PTY 上的 Codex 跑测试** — 这才是真正的多 agent 并发协作
 
-### 27. [ ] P2 `Config` 支持 `config.d/` 目录 + `imports` 字段
-- **现状**:`Config`(`src/types.rs:286`)21 个字段全部硬塞 `config.json`
-- **方案**:
-  - 启动时 `load_config()` 读 `config.json` + `config.d/*.json`(按文件名字母序合并)
-  - `Config` 加 `imports: Vec<String>` 字段,允许项目级 `.amux.json` 继承全局基线
-- **价值**:monorepo 子项目能共享基线配置
+### 27. [x] P2 `Config` 支持 `config.d/` 目录
+- **位置**:`src/config.rs:58` — `load_config()` 自动读取 `config.d/*.json` 按字母序 merge,`merge_config()` 只覆盖非空字段
 
-### 28. [ ] P2 `.amux.json` 用 `jsonschema` 校验
-- **现状**:`load_project_config`(`src/config.rs:72`)解析失败就 `unwrap_or_default()` 静默吞错
-- **方案**:
-  1. 内嵌 `.amux.json` 的 JSON Schema
 ### 28. [x] P2 `.amux.json` 解析错误不再静默吞错
 - **位置**:`src/config.rs:66` — `load_project_config` 解析失败时 `tracing::warn!` 输出文件路径和错误,不再 `unwrap_or_default()`
 
@@ -211,9 +203,8 @@
 - **现状**:`src/doctor.rs` 只报告问题(`CheckResult.fix_hint: Option<String>`),不能自动修
 - **方案**:
   1. 现有 fix_hint 升级为 `Fix { kind: AutoFix, command: String, needs_confirm: bool }`
-  2. `--fix` 参数 + 二次确认 prompt(防误操作)
-  3. 覆盖:no agent CLI → `npm i -g @anthropic-ai/claude-code`、缺 `config.json` → 写默认、缺 `data_dir` → mkdir
-- **价值**:新用户第一次跑 `amux doctor --fix` 就能用
+### 32. [x] P2 `amux doctor --fix` 自动修复
+- **位置**:`src/doctor.rs:70` — `run_doctor_fix()` + `AutoFix` struct, data/sessions 目录缺失时可 auto-fix
 
 ---
 
@@ -221,8 +212,12 @@
 
 ### 33. [x] P3 crates.io 发布准备
 - **位置**:`Cargo.toml` 已加 description/license/repository/keywords/categories/readme
+
 ### 34. [x] P3 GitHub Actions CI
 - **位置**:`.github/workflows/ci.yml` — check/test/clippy/fmt 四个 job,Ubuntu + rust-cache
+
+### 35. [x] P3 `CHANGELOG.md` 0.x 跟踪
+- **位置**:已创建 `CHANGELOG.md`,Keep a Changelog 格式
 
 ### 36. [x] P3 补 `score_bm25` 单元测试
 - **位置**:`src/search_engine.rs:353` — `test_bm25_idf_and_scoring` 验证 IDF 值、avg_dl、排名顺序
@@ -235,11 +230,6 @@
 ### 39. [ ] P3 `app/handler/ui` 集成测试 + `insta` 快照
 - **现状**:`src/app/mod.rs:3745 行` + `handler.rs:1313 行` + `ui.rs:3788 行`**0 个集成测试**
 - **方案**:`tests/integration/` 用 `insta` 快照渲染输出,主流程 key 路径各 1 个快照
-
-### 40. [ ] P2 `PtyState` 改 `DashMap` 分片锁
-- **现状**:`parking_lot::Mutex<HashMap<id, RegisteredPty>>` 在 `src/server/mod.rs:31-36` 是单点锁
-- **问题**:10 个并发 WS 连接就有竞争
-- **修复**:换 `dashmap::DashMap`,或 `Arc<RwLock<HashMap>>` + 一致性哈希分片
 
 ### 40. [x] P2 `PtyState` 改 `DashMap` 分片锁
 - **位置**:`server::SharedPtyMap = dashmap::DashMap<String, RegisteredPty>` — 替换 `Arc<Mutex<HashMap>>`,消除 `try_lock` 和 `lock().await`

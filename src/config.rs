@@ -45,15 +45,95 @@ pub fn ensure_data_dir() -> io::Result<()> {
 
 pub fn load_config() -> Result<Config> {
     let path = config_path();
-    if !path.exists() {
-        return Ok(Config {
+    let mut config: Config = if path.exists() {
+        let content = fs::read_to_string(&path).context("failed to read config.json")?;
+        serde_json::from_str(&content).context("failed to parse config.json")?
+    } else {
+        Config {
             workspaces: Vec::new(),
             ..Default::default()
-        });
+        }
+    };
+
+    // Overlay config.d/*.json files (sorted alphabetically)
+    let config_d = config_path()
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("config.d");
+    if config_d.is_dir() {
+        let mut entries: Vec<_> = fs::read_dir(&config_d)
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to read config.d: {e}");
+                fs::read_dir(".").unwrap() // empty iter
+            })
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .is_some_and(|ext| ext == "json")
+            })
+            .collect();
+        entries.sort_by_key(|e| e.file_name());
+
+        for entry in entries {
+            let overlay_path = entry.path();
+            match fs::read_to_string(&overlay_path) {
+                Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(value) => {
+                        if let Ok(overlay) = serde_json::from_value::<Config>(value) {
+                            merge_config(&mut config, &overlay);
+                            tracing::info!("Loaded config overlay: {}", overlay_path.display());
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to parse {}: {e}",
+                            overlay_path.display()
+                        );
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to read {}: {e}", overlay_path.display());
+                }
+            }
+        }
     }
-    let content = fs::read_to_string(&path).context("failed to read config.json")?;
-    let config: Config = serde_json::from_str(&content).context("failed to parse config.json")?;
+
     Ok(config)
+}
+
+/// Merge overlay config into base. Only replaces non-default fields.
+fn merge_config(base: &mut Config, overlay: &Config) {
+    if !overlay.workspaces.is_empty() {
+        base.workspaces = overlay.workspaces.clone();
+    }
+    if !overlay.chains.is_empty() {
+        base.chains = overlay.chains.clone();
+    }
+    if !overlay.templates.is_empty() {
+        base.templates = overlay.templates.clone();
+    }
+    if !overlay.automations.is_empty() {
+        base.automations = overlay.automations.clone();
+    }
+    if !overlay.plugins.is_empty() {
+        base.plugins = overlay.plugins.clone();
+    }
+    if !overlay.remote_hosts.is_empty() {
+        base.remote_hosts = overlay.remote_hosts.clone();
+    }
+    if !overlay.unset_env.is_empty() {
+        base.unset_env = overlay.unset_env.clone();
+    }
+    if let Some(ref token) = overlay.serve_token {
+        base.serve_token = Some(token.clone());
+    }
+    if let Some(ref budget) = overlay.token_budget {
+        base.token_budget = Some(budget.clone());
+    }
+    if let Some(ref cmd) = overlay.check_command {
+        base.check_command = Some(cmd.clone());
+    }
 }
 
 /// Load per-project configuration from `.amux.json` in the workspace root.
