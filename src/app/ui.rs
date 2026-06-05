@@ -1656,7 +1656,7 @@ mod tab_bar_tests {
     #[test]
     fn tab_bar_hidden_when_no_ptys() {
         // When ptys is empty, build_tab_bar returns an empty Line
-        let mut app = crate::app::tests::test_app(vec![], vec![]);
+        let app = crate::app::tests::test_app(vec![], vec![]);
         let line = app.build_tab_bar(80);
         // An empty Line has no spans
         assert!(

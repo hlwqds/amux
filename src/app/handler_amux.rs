@@ -174,7 +174,7 @@ impl super::App {
                             Ok(()) => self.view.status = "Screen copied to clipboard".into(),
                             Err(e) => self.view.status = format!("Clipboard error: {e}"),
                         }
-                    return Action::Continue;
+                        return Action::Continue;
                     }
                 }
                 _ => return Action::Continue, // swallow all plain letters

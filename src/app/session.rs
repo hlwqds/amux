@@ -535,7 +535,6 @@ impl super::App {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::App;
     use crate::app::tests::{sess, test_app, ws};
     use crate::types::InputMode;
 

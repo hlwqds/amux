@@ -142,8 +142,6 @@ impl super::App {
 mod tests {
     use super::*;
     use crate::app::tests::test_app;
-    use crate::types::*;
-    use ratatui::widgets::ListState;
 
     fn make_entry(name: &str, path: &str, is_dir: bool) -> DirEntry {
         DirEntry {

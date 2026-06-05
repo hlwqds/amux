@@ -532,6 +532,7 @@ pub struct DirEntry {
     pub is_dir: bool,
 }
 
+#[derive(Debug)]
 pub enum Action {
     Continue,
     Quit,
