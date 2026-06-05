@@ -84,6 +84,7 @@
 - **位置**:`src/knowledge.rs` — `extract_structured_knowledge()` 用 regex 提取 architecture/key_files/tech_stack/known_issues
 - **方案**:regex 模式匹配(非 LLM 调用),55+ 技术栈关键词,backtick 路径提取,TODO/FIXME 注释提取
 - **作为 fallback**:当 `merge_from_session` 关键词提取结果为空时自动触发
+
 ### 16. [x] P2 每 PTY 侧栏实时显示相关历史会话
 - **位置**:`src/app/mod.rs` — `update_related_sessions()` 方法,PTY 切换时自动 BM25 搜索 top-3 相关会话
 
@@ -109,6 +110,7 @@
 
 ### 22. [x] P2 跨会话 pass rate 折线图 + token 用量柱状图 + 仪表盘
 - **位置**:`src/stats.rs` — `DailyStats` 聚合 + `render_session_count_chart` / `render_token_chart` / `render_dashboard`
+
 ### 23. [x] P1 fuzzy picker 全覆盖
 - **位置**:`src/app/handler_select.rs` — theme/template/automation/agent 选择器全部支持 fuzzy 过滤
 - **实现**:`AppView.picker_query` 字段 + `code_fuzzy_match` crate 过滤列表项,标题栏显示查询
@@ -129,6 +131,7 @@
 
 ### 27. [x] P2 `Config` 支持 `config.d/` 目录
 - **位置**:`src/config.rs:58` — `load_config()` 自动读取 `config.d/*.json` 按字母序 merge,`merge_config()` 只覆盖非空字段
+
 ### 28. [x] P2 `.amux.json` 解析错误不再静默吞错
 - **位置**:`src/config.rs:66` — `load_project_config` 解析失败时 `tracing::warn!` 输出文件路径和错误,不再 `unwrap_or_default()`
 
@@ -163,6 +166,7 @@
 
 ### 36. [x] P3 补 `score_bm25` 单元测试
 - **位置**:`src/search_engine.rs:353` — `test_bm25_idf_and_scoring` 验证 IDF 值、avg_dl、排名顺序
+
 ### 37. [x] P3 补 `discovery` cache 命中逻辑测试
 - **位置**:`src/discovery.rs:1973` — `test_session_cache_retain_evicts_stale` 验证 cache retain 驱逐逻辑
 
@@ -192,7 +196,7 @@
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
 | **本月** | #9, #23, #33, #34, #35 | #34 装好 runner | 第一次 `cargo publish` 跑通,CI 绿 |
 | **下季度** | #15, #16, #26, #19 | 多数需要重 UI 工作 | MCP 服务 + 多分栏可用 |
-| **长期** | #7, #10, #40, #42, #43 | 架构债 | god-struct 拆完,docs 完整 |
+| **长期** | #7, #10, #40, #42 | 架构债 | god-struct 拆完,docs 完整 |
 
 ---
 
