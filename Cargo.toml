@@ -38,3 +38,6 @@ hashbrown = { version = "0.17.1", features = ["serde"] }
 
 [dev-dependencies]
 insta = "1.47.2"
+tower = "0.5"
+http = "1"
+http-body-util = "0.1"

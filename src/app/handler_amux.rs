@@ -238,3 +238,140 @@ impl super::App {
         Ok(Action::Continue)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    use crate::app::tests::{test_app, ws, sess};
+    use crate::pty::PtyHandle;
+    use crate::types::*;
+
+    /// Build a minimal PtySlot with a real shell in /tmp.
+    fn make_slot(id: &str) -> PtySlot {
+        let handle = PtyHandle::spawn_shell(std::path::Path::new("/tmp"), (80, 24))
+            .expect("spawn_shell failed");
+        PtySlot {
+            id: id.into(),
+            handle,
+            info: RunningInfo {
+                workspace_path: std::path::PathBuf::from("/tmp"),
+                title: "test".into(),
+                session_id: None,
+                started_at: crate::util::now_secs(),
+                completed: false,
+                agent: Agent::Omp,
+                git_info: GitInfo::default(),
+                check_status: CheckStatus::Pending,
+                diff_summary: DiffSummary::default(),
+                project_type: crate::discovery::ProjectType::Unknown,
+                worktree_branch: None,
+                snapshot_commit: None,
+            },
+            last_screen_hash: 0,
+            last_recording_at: std::time::Instant::now(),
+            process_stats: None,
+        }
+    }
+
+    fn plain_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    // 1. Pressing 'c' opens terminal split mode
+    #[test]
+    fn c_opens_terminal_split() {
+        let mut app = test_app(vec![], vec![]);
+        app.view.last_chat_area = ratatui::layout::Rect::new(0, 0, 80, 24);
+        app.ptys.ptys.push(make_slot("pty-1"));
+        assert!(app.terminal.is_none());
+
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('c')));
+        assert!(result.is_ok());
+        assert!(app.terminal.is_some(), "terminal split should be opened");
+        assert!(
+            app.view.status.contains("Terminal opened"),
+            "status should confirm terminal opened, got: {:?}",
+            app.view.status,
+        );
+
+        // Pressing 'c' again closes it
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('c')));
+        assert!(result.is_ok());
+        assert!(app.terminal.is_none(), "terminal split should be closed");
+        assert!(app.view.status.contains("Terminal closed"));
+    }
+
+    // 2. Pressing 'x' triggers diff (first press selects left session)
+    #[test]
+    fn x_triggers_diff() {
+        let workspaces = vec![ws("w1", "Project", "/tmp")];
+        let sessions = vec![sess("s1", "fix bug", "/tmp")];
+        let mut app = test_app(workspaces, sessions);
+        app.ptys.ptys.push(make_slot("pty-1"));
+
+        // Select the session node in the tree.
+        // test_app selects index 0; with 1 ws + 1 session, tree is [Ws, Session].
+        // Select index 1 (the session).
+        if app.sessions.tree.len() > 1 {
+            app.sessions.tree_state.select(Some(1));
+        }
+
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('x')));
+        assert!(result.is_ok());
+        // First press selects left session for diff
+        assert!(
+            app.popup.diff_left_session.is_some(),
+            "first 'x' should select left session for diff, got status: {:?}",
+            app.view.status,
+        );
+        assert!(
+            app.view.status.contains("Diff:"),
+            "status should mention diff, got: {:?}",
+            app.view.status,
+        );
+    }
+
+    // 3. Pressing '?' is swallowed by the catch-all arm
+    #[test]
+    fn question_mark_is_swallowed() {
+        let mut app = test_app(vec![], vec![]);
+        app.ptys.ptys.push(make_slot("pty-1"));
+
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('?')));
+        assert!(result.is_ok());
+        assert!(
+            matches!(result, Ok(Action::Continue)),
+            "'?' should return Ok(Continue), got {:?}",
+            result.as_ref().map(|_| "Continue").err()
+        );
+    }
+
+    // 4. Pressing 'o' is swallowed by the catch-all arm
+    #[test]
+    fn o_is_swallowed() {
+        let mut app = test_app(vec![], vec![]);
+        app.ptys.ptys.push(make_slot("pty-1"));
+
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('o')));
+        assert!(result.is_ok());
+        assert!(
+            matches!(result, Ok(Action::Continue)),
+            "'o' should return Ok(Continue)"
+        );
+    }
+
+    // 5. Pressing 'p' is swallowed by the catch-all arm
+    #[test]
+    fn p_is_swallowed() {
+        let mut app = test_app(vec![], vec![]);
+        app.ptys.ptys.push(make_slot("pty-1"));
+
+        let result = app.handle_amux_key(0, plain_key(KeyCode::Char('p')));
+        assert!(result.is_ok());
+        assert!(
+            matches!(result, Ok(Action::Continue)),
+            "'p' should return Ok(Continue)"
+        );
+    }
+}

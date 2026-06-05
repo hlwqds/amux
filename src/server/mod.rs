@@ -109,3 +109,100 @@ fn make_router(state: Arc<AppState>, token: &str) -> Router {
 async fn index_handler() -> axum::response::Html<&'static str> {
     axum::response::Html(include_str!("static/index.html"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
+    use tower::util::ServiceExt;
+
+    fn test_state() -> Arc<AppState> {
+        Arc::new(AppState {
+            config_dir: std::path::PathBuf::from("/tmp/amux-test"),
+            ptys: Arc::new(SharedPtyMap::new()),
+        })
+    }
+
+    #[tokio::test]
+    async fn test_bind_port_with_state() {
+        let ptys = Arc::new(SharedPtyMap::new());
+        // port 0 = let OS pick a free port
+        let (port, handle) = run_server_with_state(0, String::new(), ptys)
+            .await
+            .expect("server should bind");
+        assert!(port > 0, "OS should assign a non-zero port");
+        handle.abort();
+    }
+
+    #[tokio::test]
+    async fn test_index_returns_200() {
+        let state = test_state();
+        let app = make_router(state, "");
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: axum::body::Body = resp.into_body();
+        let bytes = body.collect().await.unwrap().to_bytes();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(html.contains("<title>amux</title>"), "should serve index HTML");
+    }
+
+    #[tokio::test]
+    async fn test_router_has_expected_routes() {
+        let state = test_state();
+        let app = make_router(state, "test-token");
+
+        // Unauthenticated requests to API routes should return 401
+        let api_routes = [
+            "/api/sessions",
+            "/api/workspaces",
+            "/api/ptys",
+        ];
+        for path in &api_routes {
+            let req = Request::builder()
+                .uri(*path)
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            assert_eq!(
+                resp.status(),
+                StatusCode::UNAUTHORIZED,
+                "unauthenticated GET {} should be 401",
+                path
+            );
+        }
+
+        // POST routes should also require auth
+        let post_routes = ["/api/pty/abc/input", "/api/pty/abc/resize"];
+        for path in &post_routes {
+            let req = Request::builder()
+                .method("POST")
+                .uri(*path)
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            assert_eq!(
+                resp.status(),
+                StatusCode::UNAUTHORIZED,
+                "unauthenticated POST {} should be 401",
+                path
+            );
+        }
+
+        // Authenticated request should pass auth (returns 200 for GET /api/sessions)
+        let req = Request::builder()
+            .uri("/api/sessions")
+            .header("authorization", "Bearer test-token")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "authenticated GET /api/sessions should be 200"
+        );
+    }
+}
