@@ -10,7 +10,7 @@ pub enum ChainMode {
     /// Steps run one after another (default).
     #[default]
     Sequential,
-    /// All steps launch simultaneously (future TODO).
+    /// All steps launch simultaneously via `spawn_parallel_steps()`.
     Parallel,
 }
 
