@@ -210,9 +210,14 @@
 ### 49. [x] P2 HTTP API `/api/sessions/{id}/input` 错误传播
 - **位置**:`src/server/api.rs:111` — `write_input` 失败时返回 `{\"status\":\"error\",\"message\":\"PTY closed\"}` 而非静默 `ok`
 
----
-## 五、推荐的执行顺序
+### 50. [x] P2 修复 `Config.unset_env` 未传递到 PTY spawn 的问题
+- **位置**:`src/types.rs:145` — `build_new_cmd()` / `build_resume_cmd()` 新增 `unset_env: &[String]` 参数
+- **位置**:`src/pty.rs:145` — `PtyHandle::spawn()` / `spawn_shell()` 新增 `unset_env: &[String]` 参数
+- **修复**:所有 8 处 spawn 调用点 + 6 处 `apply_term_env` → `apply_term_env_with_extra`,删除 `#[allow(dead_code)]`
 
+---
+
+## 五、推荐的执行顺序
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |

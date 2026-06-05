@@ -1262,6 +1262,7 @@ impl App {
                             Some(&title),
                             chat_size,
                             &env,
+                            &[],
                         ) {
                             Ok(new_pty) => {
                                 // Unregister old PTY

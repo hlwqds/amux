@@ -172,6 +172,7 @@ impl App {
             name.as_deref(),
             chat_size,
             &env,
+            &[],
         );
         if let Ok(pty) = pty_result {
             let pty_id = self.next_pty_id();

@@ -169,6 +169,7 @@ pub async fn create_session(AxumJson(body): AxumJson<CreateSessionRequest>) -> J
         body.name.as_deref(),
         chat_size,
         &env,
+        &[],
     ) {
         Ok(_handle) => Json(json!({
             "status": "started",

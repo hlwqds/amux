@@ -186,7 +186,7 @@ fn handle_attach_pty(state: &AppState, params: &Value) -> Result<Value> {
     let name = params["name"].as_str();
 
     let project_config = config::load_project_config(&workspace);
-    let handle = PtyHandle::spawn(agent, &workspace, None, name, (80, 24), &project_config.env)?;
+    let handle = PtyHandle::spawn(agent, &workspace, None, name, (80, 24), &project_config.env, &[])?;
 
     // Generate a unique ID based on the current map size + a timestamp suffix.
     let id = format!("mcp-{}", state.ptys.len() + 1);

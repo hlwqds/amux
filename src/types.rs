@@ -131,7 +131,6 @@ impl Agent {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn apply_term_env_with_extra(
         cmd: &mut portable_pty::CommandBuilder,
         extra_unset: &[String],
@@ -142,16 +141,18 @@ impl Agent {
         }
     }
 
-    pub fn build_new_cmd(
+    pub(crate) fn build_new_cmd(
         &self,
         workspace_path: &Path,
         session_name: Option<&str>,
+        unset_env: &[String],
     ) -> portable_pty::CommandBuilder {
+
         match self {
             Agent::Claude => {
                 let mut cmd = portable_pty::CommandBuilder::new("claude");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 if let Some(name) = session_name {
                     cmd.arg("-n");
                     cmd.arg(name);
@@ -161,7 +162,7 @@ impl Agent {
             Agent::Codex => {
                 let mut cmd = portable_pty::CommandBuilder::new("codex");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 if let Some(name) = session_name {
                     cmd.arg(name);
                 }
@@ -170,7 +171,7 @@ impl Agent {
             Agent::Omp => {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 cmd
             }
         }
@@ -180,12 +181,13 @@ impl Agent {
         &self,
         workspace_path: &Path,
         session_id: &str,
+        unset_env: &[String],
     ) -> portable_pty::CommandBuilder {
         match self {
             Agent::Claude => {
                 let mut cmd = portable_pty::CommandBuilder::new("claude");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 cmd.arg("--resume");
                 cmd.arg(session_id);
                 cmd
@@ -193,7 +195,7 @@ impl Agent {
             Agent::Codex => {
                 let mut cmd = portable_pty::CommandBuilder::new("codex");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 cmd.arg("resume");
                 cmd.arg(session_id);
                 cmd
@@ -201,7 +203,7 @@ impl Agent {
             Agent::Omp => {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
-                Self::apply_term_env(&mut cmd);
+                Self::apply_term_env_with_extra(&mut cmd, unset_env);
                 cmd.arg("--resume");
                 cmd.arg(session_id);
                 cmd

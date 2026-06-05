@@ -276,7 +276,8 @@ impl super::App {
                             None,
                             name.as_deref(),
                             chat_size,
-                            &env,
+                        &env,
+                        &[],
                         );
 
                         match pty {

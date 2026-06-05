@@ -84,7 +84,7 @@ impl super::App {
                 let env = self.project_env(&path);
                 let snapshot = Self::capture_snapshot_commit(&path);
                 let pty =
-                    match PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size, &env) {
+                    match PtyHandle::spawn(agent, &path, None, name.as_deref(), chat_size, &env, &[]) {
                         Ok(p) => p,
                         Err(e) => {
                             let msg = if e.to_string().contains("not found")
@@ -152,6 +152,7 @@ impl super::App {
                     name.as_deref(),
                     chat_size,
                     &env,
+                    &[],
                 ) {
                     Ok(p) => p,
                     Err(e) => {
@@ -236,6 +237,7 @@ impl super::App {
                     name.as_deref(),
                     chat_size,
                     &env,
+                    &[],
                 ) {
                     Ok(p) => p,
                     Err(e) => {

@@ -149,6 +149,7 @@ impl PtyHandle {
         session_name: Option<&str>,
         size: (u16, u16),
         env_vars: &[(String, String)],
+        unset_env: &[String],
     ) -> Result<Self> {
         info!("spawning PTY: {} in {}", agent.label(), workspace_path.display());
         let pty_system = NativePtySystem::default();
@@ -166,9 +167,9 @@ impl PtyHandle {
             }
         };
         let mut cmd = if let Some(id) = session_id {
-            agent.build_resume_cmd(workspace_path, id)
+            agent.build_resume_cmd(workspace_path, id, unset_env)
         } else {
-            agent.build_new_cmd(workspace_path, session_name)
+            agent.build_new_cmd(workspace_path, session_name, unset_env)
         };
         for (key, value) in env_vars {
             cmd.env(key, value);
