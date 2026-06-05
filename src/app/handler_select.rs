@@ -607,7 +607,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Claude)
-                        .unwrap(),
+                        .unwrap_or(0)
                 ));
                 self.confirm_input()?;
             }
@@ -618,7 +618,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Codex)
-                        .unwrap(),
+                        .unwrap_or(0)
                 ));
                 self.confirm_input()?;
             }
@@ -629,7 +629,7 @@ impl super::App {
                     self.available_agents
                         .iter()
                         .position(|a| *a == Agent::Omp)
-                        .unwrap(),
+                        .unwrap_or(0)
                 ));
                 self.confirm_input()?;
             }

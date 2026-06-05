@@ -19,14 +19,15 @@ impl App {
         }
         let Some(updated) = chain_step else { return };
 
-        // Look up the chain configuration
-        let chain_config = self
+        // Clone chain data to avoid borrow conflicts with &mut self methods below.
+        let chain_data = self
             .chains
             .chains
             .iter()
-            .find(|c| c.name == updated.chain_name);
+            .find(|c| c.name == updated.chain_name)
+            .cloned();
 
-        let Some(chain_config) = chain_config else {
+        let Some(chain_config) = chain_data else {
             self.chains.active_chain = None;
             return;
         };
@@ -42,16 +43,35 @@ impl App {
             }
         }
 
+        // Find workspace index for spawn
+        let wi = self
+            .sessions
+            .workspaces
+            .iter()
+            .position(|ws| ws.path.as_deref() == Some(updated.workspace_path.as_path()));
 
-        // Dispatch based on chain mode
+        let Some(wi) = wi else {
+            self.chains.active_chain = None;
+            return;
+        };
+
         match chain_config.mode {
-            crate::chain::ChainMode::Sequential => {}
+            crate::chain::ChainMode::Sequential => {
+                self.spawn_sequential_step(&chain_config, updated, wi);
+            }
             crate::chain::ChainMode::Parallel => {
-                // TODO: Use tokio::join! to launch multiple agents simultaneously
+                self.spawn_parallel_steps(&chain_config, updated, wi);
             }
         }
+    }
 
-        // Look up the next chain step configuration
+    /// Spawn the next sequential step in a chain.
+    fn spawn_sequential_step(
+        &mut self,
+        chain_config: &crate::chain::SessionChain,
+        updated: crate::chain::ActiveChain,
+        wi: usize,
+    ) {
         let next_step = chain_config.steps.get(updated.current_step).cloned();
 
         let Some(step) = next_step else {
@@ -72,88 +92,141 @@ impl App {
         // Update active chain state
         self.chains.active_chain = Some(updated);
 
-        // Find workspace index for spawn
-        let wi = self
-            .sessions
-            .workspaces
-            .iter()
-            .position(|ws| ws.path.as_deref() == Some(workspace_path.as_path()));
+        self.spawn_chain_pty(wi, &workspace_path, &chain_name, step_num, total, agent, &prompt);
+    }
 
-        if let Some(wi) = wi {
-            let tree_idx = self
-                .sessions
-                .tree
-                .iter()
-                .position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
-            if let Some(ti) = tree_idx {
-                self.sessions.tree_state.select(Some(ti));
-            }
-            let chat_size = self.chat_size();
-            let name = Some(format!("{}-step{}", chain_name, step_num));
-            let env = self.project_env(&workspace_path);
-            let pty_result = crate::pty::PtyHandle::spawn(
-                agent,
+    /// Spawn all remaining steps simultaneously in parallel mode.
+    fn spawn_parallel_steps(
+        &mut self,
+        chain_config: &crate::chain::SessionChain,
+        updated: crate::chain::ActiveChain,
+        wi: usize,
+    ) {
+        let workspace_path = updated.workspace_path.clone();
+        let chain_name = updated.chain_name.clone();
+        let total = updated.total_steps;
+        let start_idx = updated.current_step;
+
+        // In parallel mode, spawn all remaining steps at once.
+        let remaining: &[crate::chain::ChainStep] = &chain_config.steps[start_idx..];
+
+        if remaining.is_empty() {
+            self.chains.active_chain = None;
+            return;
+        }
+
+        // Mark the chain as active with the first parallel step.
+        self.chains.active_chain = Some(updated);
+
+        let count = remaining.len();
+        for (offset, step) in remaining.iter().enumerate() {
+            let step_num = start_idx + offset + 1;
+            let prompt = step.prompt.replace("{prev_output}", "");
+            self.spawn_chain_pty(
+                wi,
                 &workspace_path,
-                None,
-                name.as_deref(),
-                chat_size,
-                &env,
+                &chain_name,
+                step_num,
+                total,
+                step.agent,
+                &prompt,
             );
-            if let Ok(pty) = pty_result {
-                let pty_id = self.next_pty_id();
-                let idx = self.ptys.ptys.len();
-                let pt = crate::discovery::ProjectType::detect(&workspace_path);
-                self.ptys.ptys.push(PtySlot {
-                    id: pty_id.clone(),
-                    handle: pty,
-                    info: RunningInfo {
-                        workspace_path: workspace_path.clone(),
-                        title: format!("{} [{}/{}]", chain_name, step_num, total),
-                        session_id: None,
-                        started_at: crate::util::now_secs(),
-                        completed: false,
-                        agent,
-                        git_info: GitInfo::default(),
-                        check_status: CheckStatus::Pending,
-                        diff_summary: DiffSummary::default(),
-                        project_type: pt,
-                        worktree_branch: None,
-                        snapshot_commit: None,
-                    },
-                    last_screen_hash: 0,
-                    last_recording_at: std::time::Instant::now(),
-                    process_stats: None,
-                });
-                self.register_pty(&pty_id, &self.ptys.ptys[idx]);
-                self.ptys.active_pty = Some(idx);
-                self.view.focus = Focus::Chat;
-                self.rebuild_tree();
+        }
 
-                // Inject the prompt via delayed write
-                if !prompt.is_empty() {
-                    let fire_at_ms = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64
-                        + 1500;
-                    let pending = PendingInput {
-                        fire_at_ms,
-                        text: prompt,
-                    };
-                    self.ptys.pending_inputs.push(pending);
-                }
+        self.view.status = format!(
+            "Chain '{}': {} parallel agents launched ({}/{})",
+            chain_name,
+            count,
+            start_idx + count,
+            total,
+        );
+    }
 
-                self.view.status = format!(
-                    "Chain '{}': Step {}/{} — {}",
-                    chain_name,
-                    step_num,
-                    total,
-                    agent.label()
-                );
-            } else {
-                self.view.status = format!("Chain step {} failed to spawn", step_num);
-                self.chains.active_chain = None;
+    /// Shared helper to spawn a single chain PTY and inject its prompt.
+    #[allow(clippy::too_many_arguments)]
+    fn spawn_chain_pty(
+        &mut self,
+        wi: usize,
+        workspace_path: &std::path::Path,
+        chain_name: &str,
+        step_num: usize,
+        total: usize,
+        agent: crate::types::Agent,
+        prompt: &str,
+    ) {
+        let tree_idx = self
+            .sessions
+            .tree
+            .iter()
+            .position(|n| matches!(n, TreeNode::Workspace(idx) if *idx == wi));
+        if let Some(ti) = tree_idx {
+            self.sessions.tree_state.select(Some(ti));
+        }
+        let chat_size = self.chat_size();
+        let name = Some(format!("{}-step{}", chain_name, step_num));
+        let env = self.project_env(workspace_path);
+        let pty_result = crate::pty::PtyHandle::spawn(
+            agent,
+            workspace_path,
+            None,
+            name.as_deref(),
+            chat_size,
+            &env,
+        );
+        if let Ok(pty) = pty_result {
+            let pty_id = self.next_pty_id();
+            let idx = self.ptys.ptys.len();
+            let pt = crate::discovery::ProjectType::detect(workspace_path);
+            self.ptys.ptys.push(PtySlot {
+                id: pty_id.clone(),
+                handle: pty,
+                info: RunningInfo {
+                    workspace_path: workspace_path.to_path_buf(),
+                    title: format!("{} [{}/{}]", chain_name, step_num, total),
+                    session_id: None,
+                    started_at: crate::util::now_secs(),
+                    completed: false,
+                    agent,
+                    git_info: GitInfo::default(),
+                    check_status: CheckStatus::Pending,
+                    diff_summary: DiffSummary::default(),
+                    project_type: pt,
+                    worktree_branch: None,
+                    snapshot_commit: None,
+                },
+                last_screen_hash: 0,
+                last_recording_at: std::time::Instant::now(),
+                process_stats: None,
+            });
+            self.register_pty(&pty_id, &self.ptys.ptys[idx]);
+            self.ptys.active_pty = Some(idx);
+            self.view.focus = Focus::Chat;
+            self.rebuild_tree();
+
+            // Inject the prompt via delayed write
+            if !prompt.is_empty() {
+                let fire_at_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64
+                    + 1500;
+                let pending = PendingInput {
+                    fire_at_ms,
+                    text: prompt.to_string(),
+                };
+                self.ptys.pending_inputs.push(pending);
             }
+
+            self.view.status = format!(
+                "Chain '{}': Step {}/{} — {}",
+                chain_name,
+                step_num,
+                total,
+                agent.label()
+            );
+        } else {
+            self.view.status = format!("Chain step {} failed to spawn", step_num);
+            self.chains.active_chain = None;
         }
     }
 

@@ -186,6 +186,15 @@
 ### 42. [x] P3 补 `CONTRIBUTING.md`
 - **位置**:已创建 `CONTRIBUTING.md`,包含开发流程、commit 规范、PR 流程
 
+### 43. [x] P2 实现 `ChainMode::Parallel` 并发 agent 启动
+- **位置**:`src/app/chain_handler.rs` — `spawn_parallel_steps()` 同时启动所有剩余步骤 PTY,`spawn_chain_pty()` 共享 spawn 逻辑
+- **重构**:从 `execute_chain_step()` 提取 `spawn_sequential_step` / `spawn_parallel_steps` / `spawn_chain_pty` 三个方法
+
+### 44. [x] P1 生产代码 `unwrap()` 替换为安全替代
+- **位置**:14 处生产路径 `unwrap()` 替换为 `expect()`/`unwrap_or()`/`unwrap_or_else()`/`unwrap_or_default()`
+- **覆盖**:handler_search, handler_select, mod, search_engine, pty, util, mcp, knowledge
+- **跳过**:test 函数内的 unwrap 不改动
+
 ---
 
 ## 五、推荐的执行顺序

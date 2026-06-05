@@ -189,7 +189,7 @@ pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge
     // Also extract TODO/FIXME comments with context
     if let Ok(re) = Regex::new(r"(?i)(TODO|FIXME|HACK|XXX)\s*[:\(]?\s*(.{1,200})") {
         for caps in re.captures_iter(raw_text) {
-            let full = caps.get(0).unwrap().as_str().trim().to_string();
+            let full = caps.get(0).expect("regex match always has group 0").as_str().trim().to_string();
             if !knowledge.known_issues.contains(&full) {
                 knowledge.known_issues.push(full);
                 found_any = true;

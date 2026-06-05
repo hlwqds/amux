@@ -52,7 +52,7 @@ impl EventListener for PtyEventListener {
                 let Some(size) = self.size.as_ref() else {
                     return;
                 };
-                let (cols, rows) = *size.lock().unwrap();
+                let (cols, rows) = *size.lock().unwrap_or_else(|e| e.into_inner());
                 let ws = alacritty_terminal::event::WindowSize {
                     num_lines: rows,
                     num_cols: cols,

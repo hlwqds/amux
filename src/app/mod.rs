@@ -2463,7 +2463,7 @@ impl App {
 
 use std::sync::LazyLock;
 static URL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r#"https?://[^\s)'"<>]+"#).unwrap()
+    regex::Regex::new(r#"https?://[^\s)'"<>]+"#).expect("URL regex is a valid compile-time constant")
 });
 
 /// Extract a URL from a line of text containing the given column position.

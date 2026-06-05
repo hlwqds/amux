@@ -105,7 +105,7 @@ impl SearchIndex {
         for (term, postings) in &mut self.inverted {
             if postings.remove(doc_id).is_some() {
                 // This term appeared in the removed document.
-                let df_entry = self.df.get_mut(term).unwrap();
+                let df_entry = self.df.get_mut(term).expect("df entry must exist after insertion");
                 *df_entry = df_entry.saturating_sub(1);
                 if *df_entry == 0 {
                     empty_terms.push(term.clone());

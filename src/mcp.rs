@@ -39,7 +39,7 @@ fn success(id: Value, result: Value) -> String {
         "id": id,
         "result": result,
     }))
-    .unwrap()
+    .expect("serializing a json! value cannot fail")
 }
 
 fn error_resp(id: Value, code: i32, message: &str) -> String {
@@ -48,7 +48,7 @@ fn error_resp(id: Value, code: i32, message: &str) -> String {
         "id": id,
         "error": { "code": code, "message": message },
     }))
-    .unwrap()
+    .expect("serializing a json! value cannot fail")
 }
 
 // ─── Tool definitions ────────────────────────────────────────
@@ -149,7 +149,7 @@ fn handle_list_sessions(state: &AppState) -> Value {
         })
         .collect();
 
-    json!({ "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({ "sessions": list })).unwrap() }] })
+    json!({ "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({ "sessions": list })).unwrap_or_default() }] })
 }
 
 fn handle_send_input(state: &AppState, params: &Value) -> Result<Value> {

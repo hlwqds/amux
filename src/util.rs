@@ -157,9 +157,9 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
     // Try to match date prefix: >Nd, >Nh, >Nm
     let re = date_regex();
     if let Some(caps) = re.captures(trimmed) {
-        let full_match = caps.get(0).unwrap().as_str();
-        let amount: u64 = caps.get(1).unwrap().as_str().parse().unwrap_or(1);
-        let unit = caps.get(2).unwrap().as_str();
+        let full_match = caps.get(0).expect("regex match always has group 0").as_str();
+        let amount: u64 = caps.get(1).expect("regex has capture group 1").as_str().parse().unwrap_or(1);
+        let unit = caps.get(2).expect("regex has capture group 2").as_str();
 
         let cutoff = match unit {
             "d" => now.saturating_sub(amount * 86400),
@@ -192,7 +192,7 @@ pub fn parse_search_query(query: &str) -> ParsedSearch {
 fn date_regex() -> &'static regex::Regex {
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^>(\d+)([dhm])\s*").unwrap())
+    RE.get_or_init(|| regex::Regex::new(r"^>(\d+)([dhm])\s*").expect("date regex is a valid compile-time constant"))
 }
 
 /// Copy text to the system clipboard. Uses arboard first, falls back to
@@ -305,14 +305,14 @@ pub fn extract_file_paths_with_lines(text: &str, max: usize) -> Vec<(String, Opt
         // Same as regex_lazy but captures optional :line suffix
         regex::Regex::new(
             r"(?:/[\w./\-]+/[\w.\-]+\.[\w\-]+|\.?(?:src|lib|test|pkg|cmd|internal|crates|apps)/[\w./\-]+\.[\w\-]+)(?::(\d+))?"
-        ).unwrap()
+        ).expect("file path regex is a valid compile-time constant")
     });
 
     let mut paths: Vec<(String, Option<u32>)> = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
     for cap in re.captures_iter(text) {
-        let full = cap.get(0).unwrap().as_str();
+        let full = cap.get(0).expect("regex match always has group 0").as_str();
         let line_num: Option<u32> = cap.get(1).and_then(|m| m.as_str().parse().ok());
         // Strip trailing :line for the path itself
         let path = if line_num.is_some() {
@@ -339,7 +339,7 @@ fn regex_lazy() -> &'static regex::Regex {
         // Require at least one path separator and a file extension
         regex::Regex::new(
             r"(?:/[\w./\-]+/[\w.\-]+\.[\w\-]+|\.?(?:src|lib|test|pkg|cmd|internal|crates|apps)/[\w./\-]+\.[\w\-]+)"
-        ).unwrap()
+        ).expect("file path regex is a valid compile-time constant")
     })
 }
 
