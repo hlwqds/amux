@@ -989,7 +989,7 @@ mod tests {
         Session { id: id.into(), workspace_path: PathBuf::from(ws_path), title: title.into(), last_active: 1000, agent: Agent::Claude, tags: Vec::new(), pinned: false, last_message: None }
     }
 
-    fn sess_with_agent(id: &str, title: &str, ws_path: &str, agent: Agent) -> Session {
+    pub(crate) fn sess_with_agent(id: &str, title: &str, ws_path: &str, agent: Agent) -> Session {
         Session {
             id: id.into(),
             workspace_path: PathBuf::from(ws_path),
@@ -1002,7 +1002,7 @@ mod tests {
         }
     }
 
-    fn sess_with_time(id: &str, title: &str, ws_path: &str, last_active: u64) -> Session {
+    pub(crate) fn sess_with_time(id: &str, title: &str, ws_path: &str, last_active: u64) -> Session {
         Session {
             id: id.into(),
             workspace_path: PathBuf::from(ws_path),

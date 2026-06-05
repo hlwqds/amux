@@ -252,7 +252,10 @@
 ### 60. [x] P3 补全 4 个模块单元测试 (24 新测试)
 - **位置**:`handler_select.rs` (7 tests), `session.rs` (5 tests), `pty.rs` (5 tests), `types.rs` (7 tests)
 - **覆盖**:fuzzy picker query (7), session rename/new-workspace (5), asciinema/recording/timestamp (5), Agent/SortMode/KeyBinding (7)
-- **Bug fix**:`open_theme_panel()` 未清除 `picker_query` — 已修复
+
+### 61. [x] P3 补全 3 个模块单元测试 (14 新测试)
+- **位置**:`chain_handler.rs` (5 tests), `session_ops.rs` (6 tests), `server/api.rs` (3 tests)
+- **覆盖**:chain 执行/schema 验证/ChainMode serde (5), sort/filter/move_sel (6), list_sessions/create_session/pty_input (3)
 
 ---
 

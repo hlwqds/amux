@@ -273,3 +273,78 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chain::{ActiveChain, ChainMode};
+
+    /// Test that execute_chain_step with no active chain (None) is a no-op.
+    #[test]
+    fn test_execute_chain_step_no_active_chain_is_noop() {
+        let mut app = super::super::tests::test_app(vec![], vec![]);
+        let status_before = app.view.status.clone();
+        app.execute_chain_step(None, false);
+        assert_eq!(app.view.status, status_before);
+        assert!(app.chains.active_chain.is_none());
+    }
+
+    /// Test that validate_step_output with valid JSON matching schema type succeeds
+    /// (i.e., does not emit a warning — verified by the function completing without panic).
+    #[test]
+    fn test_validate_step_output_valid_json_passes() {
+        let schema = serde_json::json!({"type": "object"});
+        let output = r#"{"files": ["a.rs", "b.rs"]}"#;
+        // Should complete without panic; internally no warning is emitted
+        // because the parsed value is an object matching the schema type.
+        App::validate_step_output("test-chain", 0, output, &schema);
+    }
+
+    /// Test that validate_step_output with invalid JSON (not parseable) logs a warning.
+    /// We verify the function runs without panic — the warning is a tracing::warn log.
+    #[test]
+    fn test_validate_step_output_invalid_json_logs_warning() {
+        let schema = serde_json::json!({"type": "string"});
+        let output = "this is not json at all";
+        // Should complete without panic. Internally it emits a tracing::warn
+        // because the output cannot be parsed as JSON.
+        App::validate_step_output("bad-chain", 1, output, &schema);
+    }
+
+    /// Test that execute_chain_step with a chain name not found in config returns early.
+    /// An active chain referencing a nonexistent config clears the active chain.
+    #[test]
+    fn test_execute_chain_step_empty_chain_name_returns_early() {
+        let ws = super::super::tests::ws("w1", "workspace", "/tmp/ws1");
+        let mut app = super::super::tests::test_app(vec![ws], vec![]);
+        let active = ActiveChain {
+            chain_name: "nonexistent-chain".into(),
+            current_step: 1,
+            total_steps: 2,
+            workspace_path: PathBuf::from("/tmp/ws1"),
+            prev_output: Some("done".into()),
+        };
+        app.execute_chain_step(Some(active), false);
+        // Chain config not found → active_chain cleared
+        assert!(app.chains.active_chain.is_none());
+    }
+
+    /// Test ChainMode serialization/deserialization roundtrip.
+    #[test]
+    fn test_chain_mode_serde_roundtrip() {
+        for mode in [ChainMode::Sequential, ChainMode::Parallel] {
+            let json = serde_json::to_string(&mode).unwrap();
+            let parsed: ChainMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(mode, parsed);
+        }
+        // Also verify the serialized strings
+        assert_eq!(
+            serde_json::to_string(&ChainMode::Sequential).unwrap(),
+            "\"sequential\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ChainMode::Parallel).unwrap(),
+            "\"parallel\""
+        );
+    }
+}

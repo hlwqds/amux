@@ -184,3 +184,65 @@ pub async fn create_session(AxumJson(body): AxumJson<CreateSessionRequest>) -> J
         })),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_state() -> Arc<AppState> {
+        Arc::new(AppState {
+            config_dir: std::path::PathBuf::new(),
+            ptys: Arc::new(dashmap::DashMap::new()),
+        })
+    }
+
+    #[tokio::test]
+    async fn list_sessions_returns_valid_json_structure() {
+        let state = test_state();
+        let Json(value) = list_sessions(State(state)).await;
+        assert!(value.is_object(), "response should be a JSON object");
+        assert!(value.get("sessions").is_some(), "should contain 'sessions' key");
+        assert!(
+            value["sessions"].is_array(),
+            "'sessions' should be an array"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_session_rejects_unknown_agent() {
+        let req = AxumJson(CreateSessionRequest {
+            agent: "unknown_agent".into(),
+            workspace: None,
+            name: None,
+        });
+        let Json(value) = create_session(req).await;
+        assert!(
+            value.get("error").is_some(),
+            "unknown agent should return an error"
+        );
+        let msg = value["error"].as_str().unwrap();
+        assert!(
+            msg.contains("Unknown agent"),
+            "error message should mention unknown agent, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn pty_input_returns_error_for_missing_pty() {
+        let state = test_state();
+        let path = Path("nonexistent-id".into());
+        let body = AxumJson(PtyInputRequest {
+            data: "hello".into(),
+        });
+        let Json(value) = pty_input(State(state), path, body).await;
+        assert!(
+            value.get("error").is_some(),
+            "missing PTY should return an error"
+        );
+        let msg = value["error"].as_str().unwrap();
+        assert!(
+            msg.contains("not found"),
+            "error should mention 'not found', got: {msg}"
+        );
+    }
+}

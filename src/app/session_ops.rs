@@ -1842,3 +1842,133 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::app::tests::{test_app, ws, sess, sess_with_agent, sess_with_time};
+    use crate::types::{Agent, SortMode, TreeNode};
+
+    // ── Test 1: cycle_sort_mode cycles through all variants ──
+    #[test]
+    fn cycle_sort_mode_cycles_through_all_variants() {
+        let mut app = test_app(vec![], vec![]);
+        assert_eq!(app.view.sort_mode, SortMode::TimeDesc);
+
+        app.cycle_sort_mode();
+        assert_eq!(app.view.sort_mode, SortMode::TimeAsc);
+        assert!(app.view.status.contains("time"));
+
+        app.cycle_sort_mode();
+        assert_eq!(app.view.sort_mode, SortMode::NameAsc);
+
+        app.cycle_sort_mode();
+        assert_eq!(app.view.sort_mode, SortMode::NameDesc);
+
+        app.cycle_sort_mode();
+        assert_eq!(app.view.sort_mode, SortMode::AgentGroup);
+
+        // Wraps back to the first variant
+        app.cycle_sort_mode();
+        assert_eq!(app.view.sort_mode, SortMode::TimeDesc);
+    }
+
+    // ── Test 2: sort_session_indices with various sort modes ──
+    #[test]
+    fn sort_session_indices_orders_by_time_desc() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![
+                sess_with_time("s1", "alpha", "/tmp/ws1", 100),
+                sess_with_time("s2", "bravo", "/tmp/ws1", 300),
+                sess_with_time("s3", "charlie", "/tmp/ws1", 200),
+            ],
+        );
+        app.view.sort_mode = SortMode::TimeDesc;
+        let mut indices = vec![0, 1, 2];
+        app.sort_session_indices(&mut indices);
+        // Most recent first: s2(300), s3(200), s1(100)
+        assert_eq!(indices, vec![1, 2, 0]);
+    }
+
+    #[test]
+    fn sort_session_indices_orders_by_name_asc() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![
+                sess("s1", "charlie", "/tmp/ws1"),
+                sess("s2", "alpha", "/tmp/ws1"),
+                sess("s3", "bravo", "/tmp/ws1"),
+            ],
+        );
+        app.view.sort_mode = SortMode::NameAsc;
+        let mut indices = vec![0, 1, 2];
+        app.sort_session_indices(&mut indices);
+        assert_eq!(indices, vec![1, 2, 0]); // alpha, bravo, charlie
+    }
+
+    // ── Test 3: toggle_agent_filter adds and removes agents ──
+    #[test]
+    fn toggle_agent_filter_adds_and_removes() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![
+                sess_with_agent("s1", "a", "/tmp/ws1", Agent::Claude),
+                sess_with_agent("s2", "b", "/tmp/ws1", Agent::Codex),
+            ],
+        );
+        // No filter initially
+        assert!(app.view.agent_filter.is_none());
+
+        // Set filter to Claude
+        app.toggle_agent_filter(Agent::Claude);
+        assert_eq!(app.view.agent_filter, Some(Agent::Claude));
+        assert!(app.view.status.contains("Claude"));
+        // Only Claude sessions in tree
+        let session_nodes: Vec<_> = app.sessions.tree.iter().filter(|n| matches!(n, TreeNode::Session(_, _))).collect();
+        assert_eq!(session_nodes.len(), 1);
+
+        // Toggle same agent again — clears filter
+        app.toggle_agent_filter(Agent::Claude);
+        assert!(app.view.agent_filter.is_none());
+        assert!(app.view.status.contains("all agents"));
+        // All sessions visible again
+        let session_nodes: Vec<_> = app.sessions.tree.iter().filter(|n| matches!(n, TreeNode::Session(_, _))).collect();
+        assert_eq!(session_nodes.len(), 2);
+    }
+
+    // ── Test 4: move_sel clamps at boundaries and wraps ──
+    #[test]
+    fn move_sel_wraps_at_boundaries() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![sess("s1", "a", "/tmp/ws1")],
+        );
+        // Tree: [Workspace(0), WorkspaceWarning(0,..), Session(0,0)] — 3 nodes
+        let len = app.sessions.tree.len();
+        assert!(len >= 3);
+
+        // Select last item
+        app.sessions.tree_state.select(Some(len - 1));
+
+        // Move down (+1) wraps to first
+        app.move_sel(1);
+        assert_eq!(app.sessions.tree_state.selected(), Some(0));
+
+        // Move up (-1) wraps to last
+        app.move_sel(-1);
+        assert_eq!(app.sessions.tree_state.selected(), Some(len - 1));
+    }
+
+    // ── Test 5: selected_node returns None for empty tree ──
+    #[test]
+    fn selected_node_returns_none_for_empty_tree() {
+        let mut app = test_app(vec![], vec![]);
+        // Empty workspaces + sessions → empty tree
+        assert!(app.sessions.tree.is_empty());
+        assert!(app.selected_node().is_none());
+
+        // Even after explicitly selecting something (shouldn't happen, but verify robustness)
+        app.sessions.tree_state.select(Some(0));
+        assert!(app.selected_node().is_none());
+    }
+}
