@@ -47,6 +47,10 @@ struct AppView {
     scrollback_matches: Vec<(u16, u16, usize)>,
     /// Currently highlighted match index in scrollback_matches.
     scrollback_match_idx: usize,
+    /// Whether scrollback search uses regex mode.
+    scrollback_regex: bool,
+    /// Whether scrollback search is case-sensitive.
+    scrollback_case_sensitive: bool,
 }
 
 #[derive(Clone, Default)]
@@ -156,6 +160,8 @@ impl Default for AppView {
             scrollback_query: String::new(),
             scrollback_matches: Vec::new(),
             scrollback_match_idx: 0,
+            scrollback_regex: false,
+            scrollback_case_sensitive: false,
         }
     }
 }
@@ -334,6 +340,8 @@ impl App {
                 scrollback_query: String::new(),
                 scrollback_matches: Vec::new(),
                 scrollback_match_idx: 0,
+                scrollback_regex: false,
+                scrollback_case_sensitive: false,
             },
             ptys: PtyManager::default(),
             terminal: None,

@@ -12,6 +12,7 @@ pub mod pty;
 pub mod search_engine;
 pub mod server;
 pub mod template;
+pub mod stats;
 pub mod theme;
 pub mod types;
 pub mod util;

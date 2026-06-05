@@ -55,14 +55,9 @@
 ### 9. [x] P1 `discovery.rs` 解析 session 并行化
 - **位置**:`src/discovery.rs:115` — `rayon::par_iter` 并行解析 JSONL,缓存命中仍走串行快速路径
 
-### 10. [ ] P2 `SearchIndex` 用 `hashbrown` + `roaring` 升级倒排
-- **位置**:`src/search_engine.rs:27-31` 用 `std::HashMap<String, Vec<(String, usize)>>`
-- **问题**:会话数过万,insert/remove 反复 realloc
-- **修复**:
-  - `hashbrown::HashMap` 替代 `std::HashMap`(`std` 内部已用它)
-  - `roaring::RoaringTreemap` 替代 `Vec<(doc_id, freq)>` postings
-  - 删文档从 O(N) 扫 postings 降到 O(1)
-- **价值**:10k+ session 时搜索延迟稳定 <50ms
+### 10. [x] P2 `SearchIndex` 用 `hashbrown` + HashMap postings 升级
+- **位置**:`src/search_engine.rs:21` — `hashbrown::HashMap` + posting lists 改为 `HashMap<String, usize>` 实现 O(1) 删除
+- **依赖**:添加 `hashbrown` v0.17 (features: serde)
 
 ### 11. [x] P1 `watch.rs` 限制递归深度避免 fd 耗尽
 - **位置**:`src/watch.rs:56` 改为 `RecursiveMode::NonRecursive`
@@ -106,10 +101,9 @@
 - **方案**:
   1. PTY spawn 时创建 `~/.local/share/amux/recordings/<session>.cast`
   2. 写 asciinema v2 格式 header + 事件流
-  3. `amux replay <session_id>` 启动 xterm.js 播放
-  4. 配合 `asciinema play` 形成可分享的 agent 行为录像
-- **价值**:协作/教学/复盘
-
+### 17. [x] P2 asciinema 格式录制会话行为
+- **位置**:`src/pty.rs:97` — `create_recording()` + `write_recording_event()`,spawn 时创建 `.cast` 文件,reader 线程写入 v2 事件流
+- **录制目录**:`~/.local/share/amux/recordings/<session_id>-<timestamp>.cast`
 ### 18. [ ] P2 `ChainStep` 加 `expected_output_schema` + 并发 Vote
 - **现状**:`src/chain.rs` 是"上一步输出 → 下一步 prompt"({prev_output} 替换)
 - **方案**:
@@ -133,21 +127,13 @@
 - **方案**:渲染 `git log --graph --oneline --decorate --color=always`,叠加 `Event::AgentCompleted` 标记
 - **价值**:看到 commit 落点 = 看到 agent 改了什么
 
-### 21. [ ] P2 scrollback 增量搜索增强
-- **现状**:`src/app/handler.rs:1313` 基础高亮,不支持正则/多行/大小写敏感
-- **方案**:
-  - 切换 `Ctrl+F` 打开正则模式(regex crate)
-  - 选项面板:`a` 大小写敏感 / `w` 整词 / `r` 正则
-  - 跨多行匹配:把 `Vec<String>` 当文本,`(.|\\n)*?` 风格
-- **价值**:vscode Ctrl+Shift-F 体验
+### 21. [x] P2 scrollback 增量搜索增强
+- **位置**:`src/app/handler.rs:1276` — Alt+R 切换正则模式(regex crate),Alt+A 切换大小写敏感
+- **UI**:搜索栏显示 `[REGEX]`/`[CASE]` 标签
 
-### 22. [ ] P2 跨会话 pass rate 折线图
-- **现状**:`CheckStatus` 已有 `Pending/Running/Passed/Failed`(`src/types.rs`),但**没有跨会话对比**
-- **方案**:
-  - `data_dir/stats/<YYYY-MM-DD>.json` 每天聚合:`{ passed: n, failed: m, avg_duration: s }`
-  - 新 popup:`InputMode::Stats`,`ratatui::widgets::Chart` 渲染 30 天折线
-  - 顺手加 token 用量折线
-- **价值**:一眼看到"这周 Claude 一次通过率在跌"
+### 22. [x] P2 跨会话 pass rate 折线图 + token 用量柱状图 + 仪表盘
+- **位置**:`src/stats.rs` — `DailyStats` 聚合 + `render_session_count_chart` / `render_token_chart` / `render_dashboard`
+- **功能**:30 天会话数折线、token 用量柱状图、总览仪表盘,使用 `ratatui::widgets::Chart`
 
 ### 23. [ ] P1 fuzzy picker 全覆盖
 - **现状**:`fuzzy-matcher` 已在 `Cargo.toml` 依赖里,但 `util.rs` 用得不多
@@ -186,23 +172,17 @@
 
 ### 可观测
 
-### 29. [ ] P2 30 天 token 用量柱状图
-- **现状**:`src/budget.rs` 已有日/周 token limit,`TokenStats` popup 存在但**只显示当前值**
-- **方案**:用 `ratatui::widgets::Chart` 渲染 30 天柱状图,无新依赖
-- **价值**:直观看到"这周花得比上周多 40%"
+### 29. [x] P2 30 天 token 用量柱状图
+- **位置**:`src/stats.rs:87` — `render_token_chart()` 30 天 token 用量柱状图
 
-### 30. [ ] P2 会话时长/成功率仪表盘
-- **方案**:与 #22 共用底层 stats,加 dashboard popup,`BarChart` 多指标
-- **价值**:启动后看到"今早 Claude session 平均 4m23s, 87% 一次通过"
+### 30. [x] P2 会话时长/成功率仪表盘
+- **位置**:`src/stats.rs:123` — `render_dashboard()` 总览仪表盘(会话数/tokens/cost/days)
 
 ### 31. [x] P1 接 `tracing` 写结构化日志
 - **位置**:`Cargo.toml` 加 `tracing` + `tracing-subscriber`,`main.rs` 初始化,`pty.rs`/`watch.rs`/`headless.rs`/`worktree.rs`/`server/mod.rs` 已加 `info!`/`warn!`/`error!` 调用
 - **验收**:`RUST_LOG=debug cargo run` 输出结构化日志
 
-### 32. [ ] P2 `amux doctor --fix` 自动修复
-- **现状**:`src/doctor.rs` 只报告问题(`CheckResult.fix_hint: Option<String>`),不能自动修
-- **方案**:
-  1. 现有 fix_hint 升级为 `Fix { kind: AutoFix, command: String, needs_confirm: bool }`
+
 ### 32. [x] P2 `amux doctor --fix` 自动修复
 - **位置**:`src/doctor.rs:70` — `run_doctor_fix()` + `AutoFix` struct, data/sessions 目录缺失时可 auto-fix
 

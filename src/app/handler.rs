@@ -1273,12 +1273,20 @@ impl super::App {
                     self.scroll_to_current_match();
                 }
             }
-            KeyCode::Backspace => {
-                self.view.scrollback_query.pop();
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::ALT) => {
+                self.view.scrollback_regex = !self.view.scrollback_regex;
+                self.run_scrollback_search();
+            }
+            KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::ALT) => {
+                self.view.scrollback_case_sensitive = !self.view.scrollback_case_sensitive;
                 self.run_scrollback_search();
             }
             KeyCode::Char(c) => {
                 self.view.scrollback_query.push(c);
+                self.run_scrollback_search();
+            }
+            KeyCode::Backspace => {
+                self.view.scrollback_query.pop();
                 self.run_scrollback_search();
             }
             _ => {}
@@ -1301,7 +1309,15 @@ impl super::App {
 
         let (term_rows, term_cols) = slot.handle.grid_size();
 
-        let query_lower = query.to_lowercase();
+        // Build matcher: either regex or plain substring.
+        let regex_ok = if self.view.scrollback_regex {
+            regex::RegexBuilder::new(query)
+                .case_insensitive(!self.view.scrollback_case_sensitive)
+                .build()
+                .ok()
+        } else {
+            None
+        };
 
         for row in 0..term_rows {
             let mut line = String::new();
@@ -1311,18 +1327,35 @@ impl super::App {
                     None => line.push(' '),
                 }
             }
-            let line_lower = line.to_lowercase();
-            let mut start = 0;
-            while let Some(pos) = line_lower[start..].find(&query_lower) {
-                let abs_pos = start + pos;
-                self.view.scrollback_matches.push((row as u16, abs_pos as u16, query.len()));
-                start = abs_pos + query.len();
-                if start >= line_lower.len() {
-                    break;
+
+            if let Some(ref re) = regex_ok {
+                // Regex mode: find all matches
+                for m in re.find_iter(&line) {
+                    self.view.scrollback_matches.push((row as u16, m.start() as u16, m.end() - m.start()));
+                }
+            } else {
+                // Plain substring mode (case-insensitive unless toggled)
+                let haystack = if self.view.scrollback_case_sensitive {
+                    line
+                } else {
+                    line.to_lowercase()
+                };
+                let needle = if self.view.scrollback_case_sensitive {
+                    query.to_string()
+                } else {
+                    query.to_lowercase()
+                };
+                let mut start = 0;
+                while let Some(pos) = haystack[start..].find(&needle) {
+                    let abs_pos = start + pos;
+                    self.view.scrollback_matches.push((row as u16, abs_pos as u16, needle.len()));
+                    start = abs_pos + needle.len();
+                    if start >= haystack.len() {
+                        break;
+                    }
                 }
             }
         }
-
 
         if !self.view.scrollback_matches.is_empty() {
             self.scroll_to_current_match();

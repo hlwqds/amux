@@ -90,8 +90,49 @@ pub struct PtyHandle {
     snapshots: Arc<RwLock<std::collections::VecDeque<Vec<String>>>>,
     /// Current scrollback position: 0 = live, N = N snapshots back.
     snap_scroll: Arc<AtomicUsize>,
+    /// Asciinema recording file handle (shared with reader thread).
+    #[allow(dead_code)] // read in reader thread closure
+    recording: Arc<RwLock<Option<std::fs::File>>>,
 }
 
+/// Create an asciinema v2 recording file at the given path.
+/// Returns the file with the header already written.
+fn create_recording(path: &std::path::Path, cols: u16, rows: u16) -> Result<std::fs::File> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut file = std::fs::File::create(path).context("failed to create recording file")?;
+    let header = serde_json::json!({
+        "version": 2,
+        "width": cols,
+        "height": rows,
+        "timestamp": now_secs(),
+        "env": {
+            "SHELL": std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()),
+            "TERM": std::env::var("TERM").unwrap_or_else(|_| "xterm-256color".into()),
+        }
+    });
+    use std::io::Write;
+    writeln!(file, "{}", header)?;
+    Ok(file)
+}
+
+/// Write an asciinema v2 output event to the recording file.
+fn write_recording_event(file: &mut std::fs::File, start: std::time::Instant, data: &[u8]) {
+    let elapsed = start.elapsed().as_secs_f64();
+    // Serialize the raw bytes as a JSON string.
+    let s = String::from_utf8_lossy(data);
+    let json = serde_json::json!(["o", format!("{elapsed:.6}"), s.as_ref()]);
+    let _ = writeln!(file, "{json}");
+}
+
+/// Simple timestamp without chrono dependency.
+fn chrono_free_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
 impl PtyHandle {
     pub fn state(&self) -> PtyState {
         let last = self.last_output_at.load(Ordering::Relaxed);
@@ -156,6 +197,23 @@ impl PtyHandle {
             Arc::new(RwLock::new(std::collections::VecDeque::with_capacity(500)));
         let snap_scroll = Arc::new(AtomicUsize::new(0));
 
+        // Create asciinema recording file.
+        let recordings_dir = crate::config::data_dir().join("recordings");
+        let recording_path = recordings_dir.join(format!(
+            "{}-{}.cast",
+            session_id.unwrap_or("unknown"),
+            chrono_free_timestamp()
+        ));
+        let recording_file = create_recording(&recording_path, size.0, size.1)
+            .map_err(|e| {
+                warn!("failed to create recording: {e}");
+                e
+            })
+            .ok();
+        let recording: Arc<RwLock<Option<std::fs::File>>> =
+            Arc::new(RwLock::new(recording_file));
+        info!("recording to {}", recording_path.display());
+
         // Create writer channel before reader thread so the reader can
         // forward terminal query responses (DA1, DSR, etc.) back to the PTY.
         let (writer_tx, writer_rx) = std::sync::mpsc::sync_channel::<Bytes>(1024);
@@ -199,10 +257,12 @@ impl PtyHandle {
             let output_notify = output_notify.clone();
             let snapshots = snapshots.clone();
             let snap_scroll = snap_scroll.clone();
+            let recording = recording.clone();
             thread::spawn(move || {
                 let mut processor = Processor::<StdSyncHandler>::new();
                 let mut buf = [0u8; 8192];
                 let mut snap_counter: u32 = 0;
+                let recording_start = std::time::Instant::now();
                 loop {
                     match std::io::Read::read(&mut reader, &mut buf) {
                         Ok(0) => break,
@@ -259,6 +319,10 @@ impl PtyHandle {
                             }
                             last_output_at.store(now_secs(), Ordering::Relaxed);
                             output_notify.notify_waiters();
+                            // Write to asciinema recording.
+                            if let Some(ref mut rec) = *recording.write() {
+                                write_recording_event(rec, recording_start, data);
+                            }
                         }
                         Err(_) => {
                             warn!("PTY reader error");
@@ -306,6 +370,7 @@ impl PtyHandle {
             child_pid,
             snapshots,
             snap_scroll,
+            recording,
         })
     }
 
@@ -486,6 +551,7 @@ impl PtyHandle {
             child_pid,
             snapshots,
             snap_scroll,
+            recording: Arc::new(RwLock::new(None)),
         })
     }
 

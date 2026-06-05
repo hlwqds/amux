@@ -3,7 +3,7 @@
 //! Uses TF-IDF + BM25 scoring to provide semantic-like search over session
 //! summaries without any external dependencies.
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,9 @@ pub fn tokenize(text: &str) -> Vec<String> {
 }
 
 /// BM25 index for session summaries.
+///
+/// Uses `hashbrown::HashMap` for faster hashing and `HashMap<String, usize>` posting
+/// lists for O(1) document removal (vs O(N) scan with `Vec` postings).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchIndex {
     /// Number of documents in the index.
@@ -25,8 +28,8 @@ pub struct SearchIndex {
     pub avg_dl: f64,
     /// Document lengths: doc_id -> number of tokens.
     pub doc_lengths: HashMap<String, usize>,
-    /// Inverted index: term -> [(doc_id, term_freq)].
-    pub inverted: HashMap<String, Vec<(String, usize)>>,
+    /// Inverted index: term -> {doc_id: term_freq}.
+    pub inverted: HashMap<String, HashMap<String, usize>>,
     /// Document frequencies: term -> number of documents containing term.
     pub df: HashMap<String, usize>,
     /// Total token count across all documents (for avg_dl computation).
@@ -76,7 +79,7 @@ impl SearchIndex {
             self.inverted
                 .entry(term.clone())
                 .or_default()
-                .push((doc_id.to_string(), *freq));
+                .insert(doc_id.to_string(), *freq);
             *self.df.entry(term.clone()).or_default() += 1;
         }
     }
@@ -100,9 +103,7 @@ impl SearchIndex {
         // Remove from inverted index and update df.
         let mut empty_terms: Vec<String> = Vec::new();
         for (term, postings) in &mut self.inverted {
-            let before = postings.len();
-            postings.retain(|(id, _)| id != doc_id);
-            if postings.len() < before {
+            if postings.remove(doc_id).is_some() {
                 // This term appeared in the removed document.
                 let df_entry = self.df.get_mut(term).unwrap();
                 *df_entry = df_entry.saturating_sub(1);

@@ -684,12 +684,17 @@ impl super::App {
                 } else {
                     self.view.scrollback_match_idx + 1
                 };
+                let mode_tags = format!(
+                    "{}{}",
+                    if self.view.scrollback_regex { " [REGEX]" } else { "" },
+                    if self.view.scrollback_case_sensitive { " [CASE]" } else { "" },
+                );
                 let search_text = if query.is_empty() {
-                    " Search: _".to_string()
+                    format!(" Search:_{}", mode_tags)
                 } else if total == 0 {
-                    format!(" Search: {} (no matches)", query)
+                    format!(" Search: {} (no matches){}", query, mode_tags)
                 } else {
-                    format!(" Search: {} ({}/{})", query, current, total)
+                    format!(" Search: {} ({}/{}){}", query, current, total, mode_tags)
                 };
                 let search_bar = Paragraph::new(Line::from(vec![
                     Span::styled(
