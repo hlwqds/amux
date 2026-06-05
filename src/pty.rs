@@ -655,12 +655,6 @@ impl PtyHandle {
         self.term.lock().mode().contains(TermMode::ALT_SCREEN)
     }
 
-    /// Check if the terminal has bracketed paste mode enabled (DECSET 2004).
-    /// When enabled, pasted content should be wrapped in `\x1b[200~` ... `\x1b[201~`.
-    pub fn is_bracketed_paste(&self) -> bool {
-        self.term.lock().mode().contains(TermMode::BRACKETED_PASTE)
-    }
-
     pub fn idle_secs(&self) -> u64 {
         let last = self.last_output_at.load(Ordering::Relaxed);
         now_secs().saturating_sub(last)

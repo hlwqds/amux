@@ -1024,34 +1024,39 @@ impl super::App {
             && let Some(idx) = self.ptys.active_pty
             && let Some(slot) = self.ptys.ptys.get(idx)
         {
-            const MAX_PASTE_BYTES: usize = 64 * 1024;
+            // Maximum paste size to send to the PTY child.
+            // Large pastes cause the child process to echo all content,
+            // overwhelming the terminal renderer and freezing the UI.
+            // 8 KB is enough for typical code snippets while keeping the
+            // child responsive.
+            const MAX_PASTE_BYTES: usize = 8 * 1024;
             let paste_bytes = text.as_bytes();
 
             if paste_bytes.len() > MAX_PASTE_BYTES {
                 self.view.status = format!(
                     "Paste truncated: {} KB → {} KB max",
-                    paste_bytes.len() / 1024,
+                    paste_bytes.len().div_ceil(1024),
                     MAX_PASTE_BYTES / 1024
                 );
             }
 
             let data = &paste_bytes[..paste_bytes.len().min(MAX_PASTE_BYTES)];
-
             let cleaned = sanitize_paste(data);
 
-            // Wrap in bracketed paste sequence if the PTY app supports it.
-            // This tells the CLI that this is pasted content (not typed),
-            // allowing it to handle it properly (e.g. collapse display,
-            // suppress echo, treat as single input).
-            if slot.handle.is_bracketed_paste() {
-                let mut buf = Vec::with_capacity(cleaned.len() + 12);
-                buf.extend_from_slice(b"\x1b[200~");
-                buf.extend_from_slice(&cleaned);
-                buf.extend_from_slice(b"\x1b[201~");
-                if let Err(e) = slot.handle.write_input(&buf) {
-                    self.view.status = format!("Write error: {e}");
-                }
-            } else if let Err(e) = slot.handle.write_input(&cleaned) {
+            // Always wrap in bracketed paste sequence (\x1b[200~ ... \x1b[201~).
+            // This is the standard protocol (DECSET 2004) that tells the PTY child
+            // the content is a paste, not typed input. Applications that support it
+            // (Claude Code, bash readline, zsh, etc.) will:
+            //   - Suppress character-by-character echo (no garbled output)
+            //   - Treat the entire paste as a single input unit
+            //   - Optionally collapse/summarize large pastes
+            // Applications that don't support it will silently ignore the
+            // unknown escape sequences.
+            let mut buf = Vec::with_capacity(cleaned.len() + 12);
+            buf.extend_from_slice(b"\x1b[200~");
+            buf.extend_from_slice(&cleaned);
+            buf.extend_from_slice(b"\x1b[201~");
+            if let Err(e) = slot.handle.write_input(&buf) {
                 self.view.status = format!("Write error: {e}");
             }
         }
