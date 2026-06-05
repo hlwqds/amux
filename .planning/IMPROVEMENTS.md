@@ -233,7 +233,14 @@
 
 ### 55. [x] P2 拆分 `mod.rs` god-file (3702→2228 行)
 - **位置**:`src/app/session_ops.rs` — 32 个 session/tree/preview/config 函数从 `mod.rs` 提取
-- **效果**:`mod.rs` 从 3702 行降至 2228 行,`session_ops.rs` 1467 行
+
+### 56. [x] P2 拆分 `handler.rs` (1448→1224 行)
+- **位置**:`src/app/handler_amux.rs` — Amux 模式按键处理从 `handler.rs` 提取
+- **效果**:`handler.rs` 从 1448 行降至 1224 行
+
+### 57. [x] P3 `handler_search.rs` 补全 18 个单元测试
+- **位置**:`src/app/handler_search.rs` — 搜索按键、tag filter、语义搜索浏览/输入测试
+- **覆盖**:search_key (4), tag_filter (5), semantic_browsing (6), semantic_typing (3)
 
 ---
 

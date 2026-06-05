@@ -299,6 +299,7 @@ impl Default for App {
 mod browse;
 mod chain_handler;
 mod handler;
+mod handler_amux;
 mod handler_search;
 mod handler_select;
 mod session;
