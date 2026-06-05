@@ -407,10 +407,10 @@ impl PtySlot {
     /// Record a screen frame to disk (throttled to max every 200ms).
     /// Returns `true` if the screen content changed.
     pub fn record_screen_frame(&mut self) -> bool {
+        use std::hash::{Hash, Hasher};
         if self.last_recording_at.elapsed() < std::time::Duration::from_millis(200) {
             return false;
         }
-        use std::hash::{Hash, Hasher};
         let content = self.handle.screen_contents();
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         content.hash(&mut hasher);

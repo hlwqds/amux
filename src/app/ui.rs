@@ -144,7 +144,7 @@ impl super::App {
         match self.view.input_mode {
             InputMode::Help => self.render_help_popup(frame, area),
             InputMode::SessionPreview | InputMode::SummaryPreview => {
-                self.render_session_preview(frame, area)
+                self.render_session_preview(frame, area);
             }
             InputMode::Settings => self.render_settings_popup(frame, area),
             InputMode::KeybindView => self.render_keybind_view(frame, area),
@@ -160,7 +160,7 @@ impl super::App {
             InputMode::PluginOutput => self.render_plugin_output(frame, area),
             InputMode::Timeline => self.render_timeline(frame, area),
             InputMode::ConflictWarning | InputMode::ConflictResolve => {
-                self.render_conflict_resolve(frame, area)
+                self.render_conflict_resolve(frame, area);
             }
             InputMode::AgentRecommend => self.render_agent_recommend(frame, area),
             InputMode::CrossSearch => self.render_cross_search(frame, area),

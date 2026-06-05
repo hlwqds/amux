@@ -43,7 +43,7 @@ impl super::App {
                     self.view.status = format!(
                         "Tag filter: {}",
                         self.view.tag_filter.as_ref().unwrap_or(&String::new())
-                    )
+                    );
                 }
                 self.view.input_mode = InputMode::None;
                 self.input_buffer.clear();

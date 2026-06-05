@@ -45,55 +45,6 @@ pub fn save_knowledge(workspace: &Path, knowledge: &WorkspaceKnowledge) -> Resul
 /// Uses regex-based extraction for architecture descriptions, file paths,
 /// technology names, and known issues — no external LLM calls needed.
 pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge> {
-    let mut knowledge = WorkspaceKnowledge::default();
-    let mut found_any = false;
-
-    // --- Architecture extraction ---
-    // Patterns: "architecture is X", "system uses X pattern", "built with X"
-    let arch_patterns: &[&str] = &[
-        r"(?i)architecture\s+(?:is|follows?|uses?)\s+(.+)",
-        r"(?i)(?:system|app|application)\s+uses?\s+(.+?)(?:\.|$)",
-        r"(?i)built\s+with\s+(.+?)(?:\.|$)",
-        r"(?i)(?:using|implements?)\s+(?:a\s+)?(.+?)\s+(?:pattern|architecture)",
-        r"(?i)design(?:ed)?(?:\s+as|\s*:\s*)(.+?)(?:\.|$)",
-    ];
-    for pat in arch_patterns {
-        if let Ok(re) = Regex::new(pat)
-            && let Some(caps) = re.captures(raw_text)
-            && let Some(m) = caps.get(1)
-        {
-            let arch = m.as_str().trim().to_string();
-            if !arch.is_empty() && arch.len() < 500 {
-                knowledge.architecture = arch;
-                found_any = true;
-                break;
-            }
-        }
-    }
-
-    // --- Key files extraction ---
-    // Reuse looks_like_path via extract_paths_from_line
-    for line in raw_text.lines() {
-        extract_paths_from_line(&mut knowledge.key_files, line);
-    }
-    // Also extract paths that appear inline in prose: backtick-quoted or quoted paths
-    if let Ok(re) = Regex::new(r"`([^`]+)`") {
-        for caps in re.captures_iter(raw_text) {
-            if let Some(m) = caps.get(1) {
-                let candidate = m.as_str();
-                if looks_like_path(candidate)
-                    && !knowledge.key_files.contains(&candidate.to_string())
-                {
-                    knowledge.key_files.push(candidate.to_string());
-                }
-            }
-        }
-    }
-    if !knowledge.key_files.is_empty() {
-        found_any = true;
-    }
-
-    // --- Tech stack extraction ---
     static TECH_NAMES: &[&str] = &[
         "Rust",
         "Python",
@@ -150,6 +101,55 @@ pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge
         "SASS",
         "CSS",
     ];
+    let mut knowledge = WorkspaceKnowledge::default();
+    let mut found_any = false;
+
+    // --- Architecture extraction ---
+    // Patterns: "architecture is X", "system uses X pattern", "built with X"
+    let arch_patterns: &[&str] = &[
+        r"(?i)architecture\s+(?:is|follows?|uses?)\s+(.+)",
+        r"(?i)(?:system|app|application)\s+uses?\s+(.+?)(?:\.|$)",
+        r"(?i)built\s+with\s+(.+?)(?:\.|$)",
+        r"(?i)(?:using|implements?)\s+(?:a\s+)?(.+?)\s+(?:pattern|architecture)",
+        r"(?i)design(?:ed)?(?:\s+as|\s*:\s*)(.+?)(?:\.|$)",
+    ];
+    for pat in arch_patterns {
+        if let Ok(re) = Regex::new(pat)
+            && let Some(caps) = re.captures(raw_text)
+            && let Some(m) = caps.get(1)
+        {
+            let arch = m.as_str().trim().to_string();
+            if !arch.is_empty() && arch.len() < 500 {
+                knowledge.architecture = arch;
+                found_any = true;
+                break;
+            }
+        }
+    }
+
+    // --- Key files extraction ---
+    // Reuse looks_like_path via extract_paths_from_line
+    for line in raw_text.lines() {
+        extract_paths_from_line(&mut knowledge.key_files, line);
+    }
+    // Also extract paths that appear inline in prose: backtick-quoted or quoted paths
+    if let Ok(re) = Regex::new(r"`([^`]+)`") {
+        for caps in re.captures_iter(raw_text) {
+            if let Some(m) = caps.get(1) {
+                let candidate = m.as_str();
+                if looks_like_path(candidate)
+                    && !knowledge.key_files.contains(&candidate.to_string())
+                {
+                    knowledge.key_files.push(candidate.to_string());
+                }
+            }
+        }
+    }
+    if !knowledge.key_files.is_empty() {
+        found_any = true;
+    }
+
+    // --- Tech stack extraction ---
     for &tech in TECH_NAMES {
         // Case-insensitive word-boundary match
         let pat = format!(r"(?i)\b{}\b", regex::escape(tech));
@@ -219,15 +219,6 @@ pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge
 /// - Update architecture if summary contains structural descriptions
 /// - Dedup key_files, tech_stack, known_issues
 pub fn merge_from_session(knowledge: &mut WorkspaceKnowledge, summary: &str) {
-    let ts = chrono_now();
-    knowledge.last_updated = Some(ts);
-
-    // Extract file paths: look for src/... .rs, .ts, .py etc. patterns
-    for line in summary.lines() {
-        extract_paths_from_line(&mut knowledge.key_files, line);
-    }
-
-    // Extract tech names
     static TECH_NAMES: &[&str] = &[
         "rust",
         "typescript",
@@ -265,6 +256,15 @@ pub fn merge_from_session(knowledge: &mut WorkspaceKnowledge, summary: &str) {
         "kubernetes",
         "terraform",
     ];
+    let ts = chrono_now();
+    knowledge.last_updated = Some(ts);
+
+    // Extract file paths: look for src/... .rs, .ts, .py etc. patterns
+    for line in summary.lines() {
+        extract_paths_from_line(&mut knowledge.key_files, line);
+    }
+
+    // Extract tech names
     let lower = summary.to_lowercase();
     for &tech in TECH_NAMES {
         if lower.contains(tech)

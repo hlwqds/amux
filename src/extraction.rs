@@ -723,6 +723,7 @@ pub enum DiffKind {
 /// Compute a simple line-level diff between two strings.
 /// Returns lines tagged as Context (same), LeftOnly, or RightOnly.
 pub fn compute_diff(left: &str, right: &str) -> Vec<DiffLine> {
+    const MAX_LINES: usize = 200;
     let left_lines: Vec<&str> = left.lines().collect();
     let right_lines: Vec<&str> = right.lines().collect();
 
@@ -764,8 +765,6 @@ pub fn compute_diff(left: &str, right: &str) -> Vec<DiffLine> {
     }
     ops.reverse();
 
-    // Truncate to reasonable size for display
-    const MAX_LINES: usize = 200;
     if ops.len() > MAX_LINES {
         ops.truncate(MAX_LINES);
         ops.push((DiffKind::Context, "... (truncated)".into()));

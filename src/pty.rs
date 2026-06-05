@@ -95,6 +95,7 @@ pub struct PtyHandle {
 /// Create an asciinema v2 recording file at the given path.
 /// Returns the file with the header already written.
 fn create_recording(path: &std::path::Path, cols: u16, rows: u16) -> Result<std::fs::File> {
+    use std::io::Write;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -109,7 +110,6 @@ fn create_recording(path: &std::path::Path, cols: u16, rows: u16) -> Result<std:
             "TERM": std::env::var("TERM").unwrap_or_else(|_| "xterm-256color".into()),
         }
     });
-    use std::io::Write;
     writeln!(file, "{header}")?;
     Ok(file)
 }
@@ -266,6 +266,7 @@ impl PtyHandle {
                     match std::io::Read::read(&mut reader, &mut buf) {
                         Ok(0) => break,
                         Ok(n) => {
+                            const MAX_RAW: usize = 1024 * 1024;
                             let data = &buf[..n];
                             {
                                 let mut t = term.lock();
@@ -311,7 +312,6 @@ impl PtyHandle {
                             }
                             let mut raw = last_raw_output.write();
                             raw.extend_from_slice(data);
-                            const MAX_RAW: usize = 1024 * 1024;
                             if raw.len() > MAX_RAW {
                                 let excess = raw.len() - MAX_RAW;
                                 raw.drain(..excess);
@@ -453,6 +453,7 @@ impl PtyHandle {
                     match std::io::Read::read(&mut reader, &mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
+                            const MAX_RAW: usize = 1024 * 1024;
                             let data = &buf[..n];
                             {
                                 let mut t = term.lock();
@@ -496,7 +497,6 @@ impl PtyHandle {
                             }
                             let mut raw = last_raw_output.write();
                             raw.extend_from_slice(data);
-                            const MAX_RAW: usize = 1024 * 1024;
                             if raw.len() > MAX_RAW {
                                 let excess = raw.len() - MAX_RAW;
                                 raw.drain(..excess);
@@ -548,13 +548,13 @@ impl PtyHandle {
     }
 
     pub fn write_input(&self, data: &[u8]) -> Result<(), String> {
+        const CHUNK: usize = 4096;
         if !self.alive.load(Ordering::Relaxed) {
             return Err("PTY closed".to_string());
         }
         self.snap_scroll.store(0, Ordering::Relaxed);
         // Chunk large writes to avoid overflowing the bounded channel.
         // Each chunk that fails to send is silently dropped (backpressure).
-        const CHUNK: usize = 4096;
         for chunk in data.chunks(CHUNK) {
             let _ = self.writer_tx.try_send(Bytes::from(chunk.to_vec()));
         }

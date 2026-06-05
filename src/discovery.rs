@@ -105,6 +105,7 @@ pub fn discover_sessions_cached(
     workspaces: &[Workspace],
     cache: &mut SessionCache,
 ) -> Vec<Session> {
+    use rayon::prelude::*;
     let mut jsonl_files: Vec<PathBuf> = Vec::new();
     collect_claude_jsonl(workspaces, &mut jsonl_files);
     collect_codex_jsonl(workspaces, &mut jsonl_files);
@@ -113,7 +114,6 @@ pub fn discover_sessions_cached(
     cache.retain(|path, _| jsonl_set.contains(path));
 
     let mut sessions: Vec<Session> = Vec::with_capacity(jsonl_files.len());
-    use rayon::prelude::*;
 
     let parsed: Vec<(PathBuf, Option<SystemTime>, Option<Session>)> = jsonl_files
         .par_iter()

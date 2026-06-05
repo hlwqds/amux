@@ -389,6 +389,14 @@
   - `"".to_string()` → `String::default()`, `Default::default()` → `PreflightConfig::default()`
 - **涉及**: browse, handler_select, session, session_ops, ui, headless, pty, types
 - **验证**:`cargo clippy --all-targets -- -W clippy::match_same_arms -W clippy::default_trait_access -D warnings` clean
+
+### 80. [x] P2 修复 14 处 pedantic 警告 (items_after_statements + semicolon_if_nothing_returned)
+- **问题**: clippy pedantic 检测到 11 处块内 item 定义在语句之后; 3 处 match arm 缺少分号
+- **修复**:
+  - 将 `const`/`static`/`use` 声明移到所在块顶部 (discovery, extraction, knowledge, pty, types)
+  - match arm 表达式添加分号 (handler_search, ui)
+- **涉及**: 8 个文件
+- **验证**:`cargo clippy --all-targets -- -W clippy::items_after_statements -W clippy::semicolon_if_nothing_returned -D warnings` clean
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
