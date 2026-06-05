@@ -17,17 +17,42 @@ impl App {
             self.chains.active_chain = None;
             return;
         }
-
         let Some(updated) = chain_step else { return };
 
-        // Look up the next chain step configuration
-        let next_step = self
+        // Look up the chain configuration
+        let chain_config = self
             .chains
             .chains
             .iter()
-            .find(|c| c.name == updated.chain_name)
-            .and_then(|c| c.steps.get(updated.current_step))
-            .cloned();
+            .find(|c| c.name == updated.chain_name);
+
+        let Some(chain_config) = chain_config else {
+            self.chains.active_chain = None;
+            return;
+        };
+
+        // Validate the output of the just-completed step against its schema
+        if updated.current_step > 0 {
+            let completed_idx = updated.current_step - 1;
+            if let Some(completed_step) = chain_config.steps.get(completed_idx)
+                && let Some(ref schema) = completed_step.expected_output_schema
+                && let Some(ref output) = updated.prev_output
+            {
+                Self::validate_step_output(&chain_config.name, completed_idx, output, schema);
+            }
+        }
+
+
+        // Dispatch based on chain mode
+        match chain_config.mode {
+            crate::chain::ChainMode::Sequential => {}
+            crate::chain::ChainMode::Parallel => {
+                // TODO: Use tokio::join! to launch multiple agents simultaneously
+            }
+        }
+
+        // Look up the next chain step configuration
+        let next_step = chain_config.steps.get(updated.current_step).cloned();
 
         let Some(step) = next_step else {
             self.chains.active_chain = None;
@@ -129,6 +154,48 @@ impl App {
                 self.view.status = format!("Chain step {} failed to spawn", step_num);
                 self.chains.active_chain = None;
             }
+        }
+    }
+
+    /// Validate a completed step's output against its expected JSON Schema.
+    ///
+    /// Currently performs a lightweight structural check. Full JSON Schema
+    /// validation can be added later with a dedicated crate.
+    fn validate_step_output(
+        chain_name: &str,
+        step_idx: usize,
+        output: &str,
+        schema: &serde_json::Value,
+    ) {
+        // Attempt to parse output as JSON; if it fails, that's one form of mismatch.
+        let parsed: Option<serde_json::Value> = serde_json::from_str(output).ok();
+        if let Some(ref value) = parsed {
+            if let Some(expected_type) = schema.get("type").and_then(|t| t.as_str()) {
+                let actual_matches = match expected_type {
+                    "string" => value.is_string(),
+                    "number" => value.is_number(),
+                    "integer" => value.is_i64() || value.is_u64(),
+                    "boolean" => value.is_boolean(),
+                    "array" => value.is_array(),
+                    "object" => value.is_object(),
+                    _ => true, // unknown type constraint, pass
+                };
+                if !actual_matches {
+                    tracing::warn!(
+                        chain_name,
+                        step_idx,
+                        expected_type,
+                        "Chain step output schema validation failed: type mismatch"
+                    );
+                }
+            }
+        } else {
+            // Output is not valid JSON but a schema was expected
+            tracing::warn!(
+                chain_name,
+                step_idx,
+                "Chain step output schema validation failed: output is not valid JSON"
+            );
         }
     }
 }

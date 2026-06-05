@@ -72,7 +72,10 @@ impl super::App {
 
         let cols = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+            .constraints([
+                Constraint::Percentage(self.view.split_ratio),
+                Constraint::Percentage(100 - self.view.split_ratio),
+            ])
             .split(chunks[0]);
 
         self.render_sidebar(frame, cols[0]);
@@ -1875,6 +1878,11 @@ impl super::App {
         let items: Vec<ListItem> = self
             .theme_list
             .iter()
+            .filter(|t| {
+                self.view.picker_query.is_empty()
+                    || code_fuzzy_match::fuzzy_match(t.label(), &self.view.picker_query)
+                        .is_some_and(|s| s > 0)
+            })
             .map(|t| {
                 let label = t.label();
                 let is_current = *t == self.view.theme_name;
@@ -1896,12 +1904,18 @@ impl super::App {
             })
             .collect();
 
+        let title = if self.view.picker_query.is_empty() {
+            " Themes ".into()
+        } else {
+            format!(" Themes [{}] ", self.view.picker_query)
+        };
+
         let list = List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                    .title(" Themes ")
+                    .title(title)
                     .title_style(
                         Style::default()
                             .fg(self.view.theme.popup_border)
@@ -2729,14 +2743,37 @@ impl super::App {
 
     fn render_timeline(&self, frame: &mut Frame, area: Rect) {
         use crate::util::relative_time;
-        let popup_area = centered_rect(70, 22, area);
+        let popup_area = centered_rect(70, 24, area);
         let now = crate::util::now_secs();
 
-        let lines: Vec<Line<'static>> = self
+        let mut lines: Vec<Line<'static>> = Vec::new();
+
+        // Git log section
+        if let Some(idx) = self.ptys.active_pty
+            && let Some(slot) = self.ptys.ptys.get(idx)
+            && let Ok(output) = std::process::Command::new("git")
+                .args(["log", "--graph", "--oneline", "--decorate", "--color=always", "-15"])
+                .current_dir(&slot.info.workspace_path)
+                .output()
+            && output.status.success()
+        {
+            let git_out = String::from_utf8_lossy(&output.stdout);
+            lines.push(Line::from(Span::styled(
+                " Git Log",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )));
+            for line in git_out.lines().take(10) {
+                lines.push(Line::from(line.to_string()));
+            }
+            lines.push(Line::from(""));
+        }
+
+        // Timeline events
+        let timeline_lines: Vec<Line<'static>> = self
             .timeline_events
             .iter()
             .rev()
-            .take(30)
+            .take(20)
             .rev()
             .map(|ev| {
                 let agent_color = match ev.agent.as_str() {
@@ -2773,6 +2810,7 @@ impl super::App {
                 ])
             })
             .collect();
+        lines.extend(timeline_lines);
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(Clear, popup_area);

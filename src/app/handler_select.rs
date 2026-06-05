@@ -78,6 +78,7 @@ impl super::App {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
                 self.theme_list.clear();
+                self.view.picker_query.clear();
                 self.view.status.clear();
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -106,6 +107,13 @@ impl super::App {
                 }
                 self.view.input_mode = InputMode::None;
                 self.theme_list.clear();
+                self.view.picker_query.clear();
+            }
+            KeyCode::Backspace => {
+                self.view.picker_query.pop();
+            }
+            KeyCode::Char(c) => {
+                self.view.picker_query.push(c);
             }
             _ => {}
         }
@@ -116,6 +124,7 @@ impl super::App {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
+                self.view.picker_query.clear();
                 self.view.status.clear();
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -166,6 +175,13 @@ impl super::App {
                     }
                 }
                 self.view.input_mode = InputMode::None;
+                self.view.picker_query.clear();
+            }
+            KeyCode::Backspace => {
+                self.view.picker_query.pop();
+            }
+            KeyCode::Char(c) => {
+                self.view.picker_query.push(c);
             }
             _ => {}
         }
@@ -332,11 +348,11 @@ impl super::App {
         }
         Ok(Action::Continue)
     }
-
     pub(super) fn handle_automation_select_key(&mut self, key: KeyEvent) -> Result<Action> {
         match key.code {
             KeyCode::Esc => {
                 self.view.input_mode = InputMode::None;
+                self.view.picker_query.clear();
                 self.view.status.clear();
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -391,12 +407,18 @@ impl super::App {
                     }
                 }
                 self.view.input_mode = InputMode::None;
+                self.view.picker_query.clear();
+            }
+            KeyCode::Backspace => {
+                self.view.picker_query.pop();
+            }
+            KeyCode::Char(c) => {
+                self.view.picker_query.push(c);
             }
             _ => {}
         }
         Ok(Action::Continue)
     }
-
     pub(super) fn handle_browse_key(&mut self, key: KeyEvent) -> Result<Action> {
         match key.code {
             KeyCode::Esc => {

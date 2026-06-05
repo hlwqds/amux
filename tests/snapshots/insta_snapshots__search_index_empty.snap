@@ -1,0 +1,12 @@
+---
+source: tests/insta_snapshots.rs
+expression: index
+---
+SearchIndex {
+    doc_count: 0,
+    avg_dl: 0.0,
+    doc_lengths: {},
+    inverted: {},
+    df: {},
+    total_tokens: 0,
+}

@@ -51,6 +51,14 @@ struct AppView {
     scrollback_regex: bool,
     /// Whether scrollback search is case-sensitive.
     scrollback_case_sensitive: bool,
+    /// Active query for fuzzy filtering in picker popups (ThemeSelect, TemplateSelect, etc).
+    picker_query: String,
+    /// Sidebar/chat split percentage (20-50, default 30).
+    split_ratio: u16,
+    /// Whether user is currently dragging the split divider.
+    dragging_split: bool,
+    /// Related sessions for the active PTY (session_id, BM25 score), updated on tab switch.
+    related_sessions: Vec<(String, f64)>,
 }
 
 #[derive(Clone, Default)]
@@ -162,6 +170,10 @@ impl Default for AppView {
             scrollback_match_idx: 0,
             scrollback_regex: false,
             scrollback_case_sensitive: false,
+            picker_query: String::new(),
+            split_ratio: 30,
+            dragging_split: false,
+            related_sessions: Vec::new(),
         }
     }
 }
@@ -342,6 +354,10 @@ impl App {
                 scrollback_match_idx: 0,
                 scrollback_regex: false,
                 scrollback_case_sensitive: false,
+                picker_query: String::new(),
+                split_ratio: 30,
+                dragging_split: false,
+                related_sessions: Vec::new(),
             },
             ptys: PtyManager::default(),
             terminal: None,
@@ -555,6 +571,7 @@ impl App {
             } else if !slot.info.completed && state == PtyState::Completed {
                 slot.info.completed = true;
                 any_screen_changed = true;
+
                 if self.ptys.prev_states.get(i) == Some(&PtyState::Running) {
                     notification = Some(format!(
                         "✔ {} completed ({}/{})",
@@ -1043,6 +1060,48 @@ impl App {
             let text = format!("{} {}", session.title, session.id);
             self.search_index.add_document(&session.id, &text);
         }
+    }
+
+    /// Update related sessions for the active PTY using BM25 search.
+    fn update_related_sessions(&mut self) {
+        let Some(idx) = self.ptys.active_pty else {
+            self.view.related_sessions.clear();
+            return;
+        };
+        let Some(slot) = self.ptys.ptys.get(idx) else {
+            self.view.related_sessions.clear();
+            return;
+        };
+        // Extract query: prefer the session's last_message, then title,
+        // falling back to the PTY slot title.
+        let query = slot
+            .info
+            .session_id
+            .as_ref()
+            .and_then(|sid| {
+                self.sessions
+                    .sessions
+                    .iter()
+                    .find(|s| &s.id == sid)
+                    .and_then(|s| {
+                        s.last_message
+                            .as_deref()
+                            .or(Some(&s.title))
+                            .map(str::to_owned)
+                    })
+            })
+            .unwrap_or_else(|| slot.info.title.clone());
+        if query.trim().is_empty() {
+            self.view.related_sessions.clear();
+            return;
+        }
+        let mut results = self.search_index.search(&query, 4);
+        // Exclude the active session's own ID from results.
+        if let Some(sid) = slot.info.session_id.as_ref() {
+            results.retain(|(id, _)| id != sid);
+        }
+        results.truncate(3);
+        self.view.related_sessions = results;
     }
 
     fn detect_file_conflicts(&mut self) {
@@ -2082,6 +2141,7 @@ impl App {
         }
     }
 
+
     fn save_config(&self) {
         let config = Config {
             workspaces: self.sessions.workspaces.clone(),
@@ -2349,6 +2409,7 @@ impl App {
             Some(TreeNode::ActiveTab(pi)) => {
                 self.ptys.active_pty = Some(pi);
                 self.view.focus = Focus::Chat;
+                self.update_related_sessions();
             }
             Some(TreeNode::AgentHeader(_)) => {}
             Some(TreeNode::PinnedWorkspace) => {}
@@ -2553,8 +2614,19 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         let mode_changed = app.view.input_mode != app.view.prev_input_mode;
         if mode_changed {
             app.view.prev_input_mode = app.view.input_mode;
+            // Clear fuzzy picker query when entering any picker mode
+            if matches!(
+                app.view.input_mode,
+                InputMode::ThemeSelect
+                    | InputMode::TemplateSelect
+                    | InputMode::SelectAgent
+                    | InputMode::BranchSelect
+                    | InputMode::AutomationSelect
+                    | InputMode::PluginList
+            ) {
+                app.view.picker_query.clear();
+            }
         }
-
         // Only re-render when something actually changed
         let needs_render = app.view.screen_changed || mode_changed || !app.ptys.ptys.is_empty();
         if needs_render {
@@ -2651,6 +2723,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
         let fs_changed = watcher.poll();
         if !app.ptys.ptys.is_empty() && (timer_due || fs_changed) {
             app.refresh_sessions();
+            app.update_related_sessions();
             app.last_refresh = std::time::Instant::now();
         }
 
@@ -2666,40 +2739,52 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                     app.handle_paste(&text)?;
                 }
 
-                Event::Mouse(mouse) => match mouse.kind {
-                    crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
-                        if mouse.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
-                            app.ctrl_click_open(mouse.column, mouse.row);
-                        } else {
-                            app.handle_mouse_click(mouse.column, mouse.row);
+                Event::Mouse(mouse) => {
+                    // Handle split divider drag first — consumes Down/Drag/Up near boundary
+                    if app.handle_split_drag(mouse.kind, mouse.column) {
+                        // consumed
+                    } else {
+                        match mouse.kind {
+                            crossterm::event::MouseEventKind::Down(
+                                crossterm::event::MouseButton::Left,
+                            ) => {
+                                if mouse
+                                    .modifiers
+                                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                                {
+                                    app.ctrl_click_open(mouse.column, mouse.row);
+                                } else {
+                                    app.handle_mouse_click(mouse.column, mouse.row);
+                                }
+                            }
+                            crossterm::event::MouseEventKind::Down(
+                                crossterm::event::MouseButton::Right,
+                            )
+                            | crossterm::event::MouseEventKind::Down(
+                                crossterm::event::MouseButton::Middle,
+                            ) => {
+                                app.handle_tab_close_click(mouse.column, mouse.row);
+                            }
+                            crossterm::event::MouseEventKind::ScrollUp => {
+                                if app.view.focus == Focus::Chat
+                                    && let Some(idx) = app.ptys.active_pty
+                                    && let Some(slot) = app.ptys.ptys.get(idx)
+                                {
+                                    slot.handle.scroll_page_up(3);
+                                }
+                            }
+                            crossterm::event::MouseEventKind::ScrollDown => {
+                                if app.view.focus == Focus::Chat
+                                    && let Some(idx) = app.ptys.active_pty
+                                    && let Some(slot) = app.ptys.ptys.get(idx)
+                                {
+                                    slot.handle.scroll_page_down(3);
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                    crossterm::event::MouseEventKind::Down(
-                        crossterm::event::MouseButton::Right,
-                    )
-                    | crossterm::event::MouseEventKind::Down(
-                        crossterm::event::MouseButton::Middle,
-                    ) => {
-                        app.handle_tab_close_click(mouse.column, mouse.row);
-                    }
-                    crossterm::event::MouseEventKind::ScrollUp => {
-                        if app.view.focus == Focus::Chat
-                            && let Some(idx) = app.ptys.active_pty
-                            && let Some(slot) = app.ptys.ptys.get(idx)
-                        {
-                            slot.handle.scroll_page_up(3);
-                        }
-                    }
-                    crossterm::event::MouseEventKind::ScrollDown => {
-                        if app.view.focus == Focus::Chat
-                            && let Some(idx) = app.ptys.active_pty
-                            && let Some(slot) = app.ptys.ptys.get(idx)
-                        {
-                            slot.handle.scroll_page_down(3);
-                        }
-                    }
-                    _ => {}
-                },
+                }
                 _ => {}
             }
             // Any input event should trigger a re-render

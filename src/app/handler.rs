@@ -1188,6 +1188,7 @@ impl super::App {
                 tab_index + 1,
                 self.ptys.ptys.len()
             );
+            self.update_related_sessions();
         }
     }
 
@@ -1388,5 +1389,57 @@ impl super::App {
         let desired_offset = term_rows.saturating_sub(target + page_size);
         let new_offset = desired_offset.min(term_rows.saturating_sub(1));
         slot.handle.set_scrollback(new_offset);
+    }
+
+    /// Handle mouse events for split divider drag.
+    /// Returns true if the event was consumed as a split drag.
+    pub(super) fn handle_split_drag(
+        &mut self,
+        kind: crossterm::event::MouseEventKind,
+        column: u16,
+    ) -> bool {
+        match kind {
+            crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                // Check if click is near the split boundary.
+                // The sidebar occupies x=[0, split_x), the chat starts at split_x.
+                let chat_area = self.view.last_chat_area;
+                // When there's a terminal split, last_chat_area is the upper portion,
+                // but the horizontal split position is still at chat_area.x.
+                // The full-width split boundary x is at:
+                //   frame_width * split_ratio / 100
+                // We don't have frame_width stored, but we can compute from chat_area:
+                //   chat_area.x ≈ frame_width * split_ratio / 100
+                let split_x = chat_area.x;
+                // Allow a tolerance of ±2 pixels
+                if column.abs_diff(split_x) <= 2 {
+                    self.view.dragging_split = true;
+                    return true;
+                }
+                false
+            }
+            crossterm::event::MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
+                if !self.view.dragging_split {
+                    return false;
+                }
+                // Compute frame width: chat_area.x + chat_area.width
+                let chat_area = self.view.last_chat_area;
+                let frame_width = (chat_area.x as u32 + chat_area.width as u32) as u16;
+                if frame_width == 0 {
+                    return true;
+                }
+                let new_ratio = (column as u32 * 100 / frame_width as u32) as u16;
+                // Clamp to 20-50
+                self.view.split_ratio = new_ratio.clamp(20, 50);
+                true
+            }
+            crossterm::event::MouseEventKind::Up(crossterm::event::MouseButton::Left) => {
+                if self.view.dragging_split {
+                    self.view.dragging_split = false;
+                    return true;
+                }
+                false
+            }
+            _ => false,
+        }
     }
 }

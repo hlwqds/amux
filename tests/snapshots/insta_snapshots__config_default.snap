@@ -1,0 +1,123 @@
+---
+source: tests/insta_snapshots.rs
+expression: config
+---
+Config {
+    workspaces: [],
+    theme: Dark,
+    keybinds: Keybinds {
+        move_up: KeyBinding {
+            key: "up",
+            ctrl: false,
+            shift: false,
+            alt: false,
+        },
+        move_down: KeyBinding {
+            key: "down",
+            ctrl: false,
+            shift: false,
+            alt: false,
+        },
+        expand: KeyBinding {
+            key: "e",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        refresh: KeyBinding {
+            key: "r",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        rename: KeyBinding {
+            key: "m",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        new_workspace: KeyBinding {
+            key: "w",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        delete: KeyBinding {
+            key: "d",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        new_session: KeyBinding {
+            key: "n",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        search: KeyBinding {
+            key: "/",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        help: KeyBinding {
+            key: "k",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        settings: KeyBinding {
+            key: "s",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        theme: KeyBinding {
+            key: "t",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        export: KeyBinding {
+            key: "x",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        copy: KeyBinding {
+            key: "y",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        preview: KeyBinding {
+            key: "v",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        tag_filter: KeyBinding {
+            key: "f",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+        quit: KeyBinding {
+            key: "q",
+            ctrl: false,
+            shift: false,
+            alt: true,
+        },
+    },
+    templates: [],
+    automations: [],
+    archive_days: None,
+    remote_hosts: [],
+    plugins: [],
+    serve_port: None,
+    serve_token: None,
+    check_command: None,
+    token_budget: None,
+    chains: [],
+    unset_env: [],
+}

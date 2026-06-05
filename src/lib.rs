@@ -1,4 +1,5 @@
 pub mod app;
+pub mod attach;
 pub mod budget;
 pub mod chain;
 pub mod config;
@@ -10,6 +11,7 @@ pub mod preflight;
 pub mod procfs;
 pub mod pty;
 pub mod search_engine;
+pub mod mcp;
 pub mod server;
 pub mod template;
 pub mod stats;

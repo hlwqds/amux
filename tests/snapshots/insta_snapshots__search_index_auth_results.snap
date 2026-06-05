@@ -1,0 +1,10 @@
+---
+source: tests/insta_snapshots.rs
+expression: results
+---
+[
+    (
+        "session-1",
+        1.8662264705952847,
+    ),
+]

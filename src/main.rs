@@ -65,6 +65,16 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // MCP subcommand — stdio JSON-RPC server
+    if args[1] == "mcp" {
+        return amux::mcp::run();
+    }
+
+    // Attach subcommand
+    if args[1] == "attach" {
+        return amux::attach::run();
+    }
+
     // Headless subcommands: run, list, status
     if let Some(result) = amux::headless::try_headless(&args) {
         let code = result?;

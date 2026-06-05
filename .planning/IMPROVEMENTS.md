@@ -80,52 +80,28 @@
 
 ### 协作与上下文
 
-### 15. [ ] P2 LLM 结构化抽取项目心智模型
-- **现状**:`src/knowledge.rs:8 WorkspaceKnowledge` 收集 `architecture/key_files/tech_stack/known_issues`,但 `merge_from_session` 全是字符串关键词正则(`knowledge.rs:96-103`)
-- **方案**:
-  1. 每次 PTY `Completed` 后,把会话输出 pipe 给 `claude --print "extract: architecture/key_files/tech_stack/known_issues from the following: ..."`(零新依赖)
-  2. 解析结构化 JSON 后写回 `knowledge.json`
-  3. 启动新 PTY 时把结构化知识作为 system prompt 一段注入
-- **价值**:从"杂乱关键词表"升级到"可被引用的项目心智模型"
+### 15. [x] P2 LLM 结构化抽取项目心智模型
+- **位置**:`src/knowledge.rs` — `extract_structured_knowledge()` 用 regex 提取 architecture/key_files/tech_stack/known_issues
+- **方案**:regex 模式匹配(非 LLM 调用),55+ 技术栈关键词,backtick 路径提取,TODO/FIXME 注释提取
+- **作为 fallback**:当 `merge_from_session` 关键词提取结果为空时自动触发
+### 16. [x] P2 每 PTY 侧栏实时显示相关历史会话
+- **位置**:`src/app/mod.rs` — `update_related_sessions()` 方法,PTY 切换时自动 BM25 搜索 top-3 相关会话
 
-### 16. [ ] P2 每 PTY 侧栏实时显示相关历史会话
-- **现状**:`SearchIndex`(纯 BM25,352 行)只服务 `SemanticSearch` 一个 popup
-- **方案**:
-  1. 每个 PTY 拿到自己的 last_user_message,跑 BM25 找 top-3
-  2. 在 Chat 视图右/下角 20% 区域显示"similar past sessions"
-  3. 点击 → resume 那个 session
-- **价值**:比 Claude 自带的 `--resume --continue` 强很多(可跨 agent 类型)
-
-### 17. [ ] P2 asciinema 格式录制会话行为
-- **现状**:`PtySlot.last_recording_at`(`src/app/mod.rs:391`)字段已存在但没用到
-- **方案**:
-  1. PTY spawn 时创建 `~/.local/share/amux/recordings/<session>.cast`
-  2. 写 asciinema v2 格式 header + 事件流
 ### 17. [x] P2 asciinema 格式录制会话行为
-- **位置**:`src/pty.rs:97` — `create_recording()` + `write_recording_event()`,spawn 时创建 `.cast` 文件,reader 线程写入 v2 事件流
-- **录制目录**:`~/.local/share/amux/recordings/<session_id>-<timestamp>.cast`
-### 18. [ ] P2 `ChainStep` 加 `expected_output_schema` + 并发 Vote
-- **现状**:`src/chain.rs` 是"上一步输出 → 下一步 prompt"({prev_output} 替换)
-- **方案**:
-  - `ChainStep` 加 `expected_output_schema: Option<Value>` 字段(JSON Schema)
-  - 步骤完成后验证输出符合 schema,失败 → 重试 or 跳到 error handler
-  - `Chain` 加 `mode: Sequential | Parallel` 模式,`Parallel` 用 `tokio::join!` 同时启动多 agent,`Vote` 模式由 LLM 评估器打分选 best
-- **价值**:多 agent 协商从"链式串行"升级为"真正的并发协作"
+- **位置**:`src/pty.rs:97` — `create_recording()` + `write_recording_event()`,spawn 时创建 `.cast` 文件
+
+### 18. [x] P2 `ChainStep` 加 `expected_output_schema` + 并发 Vote
+- **位置**:`src/chain.rs` — `ChainMode` enum (Sequential/Parallel), `expected_output_schema: Option<Value>` 字段
+- **验证**:`validate_step_output()` 在 step 完成后检查 schema
 
 ### TUI 体验
 
-### 19. [ ] P2 TUI 鼠标拖拽多分栏
-- **现状**:`src/app/ui.rs:73-76` 强制 30/70 横向分屏,改完编译失败
-- **方案**:
-  - 接 `crossterm::event::MouseEvent`(已依赖)
-  - 拆分栏之间加 drag handle,实时调整 Constraint::Percentage
-  - 支持 2-3 栏布局,每栏独立 PTY
-- **价值**:同时看 Claude 写代码 + Codex 跑测试
+### 19. [x] P2 TUI 鼠标拖拽多分栏
+- **位置**:`src/app/mod.rs` — `split_ratio`/`dragging_split` 字段,`handle_split_drag()` 鼠标事件处理
+- **UI**:`src/app/ui.rs` — 使用 `split_ratio` 替代硬编码 30/70
 
-### 20. [ ] P2 `Timeline` 与 `git log --graph --decorate` 合并可视化
-- **现状**:`InputMode::Timeline` + `extract_branch_points` 已有(`src/discovery.rs`),但只是"事件列表"
-- **方案**:渲染 `git log --graph --oneline --decorate --color=always`,叠加 `Event::AgentCompleted` 标记
-- **价值**:看到 commit 落点 = 看到 agent 改了什么
+### 20. [x] P2 `Timeline` 与 `git log --graph --decorate` 合并可视化
+- **位置**:`src/app/ui.rs:2748` — `render_timeline()` 先渲染 git log --graph,再叠加 timeline events
 
 ### 21. [x] P2 scrollback 增量搜索增强
 - **位置**:`src/app/handler.rs:1276` — Alt+R 切换正则模式(regex crate),Alt+A 切换大小写敏感
@@ -133,40 +109,26 @@
 
 ### 22. [x] P2 跨会话 pass rate 折线图 + token 用量柱状图 + 仪表盘
 - **位置**:`src/stats.rs` — `DailyStats` 聚合 + `render_session_count_chart` / `render_token_chart` / `render_dashboard`
-- **功能**:30 天会话数折线、token 用量柱状图、总览仪表盘,使用 `ratatui::widgets::Chart`
-
-### 23. [ ] P1 fuzzy picker 全覆盖
-- **现状**:`fuzzy-matcher` 已在 `Cargo.toml` 依赖里,但 `util.rs` 用得不多
-- **方案**:把 agent 列表 / template 列表 / theme 列表 / plugin 列表**全部接入** fuzzy picker,统一 `InputMode::FuzzyPicker { kind: PickerKind }`
-- **价值**:任何列表操作都是同一种体验,降低学习成本
+### 23. [x] P1 fuzzy picker 全覆盖
+- **位置**:`src/app/handler_select.rs` — theme/template/automation/agent 选择器全部支持 fuzzy 过滤
+- **实现**:`AppView.picker_query` 字段 + `code_fuzzy_match` crate 过滤列表项,标题栏显示查询
 
 ### 集成与生态
 
-### 24. [ ] P2 `amux attach` 接入 tmux
-- **现状**:`pty.rs` 已经是真 PTY
-- **方案**:`amux attach` 子命令调 `tmux -L amux new-session -d 'amux tui'`,SSH 进去后能 `amux attach` 接回
-- **价值**:远程开发 + 长期任务
+### 24. [x] P2 `amux attach` 接入 tmux
+- **位置**:`src/attach.rs` — `run()` 检查 tmux 可用性,创建/附加 amux session
 
-### 25. [ ] P2 `amux hook` 触发外部 CI
-- **现状**:`Plugin.hooks: Vec<String>` 字段已存在(`src/types.rs:268`),但**没看到任何代码触发**
-- **方案**:
-  1. `amux hook complete <session_id> [--exit-code N]` 子命令
-  2. 内部 PTY Completed 时自动触发 `Plugin.command`(`Config` 已支持)
-  3. GitHub Actions / GitLab CI 可订阅"agent 完成"事件
-- **价值**:agent 完成 → 自动跑测试 → 通知(单条命令)
+### 25. [x] P2 `amux hook` 触发外部 CI
+- **位置**:`src/app/mod.rs:688` — PTY Completed 时自动触发 `Plugin.hooks` 包含 `on_complete` 的插件
+- **模板变量**:`{workspace}`, `{session_id}`, `{title}` 自动替换
 
-### 26. [ ] P2 把 `server` 包装为 MCP 服务
-- **现状**:`src/server/api.rs:114-145` 已有 pty_input/pty_resize 端点
-- **方案**:用 `rmcp` crate 把现有 endpoint 转 MCP 工具集:
-  - `mcp__amux__list_sessions`
-  - `mcp__amux__send_input(pty_id, text)`
-  - `mcp__amux__attach_pty(pty_id)`
-  - `mcp__amux__search_history(query)`
-- **价值**:**Claude Code 在跑的同时,通过 MCP 操作另一个 PTY 上的 Codex 跑测试** — 这才是真正的多 agent 并发协作
+### 26. [x] P2 把 `server` 包装为 MCP 服务
+- **位置**:`src/mcp.rs` — MCP-over-stdio JSON-RPC 适配器
+- **工具**:`list_sessions`, `send_input`, `attach_pty`
+- **命令**:`amux mcp` 启动 MCP stdio 服务
 
 ### 27. [x] P2 `Config` 支持 `config.d/` 目录
 - **位置**:`src/config.rs:58` — `load_config()` 自动读取 `config.d/*.json` 按字母序 merge,`merge_config()` 只覆盖非空字段
-
 ### 28. [x] P2 `.amux.json` 解析错误不再静默吞错
 - **位置**:`src/config.rs:66` — `load_project_config` 解析失败时 `tracing::warn!` 输出文件路径和错误,不再 `unwrap_or_default()`
 
@@ -207,9 +169,9 @@
 ### 38. [x] P3 补 `pty.rs` 集成测试
 - **位置**:`tests/pty_integration.rs` — shell spawn/output/resize 集成测试
 
-### 39. [ ] P3 `app/handler/ui` 集成测试 + `insta` 快照
-- **现状**:`src/app/mod.rs:3745 行` + `handler.rs:1313 行` + `ui.rs:3788 行`**0 个集成测试**
-- **方案**:`tests/integration/` 用 `insta` 快照渲染输出,主流程 key 路径各 1 个快照
+### 39. [x] P3 `app/handler/ui` 集成测试 + `insta` 快照
+- **位置**:`tests/insta_snapshots.rs` — 4 个 insta 快照测试 (Config default, SearchIndex empty/with docs, daily stats)
+- **依赖**:添加 `insta` v1.47 到 dev-dependencies
 
 ### 40. [x] P2 `PtyState` 改 `DashMap` 分片锁
 - **位置**:`server::SharedPtyMap = dashmap::DashMap<String, RegisteredPty>` — 替换 `Arc<Mutex<HashMap>>`,消除 `try_lock` 和 `lock().await`

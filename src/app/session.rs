@@ -129,12 +129,14 @@ impl super::App {
                 self.inject_knowledge(&path);
                 self.view.focus = Focus::Chat;
                 self.rebuild_tree();
+                self.update_related_sessions();
             }
             Some(TreeNode::Session(_wi, si)) => {
                 let session = self.sessions.sessions[si].clone();
                 if let Some(existing) = self.pty_index_for_session(&session.id) {
                     self.ptys.active_pty = Some(existing);
                     self.view.focus = Focus::Chat;
+                    self.update_related_sessions();
                     return Ok(());
                 }
                 let path = session.workspace_path.clone();
@@ -195,10 +197,12 @@ impl super::App {
                 self.inject_knowledge(&path);
                 self.view.focus = Focus::Chat;
                 self.rebuild_tree();
+                self.update_related_sessions();
             }
             Some(TreeNode::ActiveTab(pi)) => {
                 self.ptys.active_pty = Some(pi);
                 self.view.focus = Focus::Chat;
+                self.update_related_sessions();
             }
             Some(TreeNode::AgentHeader(_)) => {}
             Some(TreeNode::ArchivedHeader) => {}
@@ -216,6 +220,7 @@ impl super::App {
                     self.ptys.active_pty = Some(existing);
                     self.view.focus = Focus::Chat;
                     self.rebuild_tree();
+                    self.update_related_sessions();
                     return Ok(());
                 }
                 let path = session.workspace_path.clone();
@@ -276,6 +281,7 @@ impl super::App {
                 self.inject_knowledge(&path);
                 self.view.focus = Focus::Chat;
                 self.rebuild_tree();
+                self.update_related_sessions();
             }
             Some(TreeNode::ArchivedSession(_, _)) => {}
             Some(TreeNode::PinnedWorkspace) => {}

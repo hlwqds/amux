@@ -3,12 +3,26 @@ use std::path::PathBuf;
 
 use crate::types::Agent;
 
+/// Execution mode for a session chain.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ChainMode {
+    /// Steps run one after another (default).
+    #[default]
+    Sequential,
+    /// All steps launch simultaneously (future TODO).
+    Parallel,
+}
+
 /// A single step in a session chain.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChainStep {
     pub agent: Agent,
     /// Prompt template. Use `{prev_output}` to inject the previous step's output.
     pub prompt: String,
+    /// Optional JSON Schema to validate step output against after completion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_output_schema: Option<serde_json::Value>,
 }
 
 /// A named chain of session steps that run sequentially.
@@ -16,6 +30,9 @@ pub struct ChainStep {
 pub struct SessionChain {
     pub name: String,
     pub steps: Vec<ChainStep>,
+    /// Execution mode for the chain (sequential or parallel).
+    #[serde(default)]
+    pub mode: ChainMode,
 }
 
 /// Runtime state for an actively executing chain.
@@ -55,12 +72,17 @@ mod tests {
                 ChainStep {
                     agent: Agent::Claude,
                     prompt: "Implement X".into(),
+                    expected_output_schema: None,
                 },
                 ChainStep {
                     agent: Agent::Codex,
                     prompt: "Review:\n{prev_output}".into(),
+                    expected_output_schema: Some(serde_json::json!({
+                        "type": "string"
+                    })),
                 },
             ],
+            mode: ChainMode::Sequential,
         };
         let json = serde_json::to_string(&chain).unwrap();
         let parsed: SessionChain = serde_json::from_str(&json).unwrap();
@@ -114,5 +136,56 @@ mod tests {
         chain.current_step += 1;
         assert_eq!(chain.current_step, 2);
         assert!(chain.current_step + 1 >= chain.total_steps); // last step done
+    }
+
+    #[test]
+    fn test_chain_mode_default_sequential() {
+        let json = r#"{
+            "workspaces": [],
+            "chains": [
+                {
+                    "name": "default-mode",
+                    "steps": [{"agent": "Claude", "prompt": "Do X"}]
+                }
+            ]
+        }"#;
+        let config: crate::types::Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.chains[0].mode, ChainMode::Sequential);
+    }
+
+    #[test]
+    fn test_chain_mode_parallel_deserialization() {
+        let json = r#"{
+            "workspaces": [],
+            "chains": [
+                {
+                    "name": "parallel-chain",
+                    "mode": "parallel",
+                    "steps": [{"agent": "Claude", "prompt": "Do X"}]
+                }
+            ]
+        }"#;
+        let config: crate::types::Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.chains[0].mode, ChainMode::Parallel);
+    }
+
+    #[test]
+    fn test_expected_output_schema_roundtrip() {
+        let step = ChainStep {
+            agent: Agent::Claude,
+            prompt: "Generate JSON".into(),
+            expected_output_schema: Some(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "files": {"type": "array"}
+                },
+                "required": ["files"]
+            })),
+        };
+        let json = serde_json::to_string(&step).unwrap();
+        let parsed: ChainStep = serde_json::from_str(&json).unwrap();
+        assert!(parsed.expected_output_schema.is_some());
+        let schema = parsed.expected_output_schema.unwrap();
+        assert_eq!(schema["type"], "object");
     }
 }

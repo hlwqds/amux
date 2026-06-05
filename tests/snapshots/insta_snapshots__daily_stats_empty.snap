@@ -1,0 +1,5 @@
+---
+source: tests/insta_snapshots.rs
+expression: stats
+---
+{}

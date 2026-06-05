@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 /// Accumulated insights from completed sessions for a workspace.
@@ -36,6 +37,172 @@ pub fn save_knowledge(workspace: &Path, knowledge: &WorkspaceKnowledge) -> Resul
     let json = serde_json::to_string_pretty(knowledge)?;
     std::fs::write(&path, json)?;
     Ok(())
+}
+
+/// Extract structured knowledge from raw text using regex patterns.
+///
+/// Returns `None` if nothing meaningful could be extracted.
+/// Uses regex-based extraction for architecture descriptions, file paths,
+/// technology names, and known issues — no external LLM calls needed.
+pub fn extract_structured_knowledge(raw_text: &str) -> Option<WorkspaceKnowledge> {
+    let mut knowledge = WorkspaceKnowledge::default();
+    let mut found_any = false;
+
+    // --- Architecture extraction ---
+    // Patterns: "architecture is X", "system uses X pattern", "built with X"
+    let arch_patterns: &[&str] = &[
+        r"(?i)architecture\s+(?:is|follows?|uses?)\s+(.+)",
+        r"(?i)(?:system|app|application)\s+uses?\s+(.+?)(?:\.|$)",
+        r"(?i)built\s+with\s+(.+?)(?:\.|$)",
+        r"(?i)(?:using|implements?)\s+(?:a\s+)?(.+?)\s+(?:pattern|architecture)",
+        r"(?i)design(?:ed)?(?:\s+as|\s*:\s*)(.+?)(?:\.|$)",
+    ];
+    for pat in arch_patterns {
+        if let Ok(re) = Regex::new(pat)
+            && let Some(caps) = re.captures(raw_text)
+            && let Some(m) = caps.get(1)
+        {
+            let arch = m.as_str().trim().to_string();
+            if !arch.is_empty() && arch.len() < 500 {
+                knowledge.architecture = arch;
+                found_any = true;
+                break;
+            }
+        }
+    }
+
+    // --- Key files extraction ---
+    // Reuse looks_like_path via extract_paths_from_line
+    for line in raw_text.lines() {
+        extract_paths_from_line(&mut knowledge.key_files, line);
+    }
+    // Also extract paths that appear inline in prose: backtick-quoted or quoted paths
+    if let Ok(re) = Regex::new(r"`([^`]+)`") {
+        for caps in re.captures_iter(raw_text) {
+            if let Some(m) = caps.get(1) {
+                let candidate = m.as_str();
+                if looks_like_path(candidate)
+                    && !knowledge.key_files.contains(&candidate.to_string())
+                {
+                    knowledge.key_files.push(candidate.to_string());
+                }
+            }
+        }
+    }
+    if !knowledge.key_files.is_empty() {
+        found_any = true;
+    }
+
+    // --- Tech stack extraction ---
+    static TECH_NAMES: &[&str] = &[
+        "Rust",
+        "Python",
+        "TypeScript",
+        "JavaScript",
+        "Go",
+        "Java",
+        "Ruby",
+        "React",
+        "Svelte",
+        "Vue",
+        "Angular",
+        "Next.js",
+        "NextJS",
+        "Tokio",
+        "Axum",
+        "Actix",
+        "Warp",
+        "Hyper",
+        "Serde",
+        "Clap",
+        "Anyhow",
+        "Tracing",
+        "Django",
+        "Flask",
+        "FastAPI",
+        "Express",
+        "Koa",
+        "PostgreSQL",
+        "MySQL",
+        "SQLite",
+        "Redis",
+        "MongoDB",
+        "Docker",
+        "Kubernetes",
+        "Terraform",
+        "C++",
+        "C#",
+        "Swift",
+        "Kotlin",
+        "Scala",
+        "Haskell",
+        "Elixir",
+        "Clojure",
+        "Zig",
+        "Nim",
+        "Lua",
+        "Webpack",
+        "Vite",
+        "Rollup",
+        "esbuild",
+        "Tailwind",
+        "Bootstrap",
+        "SASS",
+        "CSS",
+    ];
+    for &tech in TECH_NAMES {
+        // Case-insensitive word-boundary match
+        let pat = format!(r"(?i)\b{}\b", regex::escape(tech));
+        if let Ok(re) = Regex::new(&pat)
+            && re.is_match(raw_text)
+        {
+            let lower_tech = tech.to_lowercase();
+            if !knowledge
+                .tech_stack
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(&lower_tech))
+            {
+                knowledge.tech_stack.push(lower_tech);
+                found_any = true;
+            }
+        }
+    }
+
+    // --- Known issues extraction ---
+    // Lines containing bug/issue/problem/error/TODO/FIXME markers
+    let issue_re =
+        Regex::new(r"(?i)\b(?:bug|issue|problem|error|todo|fixme|hack|workaround|known\s+issue)\b")
+            .ok();
+    if let Some(re) = issue_re {
+        for line in raw_text.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.len() > 500 {
+                continue;
+            }
+            if re.is_match(trimmed) && !knowledge.known_issues.contains(&trimmed.to_string()) {
+                knowledge.known_issues.push(trimmed.to_string());
+                found_any = true;
+            }
+        }
+    }
+
+    // Also extract TODO/FIXME comments with context
+    if let Ok(re) = Regex::new(r"(?i)(TODO|FIXME|HACK|XXX)\s*[:\(]?\s*(.{1,200})") {
+        for caps in re.captures_iter(raw_text) {
+            let full = caps.get(0).unwrap().as_str().trim().to_string();
+            if !knowledge.known_issues.contains(&full) {
+                knowledge.known_issues.push(full);
+                found_any = true;
+            }
+        }
+    }
+
+    if found_any {
+        knowledge.last_updated = Some(chrono_now());
+        Some(knowledge)
+    } else {
+        None
+    }
 }
 
 /// Merge information extracted from a session summary into the knowledge base.
@@ -124,17 +291,36 @@ pub fn merge_from_session(knowledge: &mut WorkspaceKnowledge, summary: &str) {
         }
     }
 
-    // Update architecture if summary contains structural descriptions
-    for line in summary.lines() {
-        let lower = line.to_lowercase();
-        let is_arch = lower.contains("architecture")
-            || lower.contains("module structure")
-            || lower.contains("layer:")
-            || lower.contains("component:")
-            || (lower.contains("uses") && lower.contains("pattern"))
-            || lower.contains("design:");
-        if is_arch && knowledge.architecture.is_empty() {
-            knowledge.architecture = line.trim().to_string();
+    // Fallback: if the keyword-based extraction above didn't find enough,
+    // use regex-based extract_structured_knowledge as a richer fallback.
+    let needs_fallback = knowledge.architecture.is_empty()
+        && knowledge.key_files.is_empty()
+        && knowledge.tech_stack.is_empty()
+        && knowledge.known_issues.is_empty();
+    if needs_fallback
+        && let Some(extracted) = extract_structured_knowledge(summary)
+    {
+        if knowledge.architecture.is_empty() && !extracted.architecture.is_empty() {
+            knowledge.architecture = extracted.architecture;
+        }
+        for f in extracted.key_files {
+            if !knowledge.key_files.contains(&f) {
+                knowledge.key_files.push(f);
+            }
+        }
+        for t in extracted.tech_stack {
+            if !knowledge
+                .tech_stack
+                .iter()
+                .any(|e| e.eq_ignore_ascii_case(&t))
+            {
+                knowledge.tech_stack.push(t);
+            }
+        }
+        for i in extracted.known_issues {
+            if !knowledge.known_issues.contains(&i) {
+                knowledge.known_issues.push(i);
+            }
         }
     }
 }
@@ -383,5 +569,71 @@ mod tests {
         // 1970-01-01 = day 0
         let (y, m, d) = epoch_days_to_ymd(0);
         assert_eq!((y, m, d), (1970, 1, 1));
+    }
+
+    #[test]
+    fn extract_structured_knowledge_none_on_empty() {
+        assert!(extract_structured_knowledge("").is_none());
+        assert!(extract_structured_knowledge("just some random text").is_none());
+    }
+
+    #[test]
+    fn extract_structured_knowledge_architecture() {
+        let result = extract_structured_knowledge(
+            "The system uses a microservice architecture with event sourcing.",
+        );
+        assert!(result.is_some());
+        let k = result.unwrap();
+        assert!(
+            k.architecture.contains("microservice"),
+            "got: {}",
+            k.architecture
+        );
+    }
+
+    #[test]
+    fn extract_structured_knowledge_built_with() {
+        let result =
+            extract_structured_knowledge("The app is built with Rust and uses Tokio for async.");
+        assert!(result.is_some());
+        let k = result.unwrap();
+        assert!(k.tech_stack.contains(&"rust".to_string()));
+        assert!(k.tech_stack.contains(&"tokio".to_string()));
+    }
+
+    #[test]
+    fn extract_structured_knowledge_files_in_backticks() {
+        let result = extract_structured_knowledge(
+            "Modified `src/app/handler.rs` to fix the issue in `lib/types.ts`.",
+        );
+        assert!(result.is_some());
+        let k = result.unwrap();
+        assert!(k.key_files.contains(&"src/app/handler.rs".to_string()));
+        assert!(k.key_files.contains(&"lib/types.ts".to_string()));
+    }
+
+    #[test]
+    fn extract_structured_knowledge_issues() {
+        let result = extract_structured_knowledge(
+            "TODO: refactor the authentication module\nFIXME: memory leak in cache",
+        );
+        assert!(result.is_some());
+        let k = result.unwrap();
+        assert!(k.known_issues.iter().any(|i| i.contains("TODO")));
+        assert!(k.known_issues.iter().any(|i| i.contains("FIXME")));
+    }
+
+    #[test]
+    fn merge_fallback_uses_extract_structured() {
+        let mut k = WorkspaceKnowledge::default();
+        // "Swift" is NOT in merge_from_session's TECH_NAMES but IS in
+        // extract_structured_knowledge's expanded list, so only the
+        // regex fallback will find it.
+        merge_from_session(&mut k, "The project is built with Swift and SwiftUI.");
+        assert!(
+            k.tech_stack.iter().any(|t| t.eq_ignore_ascii_case("swift")),
+            "fallback should extract swift, got: {:?}",
+            k.tech_stack
+        );
     }
 }
