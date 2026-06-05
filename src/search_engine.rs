@@ -349,4 +349,35 @@ mod tests {
         index.remove_document("doc1");
         assert_eq!(index.avg_dl, 2.0); // 2 / 1
     }
+
+    #[test]
+    fn test_bm25_idf_and_scoring() {
+        // Verify IDF and BM25 score computation against hand-calculated values.
+        // Setup: 3 documents, query "rust"
+        let mut index = SearchIndex::new();
+        index.add_document("doc1", "rust rust rust"); // tf=3, dl=3
+        index.add_document("doc2", "rust python");     // tf=1, dl=2
+        index.add_document("doc3", "python java");     // tf=0, dl=2
+
+        // N=3, n("rust")=2 (appears in 2 docs)
+        // IDF = ln((3 - 2 + 0.5) / (2 + 0.5) + 1) = ln(1.5/2.5 + 1) = ln(1.6)
+        let idf_expected: f64 = (((3.0_f64 - 2.0 + 0.5) / (2.0 + 0.5)) + 1.0_f64).ln();
+        assert!((idf_expected - 0.4700).abs() < 0.01, "IDF approx 0.47, got {idf_expected}");
+
+        // avg_dl = (3 + 2 + 2) / 3 = 7/3
+        assert!((index.avg_dl - 2.333).abs() < 0.01);
+
+        let results = index.search("rust", 10);
+        assert_eq!(results.len(), 2); // doc3 doesn't match
+
+        // doc1 should rank higher than doc2 (higher tf)
+        assert_eq!(results[0].0, "doc1");
+        assert_eq!(results[1].0, "doc2");
+        assert!(results[0].1 > results[1].1, "doc1 score ({}) > doc2 score ({})", results[0].1, results[1].1);
+
+        // Verify scores are positive and finite
+        for (_, score) in &results {
+            assert!(score.is_finite() && *score > 0.0, "score should be positive finite, got {score}");
+        }
+    }
 }

@@ -2,6 +2,12 @@
 name = "amux"
 version = "0.3.0"
 edition = "2024"
+description = "TUI multiplexer for AI coding agents (Claude Code, Codex, OMP)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nicepkg/amux"
+keywords = ["tui", "ai", "claude", "codex", "pty", "multiplexer"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
 
 [dependencies]
 anyhow = "1"

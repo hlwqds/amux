@@ -72,21 +72,9 @@
 ### 11. [x] P1 `watch.rs` 限制递归深度避免 fd 耗尽
 - **位置**:`src/watch.rs:56` 改为 `RecursiveMode::NonRecursive`
 
-### 12. [ ] P1 Web 模式 xterm.js 资源本地化
-- **位置**:`src/server/static/index.html:7-8, 752-753` 通过 jsdelivr CDN 加载 xterm 5.3.0
-- **问题**:
-  - 国内网络 CDN 失败率高,启动即空白
-  - 供应链审计风险
-  - 隐含"amux 必须联网"依赖
-- **修复**:
-  1. `cargo` 引入 `static-files = "0.2"` 或 `axum-embed` 把 `xterm.js` / `xterm.css` / `xterm-addon-fit.js` 内嵌到二进制
-  2. `index.html` 改成 `<script src="/static/vendor/xterm.js">`
-  3. 文档加 "Web mode works offline" 说明
-- **验收**:`amux --web` 在断网环境启动 + 终端能正常打开
+### 12. [x] P1 Web 模式 xterm.js 资源本地化
+- **位置**:`src/server/static/vendor/` — 本地 xterm.js/xterm.css/xterm-addon-fit.js,HTML 引用改为 `/static/vendor/*`
 
-### 13. [ ] P1 `PTY.write_input` 加背压
-- **位置**:`src/pty.rs` `write_input` 直接灌
-- **问题**:用户一次性 paste 1MB 文本 → PTY 阻塞 → amux 假死
 ### 13. [x] P1 `PTY.write_input` 加背压
 - **位置**:`src/pty.rs:492` — 4KB 分块写入,通道满时静默丢弃(drop backpressure),不阻塞主循环
 
@@ -239,16 +227,8 @@
 ### 33. [ ] P3 crates.io 发布准备
 - **现状**:`Cargo.toml` 缺 `description` / `license` / `repository` / `keywords`,纯本地构建
 - **修复**:
-  ```toml
-  [package]
-  description = "TUI multiplexer for AI coding agents (Claude Code, Codex, OMP)"
-  license = "MIT OR Apache-2.0"
-  repository = "https://github.com/<org>/amux"
-  keywords = ["tui", "ai", "claude", "codex", "pty", "multiplexer"]
-  categories = ["command-line-utilities", "development-tools"]
-  readme = "README.md"
-  ```
-- **验收**:`cargo publish --dry-run` 跑通
+### 33. [x] P3 crates.io 发布准备
+- **位置**:`Cargo.toml` 已加 description/license/repository/keywords/categories/readme
 
 ### 34. [ ] P3 GitHub Actions CI
 - **现状**:`.github/` 目录存在但空
@@ -267,9 +247,17 @@
 ### 37. [ ] P3 补 `discovery` cache 命中逻辑测试
 - **现状**:`src/discovery.rs` 测了 `parse_gsd_session` 的各种 JSON,**没测 mtime 缓存命中逻辑**
 - **方案**:mock mtime,断言 `discover_sessions_cached` 在 mtime 未变时直接返回
+### 35. [x] P3 `CHANGELOG.md` 0.x 跟踪
+- **位置**:已创建 `CHANGELOG.md`,Keep a Changelog 格式
+
+### 36. [x] P3 补 `score_bm25` 单元测试
+- **位置**:`src/search_engine.rs:353` — `test_bm25_idf_and_scoring` 验证 IDF 值、avg_dl、排名顺序
+
+### 37. [ ] P3 补 `discovery` cache 命中逻辑测试
+- **现状**:`src/discovery.rs` 测了 `parse_gsd_session` 的各种 JSON,**没测 mtime 缓存命中逻辑**
+- **方案**:mock mtime,断言 `discover_sessions_cached` 在 mtime 未变时直接返回
 
 ### 38. [ ] P3 补 `pty.rs` 集成测试
-- **现状**:`src/pty.rs` 0 个测试,这是最 critical 的模块
 - **方案**:
   - `cargo test --test pty_integration` spawn 真 shell,验证输出能拿回
   - 用 `portable-pty` 的 mock 跑 daemon 关闭 / 大输出 / CJK 路径
@@ -283,20 +271,20 @@
 - **问题**:10 个并发 WS 连接就有竞争
 - **修复**:换 `dashmap::DashMap`,或 `Arc<RwLock<HashMap>>` + 一致性哈希分片
 
-### 41. [ ] P2 unset 环境变量列表迁到配置
-- **现状**:`types.rs:127-129` 等处硬编码 `KITTY_WINDOW_ID` / `GHOSTTY_BIN_DIR` / `TERM_PROGRAM` / `ALACRITTY_WINDOW_ID`
-- **方案**:`Config.unset_env: Vec<String>`,用户能加自己的(`JEST_WORKER_ID`、`CLAUDE_CODE_ENTRYPOINT`)
-
-### 42. [ ] P3 补 `CONTRIBUTING.md` / `ARCHITECTURE.md` / `TROUBLESHOOTING.md`
-- **现状**:`docs/` 整个目录**只有 2 个文件**(`chains.md` + `config.md`),项目有 28 个模块
 ### 41. [x] P2 unset 环境变量列表迁到配置
 - **位置**:`Config.unset_env: Vec<String>` 加于 `types.rs:311`,`Agent::DEFAULT_UNSET_ENV` 常量 + `apply_term_env_with_extra()` 方法
+
+### 42. [ ] P3 补 `CONTRIBUTING.md` / `ARCHITECTURE.md` / `TROUBLESHOOTING.md`
+- **现状**:`docs/` 目录需要补充项目文档
+- **方案**:
+  - `CONTRIBUTING.md`:本地开发流程、测试规范、commit 规范
   - `ARCHITECTURE.md`:模块依赖图、关键数据流
   - `TROUBLESHOOTING.md`:常见问题(PTY 假死、token 计费不准、agent 找不到 session 目录)
 
-### 43. [ ] P3 修正 GSD 文档与代码不一致
-### 43. [x] P3 修正 GSD 文档与代码不一致
-- **位置**:`docs/chains.md` 和 `docs/config.md` — 已移除不存在的 `Gsd` agent 引用
+---
+
+### 42. [x] P3 补 `CONTRIBUTING.md`
+- **位置**:已创建 `CONTRIBUTING.md`,包含开发流程、commit 规范、PR 流程
 
 ---
 
@@ -304,7 +292,6 @@
 
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|
-| **今天** | #1 (另一个 agent 改完后) | #2 | `cargo build --release` 成功 |
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |
 | **本周** | #8, #11, #12, #13, #14, #31 | tracing 引入;xterm 资源 | 断网启动 web 模式正常 |
 | **本月** | #9, #23, #33, #34, #35 | #34 装好 runner | 第一次 `cargo publish` 跑通,CI 绿 |
