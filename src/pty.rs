@@ -90,9 +90,7 @@ pub struct PtyHandle {
     snapshots: Arc<RwLock<std::collections::VecDeque<Vec<String>>>>,
     /// Current scrollback position: 0 = live, N = N snapshots back.
     snap_scroll: Arc<AtomicUsize>,
-    /// Asciinema recording file handle (shared with reader thread).
-    #[allow(dead_code)] // read in reader thread closure
-    recording: Arc<RwLock<Option<std::fs::File>>>,
+    // Asciinema recording — the Arc is cloned into the reader thread.
 }
 
 /// Create an asciinema v2 recording file at the given path.
@@ -370,7 +368,6 @@ impl PtyHandle {
             child_pid,
             snapshots,
             snap_scroll,
-            recording,
         })
     }
 
@@ -551,7 +548,6 @@ impl PtyHandle {
             child_pid,
             snapshots,
             snap_scroll,
-            recording: Arc::new(RwLock::new(None)),
         })
     }
 

@@ -36,7 +36,6 @@ fn page_size() -> i64 {
 /// Aggregates the process tree (PID + all descendants) for accurate resource usage.
 ///
 /// Returns default stats on non-Linux platforms.
-#[allow(unused_variables)]
 pub fn read_process_stats(pid: u32) -> Result<ProcessStats> {
     #[cfg(target_os = "linux")]
     {

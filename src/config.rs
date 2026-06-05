@@ -61,18 +61,19 @@ pub fn load_config() -> Result<Config> {
         .unwrap_or_else(|| std::path::Path::new("."))
         .join("config.d");
     if config_d.is_dir() {
-        let mut entries: Vec<_> = fs::read_dir(&config_d)
-            .unwrap_or_else(|e| {
+        let mut entries: Vec<_> = match fs::read_dir(&config_d) {
+            Ok(rd) => rd.filter_map(|e| e.ok()).collect(),
+            Err(e) => {
                 tracing::warn!("Failed to read config.d: {e}");
-                fs::read_dir(".").unwrap() // empty iter
-            })
-            .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "json")
-            })
-            .collect();
+                Vec::new()
+            }
+        };
+        entries.retain(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|ext| ext == "json")
+        });
+
         entries.sort_by_key(|e| e.file_name());
 
         for entry in entries {

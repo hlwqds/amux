@@ -195,8 +195,22 @@
 - **覆盖**:handler_search, handler_select, mod, search_engine, pty, util, mcp, knowledge
 - **跳过**:test 函数内的 unwrap 不改动
 
----
+### 45. [x] P1 移除 `serve_port` 死字段
+- **位置**:`src/app/mod.rs` — 删除 `serve_port: u16` 字段及所有引用,端口已在 status 中显示无需单独存储
 
+### 46. [x] P1 修复 `config.d/` 启动 panic 路径
+- **位置**:`src/config.rs:64` — `fs::read_dir` 失败时不再 `fs::read_dir(".").unwrap()`,改用 `Vec::new()`
+
+### 47. [x] P2 移除 `PtyHandle.recording` 死字段
+- **位置**:`src/pty.rs:93` — recording Arc 只需在 reader thread 局部使用,从 struct 中移除避免每 PTY 多余 Arc 分配
+
+### 48. [x] P3 移除 `procfs::read_process_stats` 多余 `#[allow(unused_variables)]`
+- **位置**:`src/procfs.rs:39` — `pid` 在 `cfg(target_os = \"linux\")` 分支中使用,无需 allow
+
+### 49. [x] P2 HTTP API `/api/sessions/{id}/input` 错误传播
+- **位置**:`src/server/api.rs:111` — `write_input` 失败时返回 `{\"status\":\"error\",\"message\":\"PTY closed\"}` 而非静默 `ok`
+
+---
 ## 五、推荐的执行顺序
 
 | 阶段 | 任务 | 预计依赖 | 验收标准 |

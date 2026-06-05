@@ -108,8 +108,10 @@ pub async fn pty_input(
     let Some(rp) = state.ptys.get(&id) else {
         return Json(json!({ "error": format!("PTY '{}' not found", id) }));
     };
-    let _ = rp.value().handle.write_input(body.data.as_bytes());
-    Json(json!({ "status": "ok" }))
+    match rp.value().handle.write_input(body.data.as_bytes()) {
+        Ok(()) => Json(json!({ "status": "ok" })),
+        Err(e) => Json(json!({ "status": "error", "message": e })),
+    }
 }
 
 #[derive(Deserialize)]

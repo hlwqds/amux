@@ -217,11 +217,7 @@ struct App {
     agent_recommendations: Vec<crate::discovery::AgentMetrics>,
     cross_search_results: Vec<crate::discovery::CrossSearchResult>,
     shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>,
-    /// Handle to the background axum server task.
     server_handle: Option<tokio::task::JoinHandle<()>>,
-    /// Server port (for status display).
-    #[allow(dead_code)]
-    serve_port: u16,
     /// Override check command from config. Format: "command arg1 arg2"
     check_command: Option<String>,
     // --- Theme selection state ---
@@ -285,7 +281,6 @@ impl Default for App {
             cross_search_results: Vec::new(),
             shared_ptys: std::sync::Arc::new(crate::server::SharedPtyMap::new()),
             server_handle: None,
-            serve_port: 0,
             check_command: None,
             theme_list: Vec::new(),
             theme_list_state: ListState::default(),
@@ -311,7 +306,6 @@ mod ui;
 impl App {
     fn new(
         shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>,
-        serve_port: u16,
     ) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
             workspaces: Vec::new(),
@@ -412,7 +406,6 @@ impl App {
             cross_search_results: Vec::new(),
             shared_ptys,
             server_handle: None,
-            serve_port,
             check_command,
             theme_list: Vec::new(),
             theme_list_state: ListState::default(),
@@ -2523,7 +2516,7 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     crate::config::ensure_data_dir().context("failed to create data directory")?;
     let shared_ptys: std::sync::Arc<crate::server::SharedPtyMap> =
         std::sync::Arc::new(crate::server::SharedPtyMap::new());
-    let mut app = App::new(shared_ptys.clone(), 0);
+    let mut app = App::new(shared_ptys.clone());
     // Only start embedded server with --web flag
     if serve {
         let rt = tokio::runtime::Runtime::new()?;
@@ -2561,7 +2554,6 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
                 }
             }
         };
-        app.serve_port = actual_port;
         if actual_port > 0 {
             app.view.status = format!(
                 "{} [web: http://localhost:{}]",
