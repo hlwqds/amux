@@ -1029,26 +1029,29 @@ impl super::App {
 
             if paste_bytes.len() > MAX_PASTE_BYTES {
                 self.view.status = format!(
-                    "Paste truncated: {} bytes → {} KB max",
-                    paste_bytes.len(),
+                    "Paste truncated: {} KB → {} KB max",
+                    paste_bytes.len() / 1024,
                     MAX_PASTE_BYTES / 1024
                 );
             }
 
             let data = &paste_bytes[..paste_bytes.len().min(MAX_PASTE_BYTES)];
 
+            let cleaned = sanitize_paste(data);
+
             // Wrap in bracketed paste sequence if the PTY app supports it.
             // This tells the CLI that this is pasted content (not typed),
-            // allowing it to handle it properly (e.g. collapse display).
+            // allowing it to handle it properly (e.g. collapse display,
+            // suppress echo, treat as single input).
             if slot.handle.is_bracketed_paste() {
-                let mut buf = Vec::with_capacity(data.len() + 16);
+                let mut buf = Vec::with_capacity(cleaned.len() + 12);
                 buf.extend_from_slice(b"\x1b[200~");
-                buf.extend_from_slice(data);
+                buf.extend_from_slice(&cleaned);
                 buf.extend_from_slice(b"\x1b[201~");
                 if let Err(e) = slot.handle.write_input(&buf) {
                     self.view.status = format!("Write error: {e}");
                 }
-            } else if let Err(e) = slot.handle.write_input(data) {
+            } else if let Err(e) = slot.handle.write_input(&cleaned) {
                 self.view.status = format!("Write error: {e}");
             }
         }
@@ -1266,5 +1269,63 @@ impl super::App {
             }
             _ => false,
         }
+    }
+}
+
+/// Strip embedded control sequences from pasted content.
+/// Keeps newlines, tabs, carriage returns, and all printable/high bytes.
+/// Removes ESC and other C0 controls (0x00-0x1F except \t \n \r) that would
+/// be misinterpreted as ANSI escape sequences by the PTY child process.
+pub(super) fn sanitize_paste(data: &[u8]) -> Vec<u8> {
+    data.iter()
+        .copied()
+        .filter(|&b| {
+            b >= 0x20 // printable ASCII
+                || b == b'\n'
+                || b == b'\r'
+                || b == b'\t'
+                || b >= 0x80 // UTF-8 continuation / high bytes
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod sanitize_tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_strips_ansi_escapes() {
+        let input = b"hello\x1b[31m world";
+        let result = sanitize_paste(input);
+        assert_eq!(result, b"hello[31m world");
+    }
+
+    #[test]
+    fn sanitize_keeps_newlines_and_tabs() {
+        let input = b"line1\nline2\r\n\ttab";
+        let result = sanitize_paste(input);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn sanitize_strips_null_and_bell() {
+        let input = b"hello\x00world\x07end";
+        let result = sanitize_paste(input);
+        assert_eq!(result, b"helloworldend");
+    }
+
+    #[test]
+    fn sanitize_preserves_utf8() {
+        // "hello" + UTF-8 é (0xC3 0xA9) + "world"
+        let input = "hello\u{00e9}world".as_bytes();
+        let result = sanitize_paste(input);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn sanitize_strips_backspace() {
+        let input = b"foo\x08bar";
+        let result = sanitize_paste(input);
+        assert_eq!(result, b"foobar");
     }
 }

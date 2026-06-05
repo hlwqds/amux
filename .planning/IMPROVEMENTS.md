@@ -287,14 +287,15 @@
 - **效果**:`discovery.rs` 从 2025 行降至 721 行 (64% reduction),`extraction.rs` 1311 行
 - **re-export**:`discovery.rs` 添加 `pub use crate::extraction::*` 保持 API 兼容
 
-### 68. [x] P0 修复粘贴 bug: 奇怪符号 + 大内容阻塞
-- **问题1**: 粘贴内容到 agent CLI 出现奇怪符号 — 因为未用 BracketedPaste 协议包裹
-- **问题2**: 粘贴大内容导致 CLI 长时间回显 — 因为未限制大小
-- **修复**:`src/pty.rs` 添加 `is_bracketed_paste()` 检测终端模式
-- **修复**:`src/app/handler.rs` `handle_paste()` 用 `\x1b[200~`/`\x1b[201~` 包裹粘贴内容
-- **修复**:PTY 粘贴限制 64KB,搜索模式限制 200 字符,输入模式限制 4000 字符
-- **测试**:6 个新测试覆盖各种粘贴场景
-
+### 68. [x] P0 修复粘贴 bug: 奇怪符号 + 大内容阻塞 (第二轮修复)
+- **根因1**: `init_terminal()` 未启用 `EnableBracketedPaste` — host terminal 将粘贴当作逐字符按键发送,crossterm 无法识别为 `Event::Paste`,变成乱码
+- **根因2**: 粘贴内容含 ANSI escape / C0 控制字符 (ESC, NUL, BEL, BS 等),直接发给 PTY 被子进程误读
+- **根因3**: 无大小限制,64KB+ 粘贴内容导致 CLI 长时间回显
+- **修复1**: `init_terminal()` 添加 `EnableBracketedPaste`,host terminal 正确发送 paste event
+- **修复2**: `sanitize_paste()` 过滤 C0 控制字符 (保留 \n \r \t),剥离 ESC 序列
+- **修复3**: PTY 粘贴限 64KB + bracketed paste wrapper (`\x1b[200~`/`\x1b[201~`)
+- **修复4**: `restore_terminal()` 添加 `DisableBracketedPaste` 清理
+- **测试**:11 个新测试 (5 sanitize + 6 paste handler)
 ## 五、推荐的执行顺序
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|
