@@ -655,6 +655,14 @@ impl PtyHandle {
         self.term.lock().mode().contains(TermMode::ALT_SCREEN)
     }
 
+    /// Check if the PTY child has enabled bracketed paste mode (DECSET 2004).
+    /// When true, the child understands `\x1b[200~...\x1b[201~` paste wrappers.
+    /// When false, we must NOT send those wrappers or the child will echo
+    /// `[200~...[201~` as literal text (appearing as "garbled characters").
+    pub fn is_bracketed_paste(&self) -> bool {
+        self.term.lock().mode().contains(TermMode::BRACKETED_PASTE)
+    }
+
     pub fn idle_secs(&self) -> u64 {
         let last = self.last_output_at.load(Ordering::Relaxed);
         now_secs().saturating_sub(last)

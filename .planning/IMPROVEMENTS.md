@@ -287,19 +287,20 @@
 - **效果**:`discovery.rs` 从 2025 行降至 721 行 (64% reduction),`extraction.rs` 1311 行
 - **re-export**:`discovery.rs` 添加 `pub use crate::extraction::*` 保持 API 兼容
 
-### 68. [x] P0 修复粘贴 bug: 奇怪符号 + 大内容阻塞 (第三轮根因修复)
+### 68. [x] P0 修复粘贴 bug: 奇怪符号 + 大内容阻塞 (第四轮根因修复)
 - **根因1**: `init_terminal()` 未启用 `EnableBracketedPaste` → host terminal 逐字符发送粘贴 → 乱码
-- **根因2**: 粘贴内容含 C0 控制字符 (ESC, NUL, BEL, BS) → PTY 子进程误读为 ANSI 序列 → 奇怪符号
-- **根因3**: 大粘贴 (64KB) 一次性发给 PTY → 子进程逐字符回显 → 终端渲染卡住
-- **根因4**: 仅在 `is_bracketed_paste()` 为 true 时包裹 → 当 PTY 子进程未启用 DECSET 2004 时不包裹 → 子进程当作逐字输入回显
-- **修复1**: `init_terminal()` 启用 `EnableBracketedPaste`,host terminal 正确发送 `Event::Paste`
-- **修复2**: `sanitize_paste()` 过滤 C0 控制字符 (保留 `\n` `\r` `\t`)
-- **修复3**: **始终**用 `\x1b[200~...\x1b[201~` 包裹粘贴内容,不再检查子进程是否支持 bracketed paste
-- **修复4**: 粘贴上限从 64KB 降至 8KB,防止子进程回显大量内容导致 UI 卡顿
-- **修复5**: `restore_terminal()` 添加 `DisableBracketedPaste` 清理
-- **移除**: `is_bracketed_paste()` 方法不再需要
-- **测试**:11 个新测试 (5 sanitize + 6 paste handler)
-
+- **根因2**: 粘贴内容含 C0 控制字符 → PTY 子进程误读 → 奇怪符号
+- **根因3**: 始终用 bracketed paste 包裹 → 不支持 DECSET 2004 的进程 (raw shell/启动阶段) 回显 `[200~...[201~` → 奇怪符号
+- **根因4**: Host terminal 不支持 bracketed paste (SSH/screen/tmux) → 粘贴变成逐字符 `Event::Key` → 每字符单独转发 PTY → 逐字回显 → UI 卡死
+- **修复1**: `init_terminal()` 启用 `EnableBracketedPaste`
+- **修复2**: `sanitize_paste()` 过滤 C0 控制字符
+- **修复3**: 恢复 `is_bracketed_paste()` 条件检查 — 只在 PTY child 启用了 DECSET 2004 时才包裹
+- **修复4**: 新增 `pending_paste` 缓冲 — 检测快速连续的 `Char` 按键序列(没有 `Event::Paste` 时的粘贴)
+  - Passthrough 模式下 `Char` 键累积到 buffer,50ms 无新按键时 flush
+  - flush 走 `handle_paste()` 统一路径 (sanitize + bracketed paste wrapping + 8KB limit)
+  - 超过 8KB 立即 flush 防止内存无限增长
+- **修复5**: 粘贴上限 8KB
+- **测试**:11 个新测试
 | 阶段 | 任务 | 预计依赖 | 验收标准 |
 |------|------|----------|----------|
 | **今天** | #3, #4, #5, #6 | 无 | 7 处 `PtyState::*` / 60 行注释 / 18 行重复全部消失 |

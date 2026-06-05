@@ -1010,6 +1010,21 @@ impl super::App {
         self.view.status = format!("Closed tab: {}", title);
     }
 
+    /// Flush the rapid-key-sequence buffer (simulated paste) to the PTY.
+    /// Called when a burst of Char keys ends (no key for one poll cycle)
+    /// or when a non-Char key interrupts the sequence.
+    pub(crate) fn flush_pending_paste(&mut self) {
+        if self.pending_paste.is_empty() {
+            return;
+        }
+        let text = std::mem::take(&mut self.pending_paste);
+        // Route through handle_paste for proper sanitization, size limiting,
+        // and bracketed-paste wrapping.
+        if let Err(e) = self.handle_paste(&text) {
+            self.view.status = format!("Paste flush error: {e}");
+        }
+    }
+
     pub(super) fn handle_paste(&mut self, text: &str) -> Result<Action> {
         if self.view.input_mode == InputMode::ScrollbackSearch {
             // In search mode, limit pasted text to prevent query bar overflow
@@ -1043,20 +1058,20 @@ impl super::App {
             let data = &paste_bytes[..paste_bytes.len().min(MAX_PASTE_BYTES)];
             let cleaned = sanitize_paste(data);
 
-            // Always wrap in bracketed paste sequence (\x1b[200~ ... \x1b[201~).
-            // This is the standard protocol (DECSET 2004) that tells the PTY child
-            // the content is a paste, not typed input. Applications that support it
-            // (Claude Code, bash readline, zsh, etc.) will:
-            //   - Suppress character-by-character echo (no garbled output)
-            //   - Treat the entire paste as a single input unit
-            //   - Optionally collapse/summarize large pastes
-            // Applications that don't support it will silently ignore the
-            // unknown escape sequences.
-            let mut buf = Vec::with_capacity(cleaned.len() + 12);
-            buf.extend_from_slice(b"\x1b[200~");
-            buf.extend_from_slice(&cleaned);
-            buf.extend_from_slice(b"\x1b[201~");
-            if let Err(e) = slot.handle.write_input(&buf) {
+            // Only wrap in bracketed paste sequence when the PTY child has
+            // explicitly enabled DECSET 2004. If we send \x1b[200~...\x1b[201~
+            // to a process that hasn't enabled bracketed paste mode (e.g. a raw
+            // shell or an app during startup), it will echo the wrapper text as
+            // literal "[200~...[201~" — appearing as garbled characters.
+            if slot.handle.is_bracketed_paste() {
+                let mut buf = Vec::with_capacity(cleaned.len() + 12);
+                buf.extend_from_slice(b"\x1b[200~");
+                buf.extend_from_slice(&cleaned);
+                buf.extend_from_slice(b"\x1b[201~");
+                if let Err(e) = slot.handle.write_input(&buf) {
+                    self.view.status = format!("Write error: {e}");
+                }
+            } else if let Err(e) = slot.handle.write_input(&cleaned) {
                 self.view.status = format!("Write error: {e}");
             }
         }

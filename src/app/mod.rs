@@ -14,7 +14,7 @@ use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::*;
 use anyhow::{Context, Result};
-use crossterm::event::{Event, KeyEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{layout::Rect, widgets::ListState};
 
 // ─── Sub-structures ──────────────────────────────────────────
@@ -241,6 +241,10 @@ struct App {
     search_results: Vec<(String, f64)>,
     /// List state for semantic search result selection.
     search_result_state: ratatui::widgets::ListState,
+    /// Buffer for detecting rapid key sequences (paste without bracketed paste).
+    /// When many Char keys arrive in rapid succession without Event::Paste,
+    /// they are accumulated here and flushed as a single batched write.
+    pending_paste: String,
 }
 
 impl Default for App {
@@ -292,6 +296,7 @@ impl Default for App {
             search_index: crate::search_engine::SearchIndex::new(),
             search_results: Vec::new(),
             search_result_state: ListState::default(),
+            pending_paste: String::new(),
         }
     }
 }
@@ -418,6 +423,7 @@ impl App {
             search_index: crate::search_engine::SearchIndex::new(),
             search_results: Vec::new(),
             search_result_state: ListState::default(),
+            pending_paste: String::new(),
         };
         app.rebuild_tree();
         if !app.sessions.tree.is_empty() {
@@ -870,19 +876,65 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
             app.last_refresh = std::time::Instant::now();
         }
 
+        // Flush any pending rapid-key-sequence (simulated paste) before polling.
+        // If chars accumulated in pending_paste and no new key arrived for one
+        // poll cycle (50ms), treat it as a completed paste and write it to the PTY.
+        if !app.pending_paste.is_empty() {
+            // No new event this cycle → rapid sequence has ended → flush.
+            if !crossterm::event::poll(std::time::Duration::ZERO)? {
+                app.flush_pending_paste();
+            }
+        }
+
         // Adaptive poll: shorter when PTYs are active, longer when idle
         let poll_ms = if app.ptys.ptys.is_empty() { 100 } else { 50 };
         if crossterm::event::poll(std::time::Duration::from_millis(poll_ms))? {
             match crossterm::event::read()? {
-                Event::Key(key) if key.kind == KeyEventKind::Press => match app.handle_key(key)? {
-                    Action::Continue => {}
-                    Action::Quit => break Ok(()),
-                },
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    // In passthrough Chat mode, accumulate rapid Char keys into
+                    // pending_paste instead of forwarding each one individually.
+                    // This detects "paste without bracketed paste" — when the host
+                    // terminal doesn't support DECSET 2004 and sends pasted content
+                    // as individual keystroke events.
+                    if app.view.input_mode == InputMode::None
+                        && app.view.focus == Focus::Chat
+                        && app.view.chat_mode == ChatMode::Passthrough
+                        && !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        && let KeyCode::Char(c) = key.code
+                    {
+                        app.pending_paste.push(c);
+                        // If buffer exceeds threshold, flush immediately to avoid
+                        // unbounded memory growth on very long pastes.
+                        if app.pending_paste.len() >= 8192 {
+                            app.flush_pending_paste();
+                        }
+                    } else {
+                        // Non-char key or non-passthrough mode: flush any pending
+                        // paste first, then handle the key normally.
+                        if !app.pending_paste.is_empty() {
+                            app.flush_pending_paste();
+                        }
+                        match app.handle_key(key)? {
+                            Action::Continue => {}
+                            Action::Quit => break Ok(()),
+                        }
+                    }
+                }
                 Event::Paste(text) => {
+                    // Flush any pending rapid-key buffer first (shouldn't normally
+                    // happen, but be safe).
+                    if !app.pending_paste.is_empty() {
+                        app.pending_paste.clear();
+                    }
                     app.handle_paste(&text)?;
                 }
 
                 Event::Mouse(mouse) => {
+                    if !app.pending_paste.is_empty() {
+                        app.flush_pending_paste();
+                    }
                     // Handle split divider drag first — consumes Down/Drag/Up near boundary
                     if app.handle_split_drag(mouse.kind, mouse.column) {
                         // consumed
