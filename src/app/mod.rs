@@ -7,9 +7,8 @@ use std::{
 
 use crate::config::{data_dir, save_config_file, title_override_path};
 use crate::discovery::{
-    PreviewLine, SessionCache, discover_sessions, discover_sessions_by_ids,
-    discover_sessions_cached, extract_branch_points, find_recent_session_for_workspace,
-    find_session_jsonl, preview_session_content,
+    PreviewLine, discover_sessions, discover_sessions_by_ids, extract_branch_points,
+    find_recent_session_for_workspace, find_session_jsonl, preview_session_content,
 };
 use crate::pty::PtyState;
 use crate::types::*;
@@ -91,8 +90,6 @@ struct SessionStore {
     recent_expanded: bool,
     /// Number of recent sessions (cached during rebuild_tree).
     recent_count: usize,
-    /// Cache for incremental session discovery — maps file path to (mtime, Session).
-    session_cache: SessionCache,
     /// Per-project configs keyed by workspace path, loaded from `.amux.json`.
     project_configs: std::collections::HashMap<PathBuf, ProjectConfig>,
     /// Modification times for `.amux.json` files — used to skip redundant reloads.
@@ -370,7 +367,6 @@ impl App {
                 pinned_expanded: false,
                 recent_expanded: false,
                 recent_count: 0,
-                session_cache: SessionCache::new(),
                 project_configs: std::collections::HashMap::new(),
                 project_config_mtimes: std::collections::HashMap::new(),
             },

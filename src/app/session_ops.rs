@@ -314,32 +314,6 @@ impl App {
         }
     }
 
-    /// Scan filesystem and import ALL discovered sessions into workspace.session_ids.
-    /// Triggered by refresh keybind — allows user to pull in historical sessions.
-    pub(crate) fn scan_and_import_sessions(&mut self) {
-        let discovered =
-            discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
-        let mut config_changed = false;
-        // Import sessions that belong to a workspace
-        for session in &discovered {
-            if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
-                ws.path.as_deref() == Some(&session.workspace_path)
-                    || (ws.path.is_none()
-                        && session.workspace_path == data_dir().join("workspaces").join(&ws.id))
-            }) {
-                if !ws.session_ids.contains(&session.id) {
-                    ws.session_ids.push(session.id.clone());
-                    config_changed = true;
-                }
-            }
-        }
-        if config_changed {
-            self.save_config();
-        }
-        // Now do a normal refresh to show the newly imported sessions
-        self.refresh_sessions();
-    }
-
     /// Rebuild the BM25 search index from session titles and summaries.
     pub(crate) fn rebuild_search_index(&mut self) {
         self.search_index = crate::search_engine::SearchIndex::new();
