@@ -593,6 +593,7 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
 }
 
 pub use crate::extraction::*;
+pub(crate) use crate::session_title::*;
 
 #[cfg(test)]
 mod tests {

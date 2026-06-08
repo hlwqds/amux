@@ -304,6 +304,12 @@ mod session;
 mod session_ops;
 mod ui;
 mod ui_popup;
+mod ui_popup_confirm;
+mod ui_popup_select;
+mod ui_popup_view;
+mod delete_ops;
+mod preview;
+mod tree;
 impl App {
     fn new(shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {

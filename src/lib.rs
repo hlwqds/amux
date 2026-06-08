@@ -14,6 +14,7 @@ pub mod procfs;
 pub mod pty;
 pub mod search_engine;
 pub mod server;
+pub mod session_title;
 pub mod stats;
 pub mod template;
 pub mod theme;

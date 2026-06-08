@@ -2,7 +2,6 @@ use std::{fs, path::Path};
 
 use crate::config::load_session_meta;
 use crate::discovery::find_session_jsonl;
-use crate::types::ClaudeRecord;
 use crate::util::now_secs;
 
 /// Parse GSD JSONL v3 session. First line: `{"type":"session","version":3,"id":"...","timestamp":"...","cwd":"..."}`
@@ -68,27 +67,6 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
     Some((id, title, cwd))
 }
 
-pub(crate) fn extract_claude_title(path: &Path) -> Option<String> {
-    let file = fs::File::open(path).ok()?;
-    let reader = std::io::BufReader::new(file);
-    for line in std::io::BufRead::lines(reader) {
-        let line = line.ok()?;
-        let record: ClaudeRecord = serde_json::from_str(&line).ok()?;
-        if record.record_type.as_deref() != Some("user") {
-            continue;
-        }
-        let msg = record.message?;
-        if msg.role.as_deref() != Some("user") {
-            continue;
-        }
-        let text = extract_text_from_content(msg.content?)?;
-        let cleaned = clean_user_message(&text);
-        if !cleaned.is_empty() {
-            return Some(cleaned.chars().take(50).collect());
-        }
-    }
-    None
-}
 
 pub fn parse_codex_session(path: &Path) -> Option<(String, Option<String>, String)> {
     let content = fs::read_to_string(path).ok()?;
@@ -170,48 +148,6 @@ pub fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
     }
 }
 
-/// Extract the last user message from a session JSONL file.
-/// Returns the message text truncated to ~100 chars, or None if no user message found.
-pub(crate) fn extract_last_user_message(path: &Path) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    for line in content.lines().rev() {
-        let record: serde_json::Value = serde_json::from_str(line).ok()?;
-        let r#type = record.get("type").and_then(|v| v.as_str()).unwrap_or("");
-        let text = if r#type == "user" {
-            extract_claude_message_text(&record)
-        } else if r#type == "message" {
-            if record
-                .get("message")
-                .and_then(|msg| msg.get("role"))
-                .and_then(|v| v.as_str())
-                .is_some_and(|r| r == "user")
-            {
-                extract_claude_message_text(&record)
-            } else {
-                String::new()
-            }
-        } else if r#type == "user_message" {
-            record
-                .get("payload")
-                .and_then(|p| p.get("text"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()
-        } else {
-            continue;
-        };
-        if !text.is_empty() {
-            let truncated: String = text.chars().take(100).collect();
-            let suffix = if text.chars().count() > 100 {
-                "..."
-            } else {
-                ""
-            };
-            return Some(format!("{truncated}{suffix}"));
-        }
-    }
-    None
-}
 
 /// Preview entry: a role + truncated text.
 #[derive(Clone, Debug)]
@@ -290,7 +226,7 @@ pub fn preview_session_content(path: &Path, max_pairs: usize) -> Option<Vec<Prev
     Some(messages)
 }
 
-fn extract_claude_message_text(record: &serde_json::Value) -> String {
+pub(crate) fn extract_claude_message_text(record: &serde_json::Value) -> String {
     record
         .get("message")
         .and_then(|msg| msg.get("content"))

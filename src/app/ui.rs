@@ -355,7 +355,7 @@ impl super::App {
                         let note_present = crate::config::load_session_meta(&session.id, None)
                             .and_then(|meta| meta.note)
                             .is_some_and(|n| !n.is_empty());
-                        let title = truncate_title(
+                        let title = Self::truncate_title(
                             &session.title,
                             area.width.saturating_sub(14).max(12) as usize,
                         );
@@ -387,7 +387,7 @@ impl super::App {
                         } else {
                             None
                         };
-                        let detail_line = session_secondary_text(
+                        let detail_line = Self::session_secondary_text(
                             &relative_time(session.last_active),
                             short_id,
                             state_label,
@@ -1273,276 +1273,377 @@ impl super::App {
         // Render left on top (overwrites the left portion)
         frame.render_widget(Paragraph::new(left).style(base_style), area);
     }
-}
 
-/// Calculate tab index from a local x-coordinate within the tab bar.
-/// Returns `None` if `tab_width` is 0 or `num_tabs` is 0.
-pub(super) const fn tab_index_from_x(
-    local_x: u16,
-    tab_width: usize,
-    num_tabs: usize,
-) -> Option<usize> {
-    if tab_width == 0 || num_tabs == 0 {
-        return None;
-    }
-    let idx = (local_x as usize) / tab_width;
-    if idx < num_tabs { Some(idx) } else { None }
-}
-
-/// Truncate a title to `max_len` characters, appending "..." if truncated.
-/// Returns the original string unchanged if max_len <= 3 or the title fits.
-pub(super) fn truncate_title(title: &str, max_len: usize) -> String {
-    if max_len <= 3 || title.len() <= max_len {
-        return title.to_string();
-    }
-    // Find the char boundary at or before max_len - 3
-    let end = title
-        .char_indices()
-        .take_while(|(i, c)| *i + c.len_utf8() <= max_len - 3)
-        .last()
-        .map(|(i, c)| i + c.len_utf8())
-        .unwrap_or(0);
-    let mut s = title[..end].to_string();
-    s.push_str("...");
-    s
-}
-
-fn session_secondary_text(
-    relative_time: &str,
-    short_id: &str,
-    state_label: Option<&str>,
-    tags: &[String],
-    diff_summary: Option<&DiffSummary>,
-    last_message: Option<&str>,
-) -> String {
-    let mut parts = vec![format!("{relative_time} ({short_id})")];
-
-    if let Some(state_label) = state_label {
-        parts.push(state_label.to_string());
-    }
-    if !tags.is_empty() {
-        parts.push(format!("tags: {}", tags.join(", ")));
-    }
-    if let Some(diff) = diff_summary
-        && !diff.files_changed.is_empty()
-    {
-        parts.push(format!(
-            "+{}/-{} {}f",
-            diff.insertions,
-            diff.deletions,
-            diff.files_changed.len()
-        ));
-    }
-    if let Some(last_message) = last_message
-        && !last_message.is_empty()
-    {
-        parts.push(last_message.to_string());
-    }
-
-    format!("   {}", parts.join(" · "))
-}
-
-pub(super) fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        return s.to_string();
-    }
-    let end = s
-        .char_indices()
-        .take_while(|(i, c)| *i + c.len_utf8() <= max_len)
-        .last()
-        .map(|(i, c)| i + c.len_utf8())
-        .unwrap_or(0);
-    format!("{}...", &s[..end])
-}
-
-/// Parse a string containing ANSI escape sequences into ratatui Spans.
-/// Supports basic foreground colors (30-37, 90-97), bold (1), italic (3), and reset (0).
-pub(super) fn ansi_to_spans(input: &str) -> Line<'static> {
-    let mut spans: Vec<Span<'static>> = Vec::new();
-    let mut current_style = Style::default();
-    let mut buf = String::new();
-    let mut chars = input.chars().peekable();
-
-    let flush = |buf: &mut String, style: Style, spans: &mut Vec<Span<'static>>| {
-        if !buf.is_empty() {
-            spans.push(Span::styled(buf.clone(), style));
-            buf.clear();
+    pub(super) fn build_tab_bar(&self, width: usize) -> Line<'static> {
+        if self.ptys.ptys.is_empty() {
+            return Line::raw("");
         }
-    };
 
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            if chars.peek() == Some(&'[') {
-                chars.next(); // consume '['
-                flush(&mut buf, current_style, &mut spans);
-                // Collect the sequence: digits and semicolons until a letter
-                let mut seq = String::new();
-                while let Some(&sc) = chars.peek() {
-                    if sc.is_ascii_digit() || sc == ';' {
-                        seq.push(chars.next().unwrap_or('\0'));
-                    } else if sc.is_ascii_alphabetic() {
-                        chars.next(); // consume the terminator (e.g. 'm')
-                        break;
+        let n_tabs = self.ptys.ptys.len();
+        let tab_width = width / n_tabs;
+
+        let states: Vec<PtyState> = (0..n_tabs).map(|i| self.pty_display_state(i)).collect();
+
+        let mut spans = Vec::with_capacity(n_tabs * 4);
+
+        for (i, slot) in self.ptys.ptys.iter().enumerate() {
+            let is_active = self.ptys.active_pty == Some(i);
+            let state = states[i];
+
+            let (state_char, state_color) = match state {
+                PtyState::Running => ("\u{25cf}", self.view.theme.status_running),
+                PtyState::Completed => {
+                    let check = &slot.info.check_status;
+                    if matches!(check, CheckStatus::Failed(_)) {
+                        ("\u{26a0}", self.view.theme.status_error)
+                    } else if check == &CheckStatus::Running {
+                        ("\u{23f3}", self.view.theme.status_running)
                     } else {
-                        break;
+                        let pt = slot.info.project_type;
+                        if pt != crate::discovery::ProjectType::Rust
+                            && pt != crate::discovery::ProjectType::Unknown
+                        {
+                            (pt.icon(), self.view.theme.status_done)
+                        } else {
+                            ("\u{2714}", self.view.theme.status_done)
+                        }
                     }
                 }
-                // Parse the SGR sequence
-                for code in seq.split(';').filter_map(|s| s.parse::<u8>().ok()) {
-                    match code {
-                        0 => current_style = Style::default(),
-                        1 => current_style = current_style.add_modifier(Modifier::BOLD),
-                        3 => current_style = current_style.add_modifier(Modifier::ITALIC),
-                        4 => current_style = current_style.add_modifier(Modifier::UNDERLINED),
-                        22 => current_style = current_style.remove_modifier(Modifier::BOLD),
-                        30 => current_style = current_style.fg(Color::Black),
-                        31 => current_style = current_style.fg(Color::Red),
-                        32 => current_style = current_style.fg(Color::Green),
-                        33 => current_style = current_style.fg(Color::Yellow),
-                        34 => current_style = current_style.fg(Color::Blue),
-                        35 => current_style = current_style.fg(Color::Magenta),
-                        36 => current_style = current_style.fg(Color::Cyan),
-                        37 => current_style = current_style.fg(Color::White),
-                        90 => current_style = current_style.fg(Color::DarkGray),
-                        91 => current_style = current_style.fg(Color::LightRed),
-                        92 => current_style = current_style.fg(Color::LightGreen),
-                        93 => current_style = current_style.fg(Color::LightYellow),
-                        94 => current_style = current_style.fg(Color::LightBlue),
-                        95 => current_style = current_style.fg(Color::LightMagenta),
-                        96 => current_style = current_style.fg(Color::LightCyan),
-                        97 => current_style = current_style.fg(Color::Gray),
-                        _ => {}
+            };
+
+            let fixed_overhead = 6;
+            let max_title = tab_width.saturating_sub(fixed_overhead);
+            let title = Self::truncate_title(&slot.info.title, max_title);
+            let agent = slot.info.agent;
+            let agent_color = match agent {
+                Agent::Claude => self.view.theme.agent_claude,
+                Agent::Codex => self.view.theme.agent_codex,
+                Agent::Omp => self.view.theme.agent_omp,
+            };
+
+            if is_active {
+                // Active tab: highlighted background, bold
+                let active_bg = self.view.theme.input_cursor;
+                // Left rounded cap
+                spans.push(Span::styled(
+                    "\u{258c}", // ▌ left half block — visual left edge
+                    Style::default().bg(active_bg).fg(active_bg),
+                ));
+                spans.push(Span::styled(
+                    format!("{} ", agent.icon()),
+                    Style::default()
+                        .fg(agent_color)
+                        .bg(active_bg)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::styled(
+                    format!("{title} "),
+                    Style::default()
+                        .fg(self.view.theme.sidebar_text)
+                        .bg(active_bg)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::styled(
+                    state_char.to_string(),
+                    Style::default().fg(state_color).bg(active_bg),
+                ));
+                // Right rounded cap
+                spans.push(Span::styled(
+                    "\u{2590}", // ▐ right half block — visual right edge
+                    Style::default().bg(active_bg).fg(active_bg),
+                ));
+            } else {
+                // Inactive tab: dim, no background
+                spans.push(Span::styled(
+                    format!(" {} ", agent.icon()),
+                    Style::default().fg(self.view.theme.sidebar_dim),
+                ));
+                spans.push(Span::styled(
+                    format!("{title} "),
+                    Style::default().fg(self.view.theme.sidebar_dim),
+                ));
+                spans.push(Span::styled(
+                    format!("{state_char} "),
+                    Style::default().fg(state_color),
+                ));
+                // Spacer between inactive tabs
+                spans.push(Span::raw(" "));
+            }
+        }
+
+        Line::from(spans)
+    }
+
+    /// Calculate tab index from a local x-coordinate within the tab bar.
+    /// Returns `None` if `tab_width` is 0 or `num_tabs` is 0.
+    pub(super) const fn tab_index_from_x(
+        local_x: u16,
+        tab_width: usize,
+        num_tabs: usize,
+    ) -> Option<usize> {
+        if tab_width == 0 || num_tabs == 0 {
+            return None;
+        }
+        let idx = (local_x as usize) / tab_width;
+        if idx < num_tabs { Some(idx) } else { None }
+    }
+
+    /// Truncate a title to `max_len` characters, appending "..." if truncated.
+    /// Returns the original string unchanged if max_len <= 3 or the title fits.
+    pub(super) fn truncate_title(title: &str, max_len: usize) -> String {
+        if max_len <= 3 || title.len() <= max_len {
+            return title.to_string();
+        }
+        // Find the char boundary at or before max_len - 3
+        let end = title
+            .char_indices()
+            .take_while(|(i, c)| *i + c.len_utf8() <= max_len - 3)
+            .last()
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(0);
+        let mut s = title[..end].to_string();
+        s.push_str("...");
+        s
+    }
+
+    fn session_secondary_text(
+        relative_time: &str,
+        short_id: &str,
+        state_label: Option<&str>,
+        tags: &[String],
+        diff_summary: Option<&DiffSummary>,
+        last_message: Option<&str>,
+    ) -> String {
+        let mut parts = vec![format!("{relative_time} ({short_id})")];
+
+        if let Some(state_label) = state_label {
+            parts.push(state_label.to_string());
+        }
+        if !tags.is_empty() {
+            parts.push(format!("tags: {}", tags.join(", ")));
+        }
+        if let Some(diff) = diff_summary
+            && !diff.files_changed.is_empty()
+        {
+            parts.push(format!(
+                "+{}/-{} {}f",
+                diff.insertions,
+                diff.deletions,
+                diff.files_changed.len()
+            ));
+        }
+        if let Some(last_message) = last_message
+            && !last_message.is_empty()
+        {
+            parts.push(last_message.to_string());
+        }
+
+        format!("   {}", parts.join(" · "))
+    }
+
+    pub(super) fn truncate_str(s: &str, max_len: usize) -> String {
+        if s.len() <= max_len {
+            return s.to_string();
+        }
+        let end = s
+            .char_indices()
+            .take_while(|(i, c)| *i + c.len_utf8() <= max_len)
+            .last()
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(0);
+        format!("{}...", &s[..end])
+    }
+
+    /// Parse a string containing ANSI escape sequences into ratatui Spans.
+    /// Supports basic foreground colors (30-37, 90-97), bold (1), italic (3), and reset (0).
+    pub(super) fn ansi_to_spans(input: &str) -> Line<'static> {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut current_style = Style::default();
+        let mut buf = String::new();
+        let mut chars = input.chars().peekable();
+
+        let flush = |buf: &mut String, style: Style, spans: &mut Vec<Span<'static>>| {
+            if !buf.is_empty() {
+                spans.push(Span::styled(buf.clone(), style));
+                buf.clear();
+            }
+        };
+
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                if chars.peek() == Some(&'[') {
+                    chars.next(); // consume '['
+                    flush(&mut buf, current_style, &mut spans);
+                    // Collect the sequence: digits and semicolons until a letter
+                    let mut seq = String::new();
+                    while let Some(&sc) = chars.peek() {
+                        if sc.is_ascii_digit() || sc == ';' {
+                            seq.push(chars.next().unwrap_or('\0'));
+                        } else if sc.is_ascii_alphabetic() {
+                            chars.next(); // consume the terminator (e.g. 'm')
+                            break;
+                        } else {
+                            break;
+                        }
                     }
+                    // Parse the SGR sequence
+                    for code in seq.split(';').filter_map(|s| s.parse::<u8>().ok()) {
+                        match code {
+                            0 => current_style = Style::default(),
+                            1 => current_style = current_style.add_modifier(Modifier::BOLD),
+                            3 => current_style = current_style.add_modifier(Modifier::ITALIC),
+                            4 => current_style = current_style.add_modifier(Modifier::UNDERLINED),
+                            22 => current_style = current_style.remove_modifier(Modifier::BOLD),
+                            30 => current_style = current_style.fg(Color::Black),
+                            31 => current_style = current_style.fg(Color::Red),
+                            32 => current_style = current_style.fg(Color::Green),
+                            33 => current_style = current_style.fg(Color::Yellow),
+                            34 => current_style = current_style.fg(Color::Blue),
+                            35 => current_style = current_style.fg(Color::Magenta),
+                            36 => current_style = current_style.fg(Color::Cyan),
+                            37 => current_style = current_style.fg(Color::White),
+                            90 => current_style = current_style.fg(Color::DarkGray),
+                            91 => current_style = current_style.fg(Color::LightRed),
+                            92 => current_style = current_style.fg(Color::LightGreen),
+                            93 => current_style = current_style.fg(Color::LightYellow),
+                            94 => current_style = current_style.fg(Color::LightBlue),
+                            95 => current_style = current_style.fg(Color::LightMagenta),
+                            96 => current_style = current_style.fg(Color::LightCyan),
+                            97 => current_style = current_style.fg(Color::Gray),
+                            _ => {}
+                        }
+                    }
+                } else {
+                    buf.push(c);
                 }
             } else {
                 buf.push(c);
             }
-        } else {
-            buf.push(c);
         }
+        flush(&mut buf, current_style, &mut spans);
+        if spans.is_empty() {
+            spans.push(Span::raw(input.to_string()));
+        }
+        Line::from(spans)
     }
-    flush(&mut buf, current_style, &mut spans);
-    if spans.is_empty() {
-        spans.push(Span::raw(input.to_string()));
-    }
-    Line::from(spans)
 }
 
 #[cfg(test)]
 mod tab_bar_tests {
     use super::*;
+    use super::super::App;
 
     // ─── tab_index_from_x tests ───
 
     #[test]
     fn tab_index_click_first_tab() {
         // 4 tabs, width=20 each, click at x=0 → index 0
-        assert_eq!(tab_index_from_x(0, 20, 4), Some(0));
+        assert_eq!(App::tab_index_from_x(0, 20, 4), Some(0));
     }
 
     #[test]
     fn tab_index_click_second_tab() {
         // 4 tabs, width=20 each, click at x=20 → index 1
-        assert_eq!(tab_index_from_x(20, 20, 4), Some(1));
+        assert_eq!(App::tab_index_from_x(20, 20, 4), Some(1));
     }
 
     #[test]
     fn tab_index_click_last_pixel_of_second_tab() {
         // 4 tabs, width=20 each, x=39 → still tab 1
-        assert_eq!(tab_index_from_x(39, 20, 4), Some(1));
+        assert_eq!(App::tab_index_from_x(39, 20, 4), Some(1));
     }
 
     #[test]
     fn tab_index_click_third_tab() {
-        assert_eq!(tab_index_from_x(40, 20, 4), Some(2));
+        assert_eq!(App::tab_index_from_x(40, 20, 4), Some(2));
     }
 
     #[test]
     fn tab_index_click_beyond_last_tab() {
         // 4 tabs spanning 80px, click at local_x=80 → index 4 which is >= num_tabs → None
-        assert_eq!(tab_index_from_x(80, 20, 4), None);
+        assert_eq!(App::tab_index_from_x(80, 20, 4), None);
     }
 
     #[test]
     fn tab_index_click_on_current_tab_returns_valid_index() {
         // The "no switch" logic is in handle_mouse_click, not this helper.
         // This helper always returns the computed index.
-        assert_eq!(tab_index_from_x(0, 20, 4), Some(0));
+        assert_eq!(App::tab_index_from_x(0, 20, 4), Some(0));
     }
 
     #[test]
     fn tab_index_zero_tab_width_returns_none() {
-        assert_eq!(tab_index_from_x(10, 0, 4), None);
+        assert_eq!(App::tab_index_from_x(10, 0, 4), None);
     }
 
     #[test]
     fn tab_index_zero_num_tabs_returns_none() {
-        assert_eq!(tab_index_from_x(10, 20, 0), None);
+        assert_eq!(App::tab_index_from_x(10, 20, 0), None);
     }
 
     #[test]
     fn tab_index_single_tab_always_zero() {
-        assert_eq!(tab_index_from_x(0, 80, 1), Some(0));
-        assert_eq!(tab_index_from_x(79, 80, 1), Some(0));
+        assert_eq!(App::tab_index_from_x(0, 80, 1), Some(0));
+        assert_eq!(App::tab_index_from_x(79, 80, 1), Some(0));
     }
 
     #[test]
     fn tab_index_with_narrow_tabs() {
         // 10 tabs in 80px → tab_width=8
-        assert_eq!(tab_index_from_x(0, 8, 10), Some(0));
-        assert_eq!(tab_index_from_x(7, 8, 10), Some(0));
-        assert_eq!(tab_index_from_x(8, 8, 10), Some(1));
-        assert_eq!(tab_index_from_x(72, 8, 10), Some(9));
-        assert_eq!(tab_index_from_x(79, 8, 10), Some(9));
+        assert_eq!(App::tab_index_from_x(0, 8, 10), Some(0));
+        assert_eq!(App::tab_index_from_x(7, 8, 10), Some(0));
+        assert_eq!(App::tab_index_from_x(8, 8, 10), Some(1));
+        assert_eq!(App::tab_index_from_x(72, 8, 10), Some(9));
+        assert_eq!(App::tab_index_from_x(79, 8, 10), Some(9));
     }
 
     // ─── truncate_title tests ───
 
     #[test]
     fn truncate_title_fits_within_limit() {
-        assert_eq!(truncate_title("hello", 10), "hello");
+        assert_eq!(App::truncate_title("hello", 10), "hello");
     }
 
     #[test]
     fn truncate_title_exact_fit() {
-        assert_eq!(truncate_title("hello", 5), "hello");
+        assert_eq!(App::truncate_title("hello", 5), "hello");
     }
 
     #[test]
     fn truncate_title_truncates_long_title() {
-        assert_eq!(truncate_title("hello world", 8), "hello...");
+        assert_eq!(App::truncate_title("hello world", 8), "hello...");
     }
 
     #[test]
     fn truncate_title_small_max_len() {
         // max_len <= 3 returns original
-        assert_eq!(truncate_title("hello", 3), "hello");
+        assert_eq!(App::truncate_title("hello", 3), "hello");
     }
 
     #[test]
     fn truncate_title_zero_max_len() {
-        assert_eq!(truncate_title("hello", 0), "hello");
+        assert_eq!(App::truncate_title("hello", 0), "hello");
     }
 
     #[test]
     fn truncate_title_empty_string() {
-        assert_eq!(truncate_title("", 10), "");
-        assert_eq!(truncate_title("", 0), "");
+        assert_eq!(App::truncate_title("", 10), "");
+        assert_eq!(App::truncate_title("", 0), "");
     }
 
     #[test]
     fn truncate_title_unicode_aware() {
         // Each Greek letter is 2 bytes; max_len=7 gives budget 4 for chars + "..."
         // α (2 bytes at 0) + β (2 bytes at 2) = 4 <= 4. γ at 4 + 2 = 6 > 4.
-        assert_eq!(truncate_title("αβγδεζ", 7), "αβ...");
+        assert_eq!(App::truncate_title("αβγδεζ", 7), "αβ...");
     }
 
     #[test]
     fn truncate_title_at_boundary() {
         // "hello" is exactly 5 bytes; max_len=5 → fits exactly
-        assert_eq!(truncate_title("hello", 5), "hello");
+        assert_eq!(App::truncate_title("hello", 5), "hello");
         // max_len=6 still fits
-        assert_eq!(truncate_title("hello", 6), "hello");
+        assert_eq!(App::truncate_title("hello", 6), "hello");
     }
 
     #[test]
@@ -1554,7 +1655,7 @@ mod tab_bar_tests {
             ..Default::default()
         };
 
-        let text = session_secondary_text(
+        let text = App::session_secondary_text(
             "2h ago",
             "abcdef12",
             Some("done"),
@@ -1571,7 +1672,7 @@ mod tab_bar_tests {
 
     #[test]
     fn session_secondary_text_omits_empty_parts() {
-        let text = session_secondary_text("now", "1234", None, &[], None, None);
+        let text = App::session_secondary_text("now", "1234", None, &[], None, None);
 
         assert_eq!(text, "   now (1234)");
     }

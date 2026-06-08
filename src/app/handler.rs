@@ -958,7 +958,7 @@ impl super::App {
         let local_x = x - rect.x;
         let tab_width = rect.width as usize / self.ptys.ptys.len();
         let num_tabs = self.ptys.ptys.len();
-        let Some(tab_index) = super::ui::tab_index_from_x(local_x, tab_width, num_tabs) else {
+        let Some(tab_index) = Self::tab_index_from_x(local_x, tab_width, num_tabs) else {
             return;
         };
         if self.ptys.active_pty != Some(tab_index) {
@@ -987,7 +987,7 @@ impl super::App {
         let local_x = x - rect.x;
         let tab_width = rect.width as usize / self.ptys.ptys.len();
         let num_tabs = self.ptys.ptys.len();
-        let Some(tab_index) = super::ui::tab_index_from_x(local_x, tab_width, num_tabs) else {
+        let Some(tab_index) = Self::tab_index_from_x(local_x, tab_width, num_tabs) else {
             return;
         };
         // Close the tab (same logic as D on ActiveTab)
