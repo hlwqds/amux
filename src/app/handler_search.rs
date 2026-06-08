@@ -154,6 +154,7 @@ mod tests {
             name: "workspace".into(),
             path: Some(std::path::PathBuf::from("/tmp/ws")),
             created_at: 1000,
+            session_ids: Vec::new(),
             expanded: true,
         };
         let sess = crate::types::Session {

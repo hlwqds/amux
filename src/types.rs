@@ -240,6 +240,10 @@ pub struct Workspace {
     pub name: String,
     pub path: Option<PathBuf>,
     pub created_at: u64,
+    /// Session IDs that belong to this workspace. Only these are shown.
+    /// Populated manually (spawn) or via scan keybind (Alt+Shift+R).
+    #[serde(default)]
+    pub session_ids: Vec<String>,
     #[serde(skip)]
     pub expanded: bool,
 }
@@ -929,6 +933,7 @@ mod tests {
                     name: "Project A".into(),
                     path: Some(PathBuf::from("/home/user/proj-a")),
                     created_at: 1000,
+                    session_ids: Vec::new(),
                     expanded: false,
                 },
                 Workspace {
@@ -936,6 +941,7 @@ mod tests {
                     name: "Virtual".into(),
                     path: None,
                     created_at: 2000,
+                    session_ids: Vec::new(),
                     expanded: true,
                 },
             ],
@@ -977,6 +983,7 @@ mod tests {
             name: "No Path".into(),
             path: None,
             created_at: 0,
+            session_ids: Vec::new(),
             expanded: false,
         };
         let json = serde_json::to_string(&ws).unwrap();

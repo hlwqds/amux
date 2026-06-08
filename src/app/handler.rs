@@ -163,8 +163,8 @@ impl super::App {
             return Ok(Some(Action::Quit));
         }
         if kb.refresh.matches_event(key) {
-            self.refresh_sessions();
-            self.view.status = "Sessions refreshed.".into();
+            self.scan_and_import_sessions();
+            self.view.status = "Scanned and imported sessions.".into();
             return Ok(Some(Action::Continue));
         }
         if kb.new_session.matches_event(key) {
@@ -245,8 +245,8 @@ impl super::App {
             return Ok(Action::Continue);
         }
         if kb.refresh.matches_event(&key) {
-            self.refresh_sessions();
-            self.view.status = "Sessions refreshed.".into();
+            self.scan_and_import_sessions();
+            self.view.status = "Scanned and imported sessions.".into();
             return Ok(Action::Continue);
         }
         if kb.rename.matches_event(&key) {

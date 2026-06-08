@@ -83,6 +83,7 @@ pub fn discover_workspaces_from_fs() -> Vec<Workspace> {
                 name,
                 path: Some(p),
                 created_at: now_secs(),
+                session_ids: Vec::new(),
                 expanded: true,
             }
         })
@@ -97,6 +98,90 @@ pub type SessionCache = std::collections::HashMap<PathBuf, (SystemTime, Session)
 /// Discover all sessions across the given workspaces (no caching).
 pub fn discover_sessions(workspaces: &[Workspace]) -> Vec<Session> {
     discover_sessions_cached(workspaces, &mut SessionCache::new())
+}
+
+/// Load only the sessions whose IDs are listed in workspace.session_ids.
+/// Does NOT scan the filesystem — only parses the JSONL files for known IDs.
+pub fn discover_sessions_by_ids(workspaces: &[Workspace]) -> Vec<Session> {
+    let all_ids: Vec<&str> = workspaces
+        .iter()
+        .flat_map(|ws| ws.session_ids.iter().map(|s| s.as_str()))
+        .collect();
+    if all_ids.is_empty() {
+        return Vec::new();
+    }
+    // Build a stub session for each ID, then try to find & parse its JSONL
+    let mut sessions = Vec::new();
+    for ws in workspaces {
+        for sid in &ws.session_ids {
+            // Build a minimal Session, then try to find the actual JSONL for enrichment
+            let ws_path = ws.path.clone().unwrap_or_else(|| {
+                let dir = data_dir().join("workspaces").join(&ws.id);
+                let _ = fs::create_dir_all(&dir);
+                dir
+            });
+            // Try to find the JSONL and parse it for title, agent, etc.
+            let mut session = Session {
+                id: sid.clone(),
+                workspace_path: ws_path.clone(),
+                title: load_session_title(sid, Some(&ws_path))
+                    .unwrap_or_else(|| format!("Session {}", &sid[..8.min(sid.len())])),
+                last_active: 0,
+                agent: Agent::Omp, // default, will be corrected if JSONL found
+                tags: Vec::new(),
+                pinned: crate::config::load_session_meta(sid, Some(&ws_path))
+                    .map(|m| m.pinned)
+                    .unwrap_or(false),
+                last_message: None,
+            };
+            // Try to find JSONL for richer metadata
+            if let Some(jsonl_path) = find_session_jsonl_by_id(sid, &ws_path) {
+                if let Some(parsed) = parse_session_from_path(&jsonl_path, workspaces) {
+                    session = parsed;
+                } else {
+                    session.last_active = fs::metadata(&jsonl_path)
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                }
+            }
+            sessions.push(session);
+        }
+    }
+    sessions.sort_by_key(|b| std::cmp::Reverse(b.last_active));
+    sessions
+}
+
+/// Find a session JSONL file by session ID and workspace path.
+fn find_session_jsonl_by_id(session_id: &str, ws_path: &Path) -> Option<PathBuf> {
+    // Try each agent's session directory
+    for agent in &[Agent::Claude, Agent::Codex, Agent::Omp] {
+        let sessions_dir = agent.sessions_dir()?;
+        match agent {
+            Agent::Claude => {
+                let encoded = encode_project_path(ws_path);
+                let path = sessions_dir
+                    .join(encoded)
+                    .join(format!("{session_id}.jsonl"));
+                if path.exists() {
+                    return Some(path);
+                }
+            }
+            Agent::Codex => {
+                if let Some(p) = walk_codex_jsonl(&sessions_dir, session_id) {
+                    return Some(p);
+                }
+            }
+            Agent::Omp => {
+                if let Some(p) = walk_omp_jsonl(&sessions_dir, session_id) {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Discover sessions with mtime-based caching. Skips re-parsing files whose mtime

@@ -231,6 +231,7 @@ impl App {
     }
 
     pub(crate) fn refresh_sessions(&mut self) {
+        let mut config_changed = false;
         // Load project configs from .amux.json — skip reload if mtime unchanged
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
             let path = self.workspace_cwd(wi);
@@ -262,32 +263,44 @@ impl App {
         self.sessions
             .project_config_mtimes
             .retain(|k, _| cwd_set.contains(k));
-        self.sessions.sessions =
+        // Scan filesystem to match running PTYs with their session JSONL files
+        let discovered =
             discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
-        // Filter sessions matching ignore_sessions patterns from project configs
-        let mut to_remove = Vec::new();
-        for (i, session) in self.sessions.sessions.iter().enumerate() {
-            if let Some(pc) = self.sessions.project_configs.get(&session.workspace_path) {
-                for pattern in &pc.ignore_sessions {
-                    if session.id.contains(pattern) || session.title.contains(pattern) {
-                        to_remove.push(i);
-                        break;
+        // Match running PTYs to their sessions and persist new IDs
+        for slot in &mut self.ptys.ptys {
+            if slot.info.session_id.is_none() {
+                if let Some(found) = discovered.iter().find(|s| {
+                    s.workspace_path == slot.info.workspace_path
+                        && s.last_active >= slot.info.started_at
+                }) {
+                    slot.info.session_id = Some(found.id.clone());
+                    // Persist the session ID to the workspace
+                    if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                        ws.path.as_deref() == Some(&found.workspace_path)
+                            || (ws.path.is_none()
+                                && found.workspace_path
+                                    == data_dir().join("workspaces").join(&ws.id))
+                    }) {
+                        if !ws.session_ids.contains(&found.id) {
+                            ws.session_ids.push(found.id.clone());
+                            config_changed = true;
+                        }
                     }
                 }
             }
         }
-        for i in to_remove.into_iter().rev() {
-            self.sessions.sessions.remove(i);
-        }
-        for slot in &mut self.ptys.ptys {
-            if slot.info.session_id.is_none()
-                && let Some(found) = self.sessions.sessions.iter().find(|s| {
-                    s.workspace_path == slot.info.workspace_path
-                        && s.last_active >= slot.info.started_at
-                })
-            {
-                slot.info.session_id = Some(found.id.clone());
+        // Only show sessions that are in workspace.session_ids
+        let mut sessions: Vec<Session> = Vec::new();
+        for ws in &self.sessions.workspaces {
+            for sid in &ws.session_ids {
+                if let Some(s) = discovered.iter().find(|s| &s.id == sid) {
+                    sessions.push(s.clone());
+                }
             }
+        }
+        self.sessions.sessions = sessions;
+        if config_changed {
+            self.save_config();
         }
         self.rebuild_tree();
         self.rebuild_search_index();
@@ -325,6 +338,32 @@ impl App {
             self.last_stats_check = std::time::Instant::now();
             self.sync_pty_stats();
         }
+    }
+
+    /// Scan filesystem and import ALL discovered sessions into workspace.session_ids.
+    /// Triggered by refresh keybind — allows user to pull in historical sessions.
+    pub(crate) fn scan_and_import_sessions(&mut self) {
+        let discovered =
+            discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
+        let mut config_changed = false;
+        // Import sessions that belong to a workspace
+        for session in &discovered {
+            if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                ws.path.as_deref() == Some(&session.workspace_path)
+                    || (ws.path.is_none()
+                        && session.workspace_path == data_dir().join("workspaces").join(&ws.id))
+            }) {
+                if !ws.session_ids.contains(&session.id) {
+                    ws.session_ids.push(session.id.clone());
+                    config_changed = true;
+                }
+            }
+        }
+        if config_changed {
+            self.save_config();
+        }
+        // Now do a normal refresh to show the newly imported sessions
+        self.refresh_sessions();
     }
 
     /// Rebuild the BM25 search index from session titles and summaries.

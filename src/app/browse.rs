@@ -93,6 +93,7 @@ impl super::App {
                     name,
                     path: Some(entry.path.clone()),
                     created_at: now_secs(),
+                    session_ids: Vec::new(),
                     expanded: true,
                 };
                 self.view.status = match ws.path.as_ref() {
@@ -111,6 +112,7 @@ impl super::App {
                     name,
                     path: None,
                     created_at: now_secs(),
+                    session_ids: Vec::new(),
                     expanded: true,
                 };
                 self.view.status = format!("Created virtual workspace: {}", ws.name);
