@@ -68,7 +68,8 @@ impl App {
         let title = format!(" {ws_name} \u{2192} Select Directory ");
 
         let items: Vec<ListItem> = self
-            .browse_entries
+            .browse
+            .entries
             .iter()
             .enumerate()
             .map(|(i, entry)| {
@@ -102,7 +103,7 @@ impl App {
             })
             .collect();
 
-        let path_line = Line::from(format!(" {}", self.browse_dir.display()))
+        let path_line = Line::from(format!(" {}", self.browse.dir.display()))
             .style(Style::default().fg(Color::Cyan));
 
         let help_line = Line::from(" j/k:navigate  Enter:open/select  Backspace/h:up  Esc:cancel")
@@ -134,7 +135,7 @@ impl App {
                     .add_modifier(Modifier::BOLD),
             )
             .highlight_symbol("\u{203a}");
-        frame.render_stateful_widget(list, chunks[1], &mut self.browse_state);
+        frame.render_stateful_widget(list, chunks[1], &mut self.browse.state);
 
         frame.render_widget(Paragraph::new(help_line), chunks[2]);
         frame.render_widget(block, popup);

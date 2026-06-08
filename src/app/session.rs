@@ -319,17 +319,17 @@ impl super::App {
                     self.input_buffer.clear();
                     self.view.status = "Cancelled.".into();
                 } else {
-                    self.search_results = self.search_index.search(&query, 10);
+                    self.search.results = self.search.index.search(&query, 10);
                     self.input_buffer.clear();
-                    if self.search_results.is_empty() {
+                    if self.search.results.is_empty() {
                         self.view.status = format!("No results for '{query}'.");
                         self.view.input_mode = InputMode::None;
                     } else {
-                        self.search_result_state.select(Some(0));
+                        self.search.result_state.select(Some(0));
                         self.view.status = format!(
                             "BM25: '{}' ({} hits · j/k · Enter · Esc)",
                             query,
-                            self.search_results.len()
+                            self.search.results.len()
                         );
                         // Stay in SemanticSearch mode for result navigation.
                     }

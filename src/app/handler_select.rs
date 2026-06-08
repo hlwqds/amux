@@ -607,34 +607,35 @@ impl super::App {
             KeyCode::Enter => {
                 self.confirm_input()?;
             }
-            KeyCode::Char('c' | 'C') if self.available_agents.contains(&Agent::Claude) => {
-                self.agent_state.select(Some(
-                    self.available_agents
-                        .iter()
-                        .position(|a| *a == Agent::Claude)
-                        .unwrap_or(0),
-                ));
-                self.confirm_input()?;
+            KeyCode::Char(ch) => {
+                let lowered = ch.to_ascii_lowercase();
+                if lowered == 'j' {
+                    let len = self.available_agents.len();
+                    if len > 0 {
+                        let cur = self.agent_state.selected().unwrap_or(0).min(len - 1);
+                        let next = (cur + 1) % len;
+                        self.agent_state.select(Some(next));
+                    }
+                } else if lowered == 'k' {
+                    let len = self.available_agents.len();
+                    if len > 0 {
+                        let cur = self.agent_state.selected().unwrap_or(0).min(len - 1);
+                        let prev = (cur + len - 1) % len;
+                        self.agent_state.select(Some(prev));
+                    }
+                } else if let Some(&agent) = Agent::ALL.iter().find(|a| a.shortcut_key() == lowered) {
+                    if self.available_agents.contains(&agent) {
+                        self.agent_state.select(Some(
+                            self.available_agents
+                                .iter()
+                                .position(|a| *a == agent)
+                                .unwrap_or(0),
+                        ));
+                        self.confirm_input()?;
+                    }
+                }
             }
-            KeyCode::Char('x' | 'X') if self.available_agents.contains(&Agent::Codex) => {
-                self.agent_state.select(Some(
-                    self.available_agents
-                        .iter()
-                        .position(|a| *a == Agent::Codex)
-                        .unwrap_or(0),
-                ));
-                self.confirm_input()?;
-            }
-            KeyCode::Char('o' | 'O') if self.available_agents.contains(&Agent::Omp) => {
-                self.agent_state.select(Some(
-                    self.available_agents
-                        .iter()
-                        .position(|a| *a == Agent::Omp)
-                        .unwrap_or(0),
-                ));
-                self.confirm_input()?;
-            }
-            KeyCode::Char('j') | KeyCode::Down => {
+            KeyCode::Down => {
                 let len = self.available_agents.len();
                 if len > 0 {
                     let cur = self.agent_state.selected().unwrap_or(0).min(len - 1);
@@ -642,7 +643,7 @@ impl super::App {
                     self.agent_state.select(Some(next));
                 }
             }
-            KeyCode::Char('k') | KeyCode::Up => {
+            KeyCode::Up => {
                 let len = self.available_agents.len();
                 if len > 0 {
                     let cur = self.agent_state.selected().unwrap_or(0).min(len - 1);

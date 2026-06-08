@@ -360,10 +360,10 @@ impl App {
 
     /// Rebuild the BM25 search index from session titles and summaries.
     pub(crate) fn rebuild_search_index(&mut self) {
-        self.search_index = crate::search_engine::SearchIndex::new();
+        self.search.index = crate::search_engine::SearchIndex::new();
         for session in &self.sessions.sessions {
             let text = format!("{} {}", session.title, session.id);
-            self.search_index.add_document(&session.id, &text);
+            self.search.index.add_document(&session.id, &text);
         }
     }
 
@@ -400,7 +400,7 @@ impl App {
             self.view.related_sessions.clear();
             return;
         }
-        let mut results = self.search_index.search(&query, 4);
+        let mut results = self.search.index.search(&query, 4);
         // Exclude the active session's own ID from results.
         if let Some(sid) = slot.info.session_id.as_ref() {
             results.retain(|(id, _)| id != sid);

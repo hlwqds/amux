@@ -142,6 +142,20 @@ struct ChainState {
     chain_state: ListState,
 }
 
+#[derive(Clone, Default)]
+struct BrowseState {
+    dir: PathBuf,
+    entries: Vec<DirEntry>,
+    state: ListState,
+}
+
+#[derive(Clone, Default)]
+struct SearchState {
+    index: crate::search_engine::SearchIndex,
+    results: Vec<(String, f64)>,
+    result_state: ratatui::widgets::ListState,
+}
+
 impl Default for AppView {
     fn default() -> Self {
         Self {
@@ -194,9 +208,7 @@ struct App {
     pending_session_name: Option<String>,
     available_agents: Vec<Agent>,
     agent_state: ListState,
-    browse_dir: PathBuf,
-    browse_entries: Vec<DirEntry>,
-    browse_state: ListState,
+    browse: BrowseState,
     last_refresh: std::time::Instant,
     templates: Vec<SessionTemplate>,
     template_state: ListState,
@@ -233,12 +245,8 @@ struct App {
     last_budget_check: std::time::Instant,
     /// Last time process stats were collected from /proc (throttled to 30s).
     last_stats_check: std::time::Instant,
-    /// BM25 search index for semantic-like session search.
-    search_index: crate::search_engine::SearchIndex,
-    /// Results from the last semantic search.
-    search_results: Vec<(String, f64)>,
-    /// List state for semantic search result selection.
-    search_result_state: ratatui::widgets::ListState,
+    /// BM25 search state (index, results, selection).
+    search: SearchState,
 }
 
 impl Default for App {
@@ -259,9 +267,7 @@ impl Default for App {
             pending_session_name: None,
             available_agents: Vec::new(),
             agent_state: ListState::default(),
-            browse_dir: PathBuf::new(),
-            browse_entries: Vec::new(),
-            browse_state: ListState::default(),
+            browse: BrowseState::default(),
             last_refresh: std::time::Instant::now(),
             templates: Vec::new(),
             template_state: ListState::default(),
@@ -287,29 +293,27 @@ impl Default for App {
             last_conflict_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
             last_budget_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
             last_stats_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
-            search_index: crate::search_engine::SearchIndex::new(),
-            search_results: Vec::new(),
-            search_result_state: ListState::default(),
+            search: SearchState::default(),
         }
     }
 }
 
 mod browse;
 mod chain_handler;
+mod delete_ops;
 mod handler;
 mod handler_amux;
 mod handler_search;
 mod handler_select;
+mod preview;
 mod session;
 mod session_ops;
+mod tree;
 mod ui;
 mod ui_popup;
 mod ui_popup_confirm;
 mod ui_popup_select;
 mod ui_popup_view;
-mod delete_ops;
-mod preview;
-mod tree;
 impl App {
     fn new(shared_ptys: std::sync::Arc<crate::server::SharedPtyMap>) -> Self {
         let mut config = crate::config::load_config().unwrap_or_else(|_| Config {
@@ -390,9 +394,7 @@ impl App {
             pending_session_name: None,
             available_agents: detect_agents(),
             agent_state: ListState::default(),
-            browse_dir: PathBuf::new(),
-            browse_entries: Vec::new(),
-            browse_state: ListState::default(),
+            browse: BrowseState::default(),
             last_refresh: std::time::Instant::now(),
             templates: config.templates,
             template_state: ListState::default(),
@@ -418,9 +420,7 @@ impl App {
             last_conflict_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
             last_budget_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
             last_stats_check: std::time::Instant::now() - std::time::Duration::from_secs(60),
-            search_index: crate::search_engine::SearchIndex::new(),
-            search_results: Vec::new(),
-            search_result_state: ListState::default(),
+            search: SearchState::default(),
         };
         app.rebuild_tree();
         if !app.sessions.tree.is_empty() {

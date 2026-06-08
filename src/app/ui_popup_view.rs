@@ -1125,7 +1125,7 @@ impl App {
             Line::from(""),
         ];
 
-        if self.search_results.is_empty() {
+        if self.search.results.is_empty() {
             // Show input prompt
             lines.push(Line::from(Span::styled(
                 format!("  Query: {}", self.input_buffer),
@@ -1142,8 +1142,8 @@ impl App {
             )));
         } else {
             // Show results with selection highlight
-            let selected = self.search_result_state.selected();
-            for (i, (session_id, score)) in self.search_results.iter().enumerate() {
+            let selected = self.search.result_state.selected();
+            for (i, (session_id, score)) in self.search.results.iter().enumerate() {
                 let is_sel = selected == Some(i);
                 let short_id = &session_id[..8.min(session_id.len())];
 

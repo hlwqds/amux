@@ -192,4 +192,20 @@ impl Agent {
             }
         }
     }
+    /// Return the keyboard shortcut character used to select this agent.
+    pub const fn shortcut_key(&self) -> char {
+        match self {
+            Agent::Claude => 'c',
+            Agent::Codex => 'x',
+            Agent::Omp => 'o',
+        }
+    }
+
+    pub fn theme_color(&self, theme: &crate::theme::Theme) -> Color {
+        match self {
+            Agent::Claude => theme.agent_claude,
+            Agent::Codex => theme.agent_codex,
+            Agent::Omp => theme.agent_omp,
+        }
+    }
 }

@@ -8,7 +8,12 @@ impl super::App {
         if self.view.input_mode != InputMode::None {
             return self.handle_input_key(key);
         }
+        self.handle_none_mode_key(key)
+    }
 
+    /// Dispatch keys when no input mode is active (InputMode::None).
+    /// Routes to PTY handler, bare-chat handler, or sidebar handler.
+    fn handle_none_mode_key(&mut self, key: KeyEvent) -> Result<Action> {
         if self.view.focus == Focus::Chat {
             if let Some(idx) = self.ptys.active_pty {
                 return self.handle_chat_pty_key(idx, key);
@@ -24,7 +29,6 @@ impl super::App {
             }
             return Ok(Action::Continue);
         }
-
         self.handle_sidebar_key(key)
     }
 
@@ -139,20 +143,25 @@ impl super::App {
 
         // ── Passthrough mode: forward everything else to PTY ──
         if self.view.chat_mode == ChatMode::Passthrough {
-            let bytes = key_to_bytes(&key);
-            if !bytes.is_empty()
-                && let Some(slot) = self.ptys.ptys.get(idx)
-            {
-                slot.handle.reset_scroll();
-                if let Err(e) = slot.handle.write_input(&bytes) {
-                    self.view.status = format!("Write error: {e}");
-                }
-                self.view.screen_changed = true;
-            }
-            return Ok(Action::Continue);
+            return self.handle_passthrough_key(idx, key);
         }
         // ── Amux mode: delegated to handler_amux.rs ──
         Ok(self.handle_amux_key(idx, key))
+    }
+
+    /// Forward key bytes to the PTY in Passthrough mode.
+    fn handle_passthrough_key(&mut self, idx: usize, key: KeyEvent) -> Result<Action> {
+        let bytes = key_to_bytes(&key);
+        if !bytes.is_empty()
+            && let Some(slot) = self.ptys.ptys.get(idx)
+        {
+            slot.handle.reset_scroll();
+            if let Err(e) = slot.handle.write_input(&bytes) {
+                self.view.status = format!("Write error: {e}");
+            }
+            self.view.screen_changed = true;
+        }
+        Ok(Action::Continue)
     }
 
     /// Handle Alt+key bindings while in Chat PTY mode.
@@ -228,82 +237,25 @@ impl super::App {
 
     /// Handle keys when focused on the Sidebar (InputMode::None, Focus::Sidebar).
     fn handle_sidebar_key(&mut self, key: KeyEvent) -> Result<Action> {
-        let kb = &self.view.keybinds;
+        let kb = self.view.keybinds.clone();
         if kb.quit.matches_event(&key) || key.code == KeyCode::Esc {
             return Ok(Action::Quit);
         }
-        if kb.move_up.matches_event(&key) || key.code == KeyCode::Up {
-            self.move_sel(-1);
-            return Ok(Action::Continue);
+        // Navigation: up/down movement
+        if let Some(action) = self.handle_sidebar_navigation(&key) {
+            return Ok(action);
         }
-        if kb.move_down.matches_event(&key) || key.code == KeyCode::Down {
-            self.move_sel(1);
-            return Ok(Action::Continue);
+        // Actions: expand, rename, delete, tab-switch, new session, enter, space
+        if let Some(action) = self.handle_sidebar_action(&key)? {
+            return Ok(action);
         }
-        if kb.expand.matches_event(&key) {
-            self.toggle_expand();
-            return Ok(Action::Continue);
-        }
+        // Refresh
         if kb.refresh.matches_event(&key) {
             self.refresh_sessions();
             self.view.status = "Sessions refreshed.".into();
             return Ok(Action::Continue);
         }
-        if kb.rename.matches_event(&key) {
-            self.start_rename();
-            return Ok(Action::Continue);
-        }
-        if kb.new_workspace.matches_event(&key) {
-            self.start_new_workspace();
-            return Ok(Action::Continue);
-        }
-        if kb.delete.matches_event(&key) {
-            self.request_delete();
-            return Ok(Action::Continue);
-        }
-        if key.code == KeyCode::Tab {
-            if self.ptys.ptys.is_empty() {
-                self.view.status = "No active session. Press Enter to start one.".into();
-            } else {
-                self.view.focus = Focus::Chat;
-                if self.ptys.active_pty.is_none() {
-                    self.ptys.active_pty = Some(0);
-                }
-            }
-            return Ok(Action::Continue);
-        }
-        if kb.new_session.matches_event(&key) {
-            // Digit keys for agent filters remain hardcoded (not configurable)
-            if let KeyCode::Char(c) = key.code {
-                match c {
-                    '1' => {
-                        self.toggle_agent_filter(Agent::Claude);
-                        return Ok(Action::Continue);
-                    }
-                    '2' => {
-                        self.toggle_agent_filter(Agent::Codex);
-                        return Ok(Action::Continue);
-                    }
-                    '3' => {
-                        self.toggle_agent_filter(Agent::Omp);
-                        return Ok(Action::Continue);
-                    }
-                    _ => {}
-                }
-            }
-            self.activate_selection()?;
-            return Ok(Action::Continue);
-        }
-        // Space for batch toggle (not configurable)
-        if key.code == KeyCode::Char(' ') {
-            self.toggle_selection();
-            return Ok(Action::Continue);
-        }
-        // Enter to activate
-        if key.code == KeyCode::Enter {
-            self.activate_selection()?;
-            return Ok(Action::Continue);
-        }
+        // Search
         if kb.search.matches_event(&key) {
             self.view.input_mode = InputMode::Search;
             self.view.status = "Search (prefix: >7d, >1h, >30m for date filter):".into();
@@ -365,9 +317,9 @@ impl super::App {
         }
         // Shift+S: Semantic search (BM25)
         if key.code == KeyCode::Char('S') && key.modifiers == KeyModifiers::NONE {
-            self.search_results.clear();
+            self.search.results.clear();
             self.input_buffer.clear();
-            self.search_result_state.select(None);
+            self.search.result_state.select(None);
             self.view.input_mode = InputMode::SemanticSearch;
             self.view.status = "Semantic Search (type query, Enter=search, Esc=cancel):".into();
             return Ok(Action::Continue);
@@ -560,6 +512,87 @@ impl super::App {
             return Ok(Action::Continue);
         }
         Ok(Action::Continue)
+    }
+
+    /// Handle sidebar cursor navigation (up/down/j/k).
+    /// Returns `Some(action)` if the key was consumed, `None` otherwise.
+    fn handle_sidebar_navigation(&mut self, key: &KeyEvent) -> Option<Action> {
+        let kb = &self.view.keybinds;
+        if kb.move_up.matches_event(key) || key.code == KeyCode::Up {
+            self.move_sel(-1);
+            return Some(Action::Continue);
+        }
+        if kb.move_down.matches_event(key) || key.code == KeyCode::Down {
+            self.move_sel(1);
+            return Some(Action::Continue);
+        }
+        None
+    }
+
+    /// Handle sidebar action keys (expand, rename, delete, tab-switch, new-session, space, enter).
+    /// Returns `Some(action)` if the key was consumed, `None` otherwise.
+    fn handle_sidebar_action(&mut self, key: &KeyEvent) -> Result<Option<Action>> {
+        let kb = &self.view.keybinds;
+        if kb.expand.matches_event(key) {
+            self.toggle_expand();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.rename.matches_event(key) {
+            self.start_rename();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.new_workspace.matches_event(key) {
+            self.start_new_workspace();
+            return Ok(Some(Action::Continue));
+        }
+        if kb.delete.matches_event(key) {
+            self.request_delete();
+            return Ok(Some(Action::Continue));
+        }
+        if key.code == KeyCode::Tab {
+            if self.ptys.ptys.is_empty() {
+                self.view.status = "No active session. Press Enter to start one.".into();
+            } else {
+                self.view.focus = Focus::Chat;
+                if self.ptys.active_pty.is_none() {
+                    self.ptys.active_pty = Some(0);
+                }
+            }
+            return Ok(Some(Action::Continue));
+        }
+        if kb.new_session.matches_event(key) {
+            // Digit keys for agent filters remain hardcoded (not configurable)
+            if let KeyCode::Char(c) = key.code {
+                match c {
+                    '1' => {
+                        self.toggle_agent_filter(Agent::Claude);
+                        return Ok(Some(Action::Continue));
+                    }
+                    '2' => {
+                        self.toggle_agent_filter(Agent::Codex);
+                        return Ok(Some(Action::Continue));
+                    }
+                    '3' => {
+                        self.toggle_agent_filter(Agent::Omp);
+                        return Ok(Some(Action::Continue));
+                    }
+                    _ => {}
+                }
+            }
+            self.activate_selection()?;
+            return Ok(Some(Action::Continue));
+        }
+        // Space for batch toggle (not configurable)
+        if key.code == KeyCode::Char(' ') {
+            self.toggle_selection();
+            return Ok(Some(Action::Continue));
+        }
+        // Enter to activate
+        if key.code == KeyCode::Enter {
+            self.activate_selection()?;
+            return Ok(Some(Action::Continue));
+        }
+        Ok(None)
     }
 
     fn handle_input_key(&mut self, key: KeyEvent) -> Result<Action> {

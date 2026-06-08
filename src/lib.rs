@@ -4,6 +4,7 @@ pub mod budget;
 pub mod chain;
 pub mod config;
 pub mod discovery;
+pub mod discovery_walk;
 pub mod doctor;
 pub mod extraction;
 pub mod headless;

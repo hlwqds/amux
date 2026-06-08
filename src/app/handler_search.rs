@@ -72,42 +72,44 @@ impl super::App {
     /// 2. Browsing results (search_results is non-empty): j/k navigate, Enter select, Esc cancel
     pub(super) fn handle_semantic_search_key(&mut self, key: KeyEvent) -> Result<Action> {
         // Sub-state: browsing results
-        if !self.search_results.is_empty() {
+        if !self.search.results.is_empty() {
             match key.code {
                 KeyCode::Esc => {
-                    self.search_results.clear();
-                    self.search_result_state.select(None);
+                    self.search.results.clear();
+                    self.search.result_state.select(None);
                     self.view.input_mode = InputMode::None;
                     self.view.status = "Search cancelled.".into();
                     return Ok(Action::Continue);
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
-                    let len = self.search_results.len();
+                    let len = self.search.results.len();
                     if len > 0 {
                         let i = self
-                            .search_result_state
+                            .search
+                            .result_state
                             .selected()
                             .map_or(0, |i| (i + 1).min(len - 1));
-                        self.search_result_state.select(Some(i));
+                        self.search.result_state.select(Some(i));
                     }
                     return Ok(Action::Continue);
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
                     let i = self
-                        .search_result_state
+                        .search
+                        .result_state
                         .selected()
                         .map_or(0, |s| s.saturating_sub(1));
-                    self.search_result_state.select(Some(i));
+                    self.search.result_state.select(Some(i));
                     return Ok(Action::Continue);
                 }
                 KeyCode::Enter => {
                     // Navigate to the selected session in the sidebar
-                    if let Some(idx) = self.search_result_state.selected()
-                        && let Some((session_id, _score)) = self.search_results.get(idx)
+                    if let Some(idx) = self.search.result_state.selected()
+                        && let Some((session_id, _score)) = self.search.results.get(idx)
                     {
                         let target = session_id.clone();
-                        self.search_results.clear();
-                        self.search_result_state.select(None);
+                        self.search.results.clear();
+                        self.search.result_state.select(None);
                         self.view.input_mode = InputMode::None;
                         // Find and select the session in the tree
                         self.navigate_to_session(&target);
@@ -297,12 +299,12 @@ mod tests {
     fn semantic_search_esc_clears_results() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9)];
-        app.search_result_state.select(Some(0));
+        app.search.results = vec![("s1".into(), 0.9)];
+        app.search.result_state.select(Some(0));
 
         app.handle_semantic_search_key(key(KeyCode::Esc)).unwrap();
-        assert!(app.search_results.is_empty());
-        assert!(app.search_result_state.selected().is_none());
+        assert!(app.search.results.is_empty());
+        assert!(app.search.result_state.selected().is_none());
         assert_eq!(app.view.input_mode, InputMode::None);
     }
 
@@ -310,66 +312,66 @@ mod tests {
     fn semantic_search_j_moves_down() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
-        app.search_result_state.select(Some(0));
+        app.search.results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
+        app.search.result_state.select(Some(0));
 
         app.handle_semantic_search_key(key(KeyCode::Char('j')))
             .unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(1));
+        assert_eq!(app.search.result_state.selected(), Some(1));
 
         app.handle_semantic_search_key(key(KeyCode::Down)).unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(2));
+        assert_eq!(app.search.result_state.selected(), Some(2));
     }
 
     #[test]
     fn semantic_search_j_clamps_at_last() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8)];
-        app.search_result_state.select(Some(1));
+        app.search.results = vec![("s1".into(), 0.9), ("s2".into(), 0.8)];
+        app.search.result_state.select(Some(1));
 
         app.handle_semantic_search_key(key(KeyCode::Char('j')))
             .unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(1));
+        assert_eq!(app.search.result_state.selected(), Some(1));
     }
 
     #[test]
     fn semantic_search_k_moves_up() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
-        app.search_result_state.select(Some(2));
+        app.search.results = vec![("s1".into(), 0.9), ("s2".into(), 0.8), ("s3".into(), 0.7)];
+        app.search.result_state.select(Some(2));
 
         app.handle_semantic_search_key(key(KeyCode::Char('k')))
             .unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(1));
+        assert_eq!(app.search.result_state.selected(), Some(1));
 
         app.handle_semantic_search_key(key(KeyCode::Up)).unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(0));
+        assert_eq!(app.search.result_state.selected(), Some(0));
     }
 
     #[test]
     fn semantic_search_k_clamps_at_zero() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9)];
-        app.search_result_state.select(Some(0));
+        app.search.results = vec![("s1".into(), 0.9)];
+        app.search.result_state.select(Some(0));
 
         app.handle_semantic_search_key(key(KeyCode::Char('k')))
             .unwrap();
-        assert_eq!(app.search_result_state.selected(), Some(0));
+        assert_eq!(app.search.result_state.selected(), Some(0));
     }
 
     #[test]
     fn semantic_search_enter_selects_and_navigates() {
         let mut app = make_app();
         app.view.input_mode = InputMode::SemanticSearch;
-        app.search_results = vec![("s1".into(), 0.9)];
-        app.search_result_state.select(Some(0));
+        app.search.results = vec![("s1".into(), 0.9)];
+        app.search.result_state.select(Some(0));
 
         app.handle_semantic_search_key(key(KeyCode::Enter)).unwrap();
-        assert!(app.search_results.is_empty());
-        assert!(app.search_result_state.selected().is_none());
+        assert!(app.search.results.is_empty());
+        assert!(app.search.result_state.selected().is_none());
         assert_eq!(app.view.input_mode, InputMode::None);
     }
 

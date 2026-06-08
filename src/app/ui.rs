@@ -312,11 +312,7 @@ impl super::App {
 
                         let agent_tag = Span::styled(
                             format!(" [{}]", session.agent.icon()),
-                            Style::default().fg(match session.agent {
-                                Agent::Claude => self.view.theme.agent_claude,
-                                Agent::Codex => self.view.theme.agent_codex,
-                                Agent::Omp => self.view.theme.agent_omp,
-                            }),
+                            session.agent.theme_color(&self.view.theme)
                         );
 
                         let is_selected = self.view.selected_set.contains(si);
@@ -438,11 +434,7 @@ impl super::App {
                         Span::styled(state_text, Style::default().fg(state_color)),
                         Span::styled(
                             format!(" [{}]", agent.icon()),
-                            Style::default().fg(match agent {
-                                Agent::Claude => self.view.theme.agent_claude,
-                                Agent::Codex => self.view.theme.agent_codex,
-                                Agent::Omp => self.view.theme.agent_omp,
-                            }),
+                            agent.theme_color(&self.view.theme)
                         ),
                     ];
                     let detail = if state == PtyState::Completed {
@@ -483,11 +475,7 @@ impl super::App {
                 TreeNode::AgentHeader(agent) => ListItem::new(Line::from(vec![Span::styled(
                     format!("  \u{2500}\u{2500} {} \u{2500}\u{2500}", agent.label()),
                     Style::default()
-                        .fg(match agent {
-                            Agent::Claude => self.view.theme.agent_claude,
-                            Agent::Codex => self.view.theme.agent_codex,
-                            Agent::Omp => self.view.theme.agent_omp,
-                        })
+                        .fg(agent.theme_color(&self.view.theme))
                         .add_modifier(Modifier::DIM),
                 )])),
                 TreeNode::ArchivedHeader => {
@@ -1083,11 +1071,7 @@ impl super::App {
             }
             Some(&TreeNode::AgentHeader(agent)) => {
                 let label = agent.label().to_string();
-                let color = match agent {
-                    Agent::Claude => self.view.theme.agent_claude,
-                    Agent::Codex => self.view.theme.agent_codex,
-                    Agent::Omp => self.view.theme.agent_omp,
-                };
+                let color = agent.theme_color(&self.view.theme);
                 lines.push(
                     Line::from(label)
                         .style(Style::default().fg(color).add_modifier(Modifier::BOLD)),
@@ -1315,11 +1299,7 @@ impl super::App {
             let max_title = tab_width.saturating_sub(fixed_overhead);
             let title = Self::truncate_title(&slot.info.title, max_title);
             let agent = slot.info.agent;
-            let agent_color = match agent {
-                Agent::Claude => self.view.theme.agent_claude,
-                Agent::Codex => self.view.theme.agent_codex,
-                Agent::Omp => self.view.theme.agent_omp,
-            };
+            let agent_color = agent.theme_color(&self.view.theme);
 
             if is_active {
                 // Active tab: highlighted background, bold
