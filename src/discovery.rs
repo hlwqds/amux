@@ -136,7 +136,11 @@ pub fn discover_sessions_by_ids(workspaces: &[Workspace]) -> Vec<Session> {
             };
             // Try to find JSONL for richer metadata
             if let Some(jsonl_path) = find_session_jsonl_by_id(sid, &ws_path) {
-                if let Some(parsed) = parse_session_from_path(&jsonl_path, workspaces) {
+                if let Some(mut parsed) = parse_session_from_path(&jsonl_path, workspaces) {
+                    // Title override takes priority over JSONL-parsed title
+                    if let Some(override_title) = load_session_title(sid, Some(&ws_path)) {
+                        parsed.title = override_title;
+                    }
                     session = parsed;
                 } else {
                     session.last_active = fs::metadata(&jsonl_path)
