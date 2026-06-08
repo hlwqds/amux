@@ -318,9 +318,12 @@ impl App {
             ..Default::default()
         });
         if config.workspaces.is_empty() {
-            // Don't auto-discover — only show manually-added workspaces.
-            // Just ensure the config file exists so discovery can start fresh.
-            let _ = save_config_file(&config);
+            // Only create config file if it doesn't exist yet (first run).
+            // Never overwrite an existing file with empty data.
+            let config_path = data_dir().join("config.json");
+            if !config_path.exists() {
+                let _ = save_config_file(&config);
+            }
         }
         let check_command = config.check_command.take();
         let token_budget = config.token_budget.take();
@@ -1205,7 +1208,11 @@ mod tests {
         // Filter
         app.view.search_query = Some("fix".into());
         app.rebuild_tree();
-        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 matching session");
+        assert_eq!(
+            app.sessions.tree.len(),
+            4,
+            "Pinned + Recent + workspace + 1 matching session"
+        );
         // Clear filter
         app.view.search_query = None;
         app.rebuild_tree();
@@ -1233,7 +1240,11 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
 
         // Both workspaces should be present unfiltered
-        assert_eq!(app.sessions.tree.len(), 6, "Pinned + Recent + 2 workspaces + 2 sessions");
+        assert_eq!(
+            app.sessions.tree.len(),
+            6,
+            "Pinned + Recent + 2 workspaces + 2 sessions"
+        );
         // Filter for "beta"
         app.view.search_query = Some("beta".into());
         app.rebuild_tree();
@@ -1268,7 +1279,11 @@ mod tests {
         app.rebuild_tree();
 
         // Should have: Pinned, Recent, Workspace(w1), Session(w1, 0) — only Claude session
-        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 Claude session");
+        assert_eq!(
+            app.sessions.tree.len(),
+            4,
+            "Pinned + Recent + workspace + 1 Claude session"
+        );
         assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
         assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
         assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
@@ -1341,7 +1356,11 @@ mod tests {
         // Set filter to Claude
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, Some(Agent::Claude));
-        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 Claude session");
+        assert_eq!(
+            app.sessions.tree.len(),
+            4,
+            "Pinned + Recent + workspace + 1 Claude session"
+        );
         // Toggle same agent again should clear
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, None);
