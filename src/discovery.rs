@@ -154,19 +154,16 @@ pub fn discover_sessions_by_ids(workspaces: &[Workspace]) -> Vec<Session> {
     sessions
 }
 
-/// Find a session JSONL file by session ID and workspace path.
-fn find_session_jsonl_by_id(session_id: &str, ws_path: &Path) -> Option<PathBuf> {
-    // Try each agent's session directory
+/// Find a session JSONL file by session ID, searching all agent session directories.
+fn find_session_jsonl_by_id(session_id: &str, _ws_path: &Path) -> Option<PathBuf> {
     for agent in &[Agent::Claude, Agent::Codex, Agent::Omp] {
         let sessions_dir = agent.sessions_dir()?;
         match agent {
             Agent::Claude => {
-                let encoded = encode_project_path(ws_path);
-                let path = sessions_dir
-                    .join(encoded)
-                    .join(format!("{session_id}.jsonl"));
-                if path.exists() {
-                    return Some(path);
+                // Claude stores as <encoded-project-path>/<id>.jsonl
+                // Scan all project subdirectories for the ID
+                if let Some(p) = walk_claude_jsonl(&sessions_dir, session_id) {
+                    return Some(p);
                 }
             }
             Agent::Codex => {
@@ -177,6 +174,26 @@ fn find_session_jsonl_by_id(session_id: &str, ws_path: &Path) -> Option<PathBuf>
             Agent::Omp => {
                 if let Some(p) = walk_omp_jsonl(&sessions_dir, session_id) {
                     return Some(p);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Walk Claude project directories to find a JSONL by session ID.
+fn walk_claude_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
+    let expected = format!("{session_id}.jsonl");
+    if let Ok(entries) = fs::read_dir(root) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            if let Ok(files) = fs::read_dir(entry.path()) {
+                for file in files.flatten() {
+                    if file.file_name() == expected.as_str() {
+                        return Some(file.path());
+                    }
                 }
             }
         }
@@ -475,23 +492,23 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
             .unwrap_or("?")
             .to_string();
         // Determine workspace from the path structure: projects_dir / encoded / id.jsonl
-        let ws_path = claude_dir
-            .as_ref()
-            .and_then(|projects_dir| {
-                path.parent().and_then(|parent| {
-                    parent.parent().and_then(|_| {
-                        // Reconstruct ws_path by checking all workspaces
-                        ws_paths
-                            .iter()
-                            .find(|ws| {
-                                let encoded = encode_project_path(ws);
-                                *parent == projects_dir.join(encoded)
-                            })
-                            .cloned()
-                    })
+        let ws_path = claude_dir.as_ref().and_then(|projects_dir| {
+            path.parent().and_then(|parent| {
+                parent.parent().and_then(|_| {
+                    ws_paths
+                        .iter()
+                        .find(|ws| {
+                            let encoded = encode_project_path(ws);
+                            *parent == projects_dir.join(encoded)
+                        })
+                        .cloned()
                 })
             })
-            .unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
+        });
+        let ws_path = match ws_path {
+            Some(p) => p,
+            None => return None,
+        };
 
         let title = load_session_title(&id, Some(&ws_path))
             .or_else(|| extract_claude_title(path))
@@ -513,11 +530,16 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
     } else if is_omp {
         let (id, title, cwd) = parse_gsd_session(path)?;
         let ws_path = match cwd {
-            Some(ref cwd_str) => ws_paths
-                .iter()
-                .find(|p| cwd_str == p.to_string_lossy().as_ref())
-                .cloned()
-                .unwrap_or_else(|| PathBuf::from(cwd_str)),
+            Some(ref cwd_str) => {
+                // Only accept sessions whose cwd matches one of our workspaces
+                match ws_paths
+                    .iter()
+                    .find(|p| cwd_str == p.to_string_lossy().as_ref())
+                {
+                    Some(p) => p.clone(),
+                    None => return None,
+                }
+            }
             None => return None,
         };
         let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
@@ -535,11 +557,14 @@ fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> Option<Sess
         })
     } else if is_codex {
         let (id, title, cwd) = parse_codex_session(path)?;
-        let ws_path = ws_paths
+        let ws_path = match ws_paths
             .iter()
             .find(|p| cwd == p.to_string_lossy().as_ref())
             .cloned()
-            .unwrap_or_else(|| ws_paths.first().cloned().unwrap_or_default());
+        {
+            Some(p) => p,
+            None => return None,
+        };
         let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
             .map(|m| m.pinned)
             .unwrap_or(false);
