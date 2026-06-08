@@ -953,6 +953,30 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     };
 
     // Clean up any worktrees created during the session
+    // Persist session IDs for any PTYs that completed or are still running
+    for slot in &mut app.ptys.ptys {
+        if slot.info.session_id.is_none() {
+            if let Some(found) =
+                find_recent_session_for_workspace(&slot.info.workspace_path, slot.info.started_at)
+            {
+                slot.info.session_id = Some(found.id.clone());
+                if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                    let _ = crate::config::save_session_title(&found.id, &slot.info.title);
+                }
+                if let Some(ws) = app.sessions.workspaces.iter_mut().find(|ws| {
+                    ws.path.as_deref() == Some(&slot.info.workspace_path)
+                        || (ws.path.is_none()
+                            && slot.info.workspace_path
+                                == data_dir().join("workspaces").join(&ws.id))
+                }) {
+                    if !ws.session_ids.contains(&found.id) {
+                        ws.session_ids.push(found.id.clone());
+                    }
+                }
+            }
+        }
+    }
+    app.save_config();
     app.cleanup_worktrees();
 
     for slot in &app.ptys.ptys {
