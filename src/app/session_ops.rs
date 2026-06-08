@@ -313,8 +313,8 @@ impl App {
             self.check_token_budget();
             self.last_budget_check = std::time::Instant::now();
         }
-        // Collect process resource stats from /proc (throttled to 30s)
-        if self.last_stats_check.elapsed() > std::time::Duration::from_secs(30) {
+        // Collect process resource stats from /proc (throttled to 5s)
+        if self.last_stats_check.elapsed() > std::time::Duration::from_secs(5) {
             for slot in &mut self.ptys.ptys {
                 if slot.handle.is_alive()
                     && let Some(pid) = slot.handle.child_pid()
