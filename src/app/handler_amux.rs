@@ -324,10 +324,10 @@ mod tests {
         app.ptys.ptys.push(make_slot("pty-1"));
 
         // Select the session node in the tree.
-        // test_app selects index 0; with 1 ws + 1 session, tree is [Ws, Session].
-        // Select index 1 (the session).
-        if app.sessions.tree.len() > 1 {
-            app.sessions.tree_state.select(Some(1));
+        // test_app selects index 0; tree is [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,0)].
+        // Select index 3 (the session).
+        if app.sessions.tree.len() > 3 {
+            app.sessions.tree_state.select(Some(3));
         }
 
         let result = app.handle_amux_key(0, plain_key(KeyCode::Char('x')));

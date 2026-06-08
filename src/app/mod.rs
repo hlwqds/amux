@@ -218,6 +218,10 @@ struct App {
     server_handle: Option<tokio::task::JoinHandle<()>>,
     /// Override check command from config. Format: "command arg1 arg2"
     check_command: Option<String>,
+    /// Config fields not stored elsewhere — preserved for save_config roundtrip.
+    serve_port: Option<u16>,
+    serve_token: Option<String>,
+    unset_env: Vec<String>,
     // --- Theme selection state ---
     /// Available themes for the theme selector (built-in + custom).
     theme_list: Vec<crate::theme::ThemeName>,
@@ -280,6 +284,9 @@ impl Default for App {
             shared_ptys: std::sync::Arc::new(crate::server::SharedPtyMap::new()),
             server_handle: None,
             check_command: None,
+            serve_port: None,
+            serve_token: None,
+            unset_env: Vec::new(),
             theme_list: Vec::new(),
             theme_list_state: ListState::default(),
             worktree_branches: Vec::new(),
@@ -402,6 +409,9 @@ impl App {
             shared_ptys,
             server_handle: None,
             check_command,
+            serve_port: config.serve_port,
+            serve_token: config.serve_token.clone(),
+            unset_env: config.unset_env.clone(),
             theme_list: Vec::new(),
             theme_list_state: ListState::default(),
             worktree_branches: Vec::new(),
@@ -1110,16 +1120,18 @@ mod tests {
         app.view.search_query = Some("fix".into());
         app.rebuild_tree();
 
-        // Should have: Workspace(w1), Session(w1, s1_idx), Session(w1, s3_idx)
+        // Should have: PinnedWorkspace, RecentWorkspace, Workspace(w1), Session(w1, s1_idx), Session(w1, s3_idx)
         // s1 is at index 0, s3 is at index 2
         assert_eq!(
             app.sessions.tree.len(),
-            3,
-            "expected workspace + 2 matching sessions"
+            5,
+            "expected Pinned + Recent + workspace + 2 matching sessions"
         );
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // s1 (fix login)
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 2))); // s3 (fix logout)
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 (fix login)
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // s3 (fix logout)
     }
 
     #[test]
@@ -1131,8 +1143,8 @@ mod tests {
         // No search_query → all sessions visible (workspace expanded)
         assert_eq!(
             app.sessions.tree.len(),
-            3,
-            "expected workspace + 2 sessions"
+            5,
+            "expected Pinned + Recent + workspace + 2 sessions"
         );
     }
 
@@ -1145,9 +1157,11 @@ mod tests {
         app.view.search_query = Some("zzzzz".into());
         app.rebuild_tree();
 
-        assert!(
-            app.sessions.tree.is_empty(),
-            "no matches should yield empty tree"
+        // PinnedWorkspace + RecentWorkspace are always present; no workspace/session nodes
+        assert_eq!(
+            app.sessions.tree.len(),
+            2,
+            "no matches should yield only Pinned + Recent"
         );
     }
 
@@ -1161,14 +1175,12 @@ mod tests {
         ];
         let mut app = test_app(workspaces, sessions);
 
-        // Select last item (index 3 = session s3)
-        app.sessions.tree_state.select(Some(3));
-
+        // Select last item (index 5 = session s3, accounting for Pinned+Recent prefix)
+        app.sessions.tree_state.select(Some(5));
         // Filter to just one match ("beta")
         app.view.search_query = Some("beta".into());
         app.rebuild_tree();
-
-        // Tree now has only 2 items: Workspace + Session(s2)
+        // Tree now has 4 items: Pinned, Recent, Workspace, Session(s2)
         // Selection should be clamped to valid range
         let sel = app.sessions.tree_state.selected();
         assert!(sel.is_some(), "selection must exist when tree is non-empty");
@@ -1193,15 +1205,14 @@ mod tests {
         // Filter
         app.view.search_query = Some("fix".into());
         app.rebuild_tree();
-        assert_eq!(app.sessions.tree.len(), 2, "workspace + 1 matching session");
-
+        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 matching session");
         // Clear filter
         app.view.search_query = None;
         app.rebuild_tree();
         assert_eq!(
             app.sessions.tree.len(),
-            3,
-            "workspace + all sessions restored"
+            5,
+            "Pinned + Recent + workspace + all sessions restored"
         );
     }
 
@@ -1222,24 +1233,22 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
 
         // Both workspaces should be present unfiltered
-        assert_eq!(app.sessions.tree.len(), 4, "2 workspaces + 2 sessions");
-
+        assert_eq!(app.sessions.tree.len(), 6, "Pinned + Recent + 2 workspaces + 2 sessions");
         // Filter for "beta"
         app.view.search_query = Some("beta".into());
         app.rebuild_tree();
-
-        // Should have: w1 matching (Beta in name? no) — actually w1 has name "Alpha"
-        // s1 title is "fix alpha bug" — fuzzy match "beta"? No.
-        // w2 name is "Beta" — matches "beta"
-        // s2 title is "fix beta bug" — matches "beta"
-        // So: TreeNode::Workspace(1), TreeNode::Session(1, 1)
+        // Should have: Pinned, Recent, w2 (Beta), s2 (fix beta bug)
+        // w1 name "Alpha" doesn't match "beta", s1 "fix alpha bug" doesn't match "beta"
+        // w2 name "Beta" matches, s2 "fix beta bug" matches
         assert_eq!(
             app.sessions.tree.len(),
-            2,
-            "workspace Beta + 1 matching session"
+            4,
+            "Pinned + Recent + workspace Beta + 1 matching session"
         );
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(1)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(1, 1)));
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(1)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(1, 1)));
     }
 
     // ─── agent filter tests ───
@@ -1258,10 +1267,12 @@ mod tests {
         app.view.agent_filter = Some(Agent::Claude);
         app.rebuild_tree();
 
-        // Should have: Workspace(w1), Session(w1, 0) — only Claude session
-        assert_eq!(app.sessions.tree.len(), 2, "workspace + 1 Claude session");
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // s1 (Claude)
+        // Should have: Pinned, Recent, Workspace(w1), Session(w1, 0) — only Claude session
+        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 Claude session");
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 (Claude)
     }
 
     #[test]
@@ -1272,25 +1283,24 @@ mod tests {
             sess_with_agent("s2", "codex task", "/tmp", Agent::Codex),
         ];
         let mut app = test_app(workspaces, sessions);
-
-        // Unfiltered: workspace + 2 sessions
+        // Unfiltered: Pinned + Recent + workspace + 2 sessions
         assert_eq!(
             app.sessions.tree.len(),
-            3,
-            "workspace + 2 sessions unfiltered"
+            5,
+            "Pinned + Recent + workspace + 2 sessions unfiltered"
         );
-
         // Filter to OMP (none exist)
         app.view.agent_filter = Some(Agent::Omp);
         app.rebuild_tree();
-
         // Without search query, workspace is still shown but has no sessions under it
         assert_eq!(
             app.sessions.tree.len(),
-            1,
-            "workspace header present, no matching sessions listed"
+            3,
+            "Pinned + Recent + workspace header, no matching sessions"
         );
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
     }
 
     #[test]
@@ -1309,14 +1319,14 @@ mod tests {
         app.view.search_query = Some("fix".into());
         app.rebuild_tree();
 
-        // Should have: Workspace(w1), Session(w1, 0) — only Claude session matching "fix"
+        // Should have: Pinned, Recent, Workspace(w1), Session(w1, 0) — only Claude session matching "fix"
         // s1 (Claude, "fix bug") ✓  s3 (Claude, "add feature") ✗
         assert_eq!(
             app.sessions.tree.len(),
-            2,
-            "workspace + 1 Claude session matching 'fix'"
+            4,
+            "Pinned + Recent + workspace + 1 Claude session matching 'fix'"
         );
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // s1
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1
     }
 
     #[test]
@@ -1331,15 +1341,14 @@ mod tests {
         // Set filter to Claude
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, Some(Agent::Claude));
-        assert_eq!(app.sessions.tree.len(), 2, "workspace + 1 Claude session");
-
+        assert_eq!(app.sessions.tree.len(), 4, "Pinned + Recent + workspace + 1 Claude session");
         // Toggle same agent again should clear
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, None);
         assert_eq!(
             app.sessions.tree.len(),
-            3,
-            "workspace + all 2 sessions restored"
+            5,
+            "Pinned + Recent + workspace + all 2 sessions restored"
         );
     }
 
@@ -1384,12 +1393,14 @@ mod tests {
         app.view.sort_mode = SortMode::TimeDesc;
         app.rebuild_tree();
 
-        // Tree: [Workspace(0), Session(0,2), Session(0,1), Session(0,0)]
+        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,2), Session(0,1), Session(0,0)]
         // (newest first: s3=900, s2=500, s1=100)
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 2))); // newest
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 1)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // oldest
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 2))); // newest
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1)));
+        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 0))); // oldest
     }
 
     #[test]
@@ -1403,13 +1414,14 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
         app.view.sort_mode = SortMode::TimeAsc;
         app.rebuild_tree();
-
-        // Tree: [Workspace(0), Session(0,0), Session(0,1), Session(0,2)]
+        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,0), Session(0,1), Session(0,2)]
         // (oldest first: s1=100, s2=500, s3=900)
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // oldest
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 1)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 2))); // newest
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // oldest
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1)));
+        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 2))); // newest
     }
 
     #[test]
@@ -1426,10 +1438,12 @@ mod tests {
 
         // Case-insensitive: alpha < Bravo < Charlie
         // s2=alpha(idx1), s3=Bravo(idx2), s1=Charlie(idx0)
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 1))); // alpha
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 2))); // Bravo
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // Charlie
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 1))); // alpha
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // Bravo
+        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 0))); // Charlie
     }
 
     #[test]
@@ -1446,10 +1460,12 @@ mod tests {
 
         // Case-insensitive reverse: Charlie > Bravo > alpha
         // s1=Charlie(idx0), s3=Bravo(idx2), s2=alpha(idx1)
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // Charlie
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 2))); // Bravo
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 1))); // alpha
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // Charlie
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // Bravo
+        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 1))); // alpha
     }
 
     #[test]
@@ -1464,24 +1480,26 @@ mod tests {
         app.view.sort_mode = SortMode::AgentGroup;
         app.rebuild_tree();
 
-        // Expected tree: Workspace(0), AgentHeader(Claude), Session(Claude),
+        // Expected tree: PinnedWorkspace, RecentWorkspace, Workspace(0), AgentHeader(Claude), Session(Claude),
         //                AgentHeader(Codex), Session(Codex), AgentHeader(Omp), Session(Omp)
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(
-            app.sessions.tree[1],
-            TreeNode::AgentHeader(Agent::Claude)
-        ));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 1))); // s2 = Claude
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
         assert!(matches!(
             app.sessions.tree[3],
-            TreeNode::AgentHeader(Agent::Codex)
+            TreeNode::AgentHeader(Agent::Claude)
         ));
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // s3 = Codex
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1))); // s2 = Claude
         assert!(matches!(
             app.sessions.tree[5],
+            TreeNode::AgentHeader(Agent::Codex)
+        ));
+        assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 2))); // s3 = Codex
+        assert!(matches!(
+            app.sessions.tree[7],
             TreeNode::AgentHeader(Agent::Omp)
         ));
-        assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 0))); // s1 = Omp
+        assert!(matches!(app.sessions.tree[8], TreeNode::Session(0, 0))); // s1 = Omp
     }
 
     #[test]
@@ -1498,16 +1516,18 @@ mod tests {
         // Only Claude sessions — no Codex or Omp headers
         assert_eq!(
             app.sessions.tree.len(),
-            4,
-            "workspace + header + 2 sessions"
+            6,
+            "Pinned + Recent + workspace + header + 2 sessions"
         );
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
         assert!(matches!(
-            app.sessions.tree[1],
+            app.sessions.tree[3],
             TreeNode::AgentHeader(Agent::Claude)
         ));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 1)));
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 0)));
+        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 1)));
 
         // No other agent headers
         for node in &app.sessions.tree {
@@ -1533,10 +1553,12 @@ mod tests {
         app.rebuild_tree();
 
         // Filter matches s1 and s2; TimeAsc puts oldest first
-        // Tree: [Workspace(0), Session(0,0) s1=100, Session(0,1) s2=500]
-        assert!(matches!(app.sessions.tree[0], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[1], TreeNode::Session(0, 0))); // s1 oldest
-        assert!(matches!(app.sessions.tree[2], TreeNode::Session(0, 1))); // s2 newer
+        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,0) s1=100, Session(0,1) s2=500]
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 oldest
+        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1))); // s2 newer
     }
 
     #[test]
@@ -1620,9 +1642,9 @@ mod tests {
         ];
         let mut app = test_app(workspaces, sessions);
 
-        // Select last session (index 3 = session s3)
-        app.sessions.tree_state.select(Some(3));
-        assert_eq!(app.sessions.tree_state.selected(), Some(3));
+        // Select last session (index 5 = session s3, accounting for Pinned+Recent prefix)
+        app.sessions.tree_state.select(Some(5));
+        assert_eq!(app.sessions.tree_state.selected(), Some(5));
 
         // Switch to AgentGroup mode which adds AgentHeader nodes (tree grows)
         app.view.sort_mode = SortMode::AgentGroup;

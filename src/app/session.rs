@@ -468,9 +468,9 @@ mod tests {
             vec![ws("w1", "my-workspace", "/tmp/ws1")],
             vec![sess("deadbeef", "my session", "/tmp/ws1")],
         );
-        // Tree: [Workspace(0), WorkspaceWarning(0,..), Session(0,0)] — session is at index 2
-        // because /tmp/ws1 doesn't exist, triggering a warning node.
-        app.sessions.tree_state.select(Some(2));
+        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), WorkspaceWarning(0,..), Session(0,0)]
+        // Session is at index 4 because /tmp/ws1 doesn't exist, triggering a warning node.
+        app.sessions.tree_state.select(Some(4));
         app.start_rename();
         assert_eq!(app.view.input_mode, InputMode::RenameSession);
         assert_eq!(app.rename_target, Some(0));
@@ -482,8 +482,8 @@ mod tests {
     #[test]
     fn start_rename_workspace_sets_mode_and_target() {
         let mut app = test_app(vec![ws("w1", "original-name", "/tmp/ws1")], vec![]);
-        // Tree has: [Workspace(0)]. Select the workspace node.
-        app.sessions.tree_state.select(Some(0));
+        // Tree has: [PinnedWorkspace, RecentWorkspace, Workspace(0), WorkspaceWarning(0,..)]. Select the workspace node at index 2.
+        app.sessions.tree_state.select(Some(2));
         app.start_rename();
         assert_eq!(app.view.input_mode, InputMode::RenameWorkspace);
         assert_eq!(app.rename_workspace_target, Some(0));
@@ -499,7 +499,7 @@ mod tests {
             vec![sess("abc12345", "old title", "/tmp/ws1")],
         );
         // Set up rename state manually
-        app.sessions.tree_state.select(Some(2)); // session is at index 2 (after Workspace + WorkspaceWarning)
+        app.sessions.tree_state.select(Some(4)); // session is at index 4 (after Pinned + Recent + Workspace + WorkspaceWarning)
         app.view.input_mode = InputMode::RenameSession;
         app.rename_target = Some(0);
         app.input_buffer = "new title".into();

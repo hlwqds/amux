@@ -643,28 +643,27 @@ impl App {
             .filter(|(_, s)| s.pinned)
             .map(|(i, _)| i)
             .collect();
-        if !pinned_idxs.is_empty() {
-            tree.push(TreeNode::PinnedWorkspace);
-            if self.sessions.pinned_expanded {
-                let mut sorted_pins = pinned_idxs;
-                sorted_pins.sort_by(|&a, &b| {
-                    self.sessions.sessions[b]
-                        .last_active
-                        .cmp(&self.sessions.sessions[a].last_active)
-                });
-                for &si in &sorted_pins {
-                    let ws_path = &self.sessions.sessions[si].workspace_path;
-                    let wi = self
-                        .sessions
-                        .workspaces
-                        .iter()
-                        .position(|w| {
-                            w.path.as_deref() == Some(ws_path)
-                                || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
-                        })
-                        .unwrap_or(0);
-                    tree.push(TreeNode::Session(wi, si));
-                }
+        // Always show Pinned workspace
+        tree.push(TreeNode::PinnedWorkspace);
+        if self.sessions.pinned_expanded {
+            let mut sorted_pins = pinned_idxs;
+            sorted_pins.sort_by(|&a, &b| {
+                self.sessions.sessions[b]
+                    .last_active
+                    .cmp(&self.sessions.sessions[a].last_active)
+            });
+            for &si in &sorted_pins {
+                let ws_path = &self.sessions.sessions[si].workspace_path;
+                let wi = self
+                    .sessions
+                    .workspaces
+                    .iter()
+                    .position(|w| {
+                        w.path.as_deref() == Some(ws_path)
+                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                    })
+                    .unwrap_or(0);
+                tree.push(TreeNode::Session(wi, si));
             }
         }
         // Collect recent sessions: non-pinned, non-active, sorted by last_active desc, top 10
@@ -708,22 +707,21 @@ impl App {
         });
         recent_idxs.truncate(10);
         self.sessions.recent_count = recent_idxs.len();
-        if !recent_idxs.is_empty() {
-            tree.push(TreeNode::RecentWorkspace);
-            if self.sessions.recent_expanded {
-                for &si in &recent_idxs {
-                    let ws_path = &self.sessions.sessions[si].workspace_path;
-                    let wi = self
-                        .sessions
-                        .workspaces
-                        .iter()
-                        .position(|w| {
-                            w.path.as_deref() == Some(ws_path)
-                                || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
-                        })
-                        .unwrap_or(usize::MAX);
-                    tree.push(TreeNode::Session(wi, si));
-                }
+        // Always show Recent workspace
+        tree.push(TreeNode::RecentWorkspace);
+        if self.sessions.recent_expanded {
+            for &si in &recent_idxs {
+                let ws_path = &self.sessions.sessions[si].workspace_path;
+                let wi = self
+                    .sessions
+                    .workspaces
+                    .iter()
+                    .position(|w| {
+                        w.path.as_deref() == Some(ws_path)
+                            || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
+                    })
+                    .unwrap_or(usize::MAX);
+                tree.push(TreeNode::Session(wi, si));
             }
         }
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
@@ -1392,12 +1390,12 @@ impl App {
             archive_days: self.sessions.archive_days,
             remote_hosts: self.remote_hosts.clone(),
             plugins: self.plugins.clone(),
-            serve_port: None,
-            serve_token: None,
+            serve_port: self.serve_port,
+            serve_token: self.serve_token.clone(),
             check_command: self.check_command.clone(),
             token_budget: self.token_budget.clone(),
             chains: self.chains.chains.clone(),
-            unset_env: Vec::new(),
+            unset_env: self.unset_env.clone(),
             recent_expanded: self.sessions.recent_expanded,
             pinned_expanded: self.sessions.pinned_expanded,
         };
@@ -1971,9 +1969,9 @@ mod tests {
             vec![ws("w1", "ws", "/tmp/ws1")],
             vec![sess("s1", "a", "/tmp/ws1")],
         );
-        // Tree: [Workspace(0), WorkspaceWarning(0,..), Session(0,0)] — 3 nodes
+        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), WorkspaceWarning(0,..), Session(0,0)] — 5 nodes
         let len = app.sessions.tree.len();
-        assert!(len >= 3);
+        assert!(len >= 5);
 
         // Select last item
         app.sessions.tree_state.select(Some(len - 1));
@@ -1987,16 +1985,19 @@ mod tests {
         assert_eq!(app.sessions.tree_state.selected(), Some(len - 1));
     }
 
-    // ── Test 5: selected_node returns None for empty tree ──
+    // ── Test 5: selected_node returns None for out-of-bounds selection ──
     #[test]
     fn selected_node_returns_none_for_empty_tree() {
         let mut app = test_app(vec![], vec![]);
-        // Empty workspaces + sessions → empty tree
-        assert!(app.sessions.tree.is_empty());
-        assert!(app.selected_node().is_none());
-
-        // Even after explicitly selecting something (shouldn't happen, but verify robustness)
+        // Empty workspaces + sessions → tree has only PinnedWorkspace + RecentWorkspace
+        assert_eq!(app.sessions.tree.len(), 2);
+        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
+        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
+        // Selecting index 0 returns PinnedWorkspace (not None — tree is no longer empty)
         app.sessions.tree_state.select(Some(0));
+        assert!(app.selected_node().is_some());
+        // Selecting beyond the tree returns None
+        app.sessions.tree_state.select(Some(99));
         assert!(app.selected_node().is_none());
     }
 }
