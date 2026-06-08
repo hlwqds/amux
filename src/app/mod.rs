@@ -928,8 +928,8 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
             set_cursor(&app);
         }
 
-        // Auto-refresh: either timer-based (5s) or file-system-event-driven
-        let timer_due = app.last_refresh.elapsed() > std::time::Duration::from_secs(5);
+        // Auto-refresh: timer-based (1s) or file-system-event-driven
+        let timer_due = app.last_refresh.elapsed() > std::time::Duration::from_secs(1);
         let fs_changed = watcher.poll();
         if !app.ptys.ptys.is_empty() && (timer_due || fs_changed) {
             app.refresh_sessions();
