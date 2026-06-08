@@ -810,13 +810,10 @@ fn handle_event(app: &mut App, event: Event) -> anyhow::Result<bool> {
                     KeyCode::Enter => {
                         app.pending_paste.push('\r');
                     }
-                    KeyCode::Tab => {
-                        app.pending_paste.push('\t');
-                    }
-                    KeyCode::Backspace => {
-                        app.pending_paste.pop();
-                    }
                     _ => {
+                        // Tab, Backspace, and other non-Char keys must go
+                        // through handle_key for proper routing (Tab→sidebar,
+                        // Backspace→PTY delete, etc.)
                         if !app.pending_paste.is_empty() {
                             app.flush_pending_paste();
                         }
@@ -825,6 +822,9 @@ fn handle_event(app: &mut App, event: Event) -> anyhow::Result<bool> {
                             Action::Quit => return Ok(true),
                         }
                     }
+                }
+                if app.pending_paste.len() >= 8192 {
+                    app.flush_pending_paste();
                 }
                 if app.pending_paste.len() >= 8192 {
                     app.flush_pending_paste();
