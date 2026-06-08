@@ -183,6 +183,40 @@ fn find_session_jsonl_by_id(session_id: &str, ws_path: &Path) -> Option<PathBuf>
     }
     None
 }
+/// Find the most recent session JSONL for a given workspace path and time range.
+/// Used to match a newly completed PTY to its session file (targeted, not full scan).
+pub fn find_recent_session_for_workspace(ws_path: &Path, started_at: u64) -> Option<Session> {
+    let workspaces = vec![Workspace {
+        id: String::new(),
+        name: String::new(),
+        path: Some(ws_path.to_path_buf()),
+        created_at: 0,
+        session_ids: Vec::new(),
+        expanded: false,
+    }];
+    let mut jsonl_files: Vec<PathBuf> = Vec::new();
+    collect_claude_jsonl(&workspaces, &mut jsonl_files);
+    collect_codex_jsonl(&workspaces, &mut jsonl_files);
+    collect_omp_jsonl(&workspaces, &mut jsonl_files);
+    // Find JSONL files with mtime >= started_at
+    let mut candidates: Vec<Session> = Vec::new();
+    for path in &jsonl_files {
+        let mtime = fs::metadata(path)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if mtime >= started_at {
+            if let Some(session) = parse_session_from_path(path, &workspaces) {
+                candidates.push(session);
+            }
+        }
+    }
+    // Return the most recent one
+    candidates.sort_by_key(|c| std::cmp::Reverse(c.last_active));
+    candidates.into_iter().next()
+}
 
 /// Discover sessions with mtime-based caching. Skips re-parsing files whose mtime
 /// hasn't changed since the last scan. Updates `cache` in place.

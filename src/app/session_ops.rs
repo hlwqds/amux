@@ -231,7 +231,6 @@ impl App {
     }
 
     pub(crate) fn refresh_sessions(&mut self) {
-        let mut config_changed = false;
         // Load project configs from .amux.json — skip reload if mtime unchanged
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
             let path = self.workspace_cwd(wi);
@@ -263,45 +262,20 @@ impl App {
         self.sessions
             .project_config_mtimes
             .retain(|k, _| cwd_set.contains(k));
-        // Scan filesystem to match running PTYs with their session JSONL files
-        let discovered =
-            discover_sessions_cached(&self.sessions.workspaces, &mut self.sessions.session_cache);
-        // Match running PTYs to their sessions and persist new IDs
+        // Load only sessions in workspace.session_ids (no filesystem scan)
+        let loaded = discover_sessions_by_ids(&self.sessions.workspaces);
+        // Match running PTYs to their sessions from loaded list
         for slot in &mut self.ptys.ptys {
             if slot.info.session_id.is_none() {
-                if let Some(found) = discovered.iter().find(|s| {
+                if let Some(found) = loaded.iter().find(|s| {
                     s.workspace_path == slot.info.workspace_path
                         && s.last_active >= slot.info.started_at
                 }) {
                     slot.info.session_id = Some(found.id.clone());
-                    // Persist the session ID to the workspace
-                    if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
-                        ws.path.as_deref() == Some(&found.workspace_path)
-                            || (ws.path.is_none()
-                                && found.workspace_path
-                                    == data_dir().join("workspaces").join(&ws.id))
-                    }) {
-                        if !ws.session_ids.contains(&found.id) {
-                            ws.session_ids.push(found.id.clone());
-                            config_changed = true;
-                        }
-                    }
                 }
             }
         }
-        // Only show sessions that are in workspace.session_ids
-        let mut sessions: Vec<Session> = Vec::new();
-        for ws in &self.sessions.workspaces {
-            for sid in &ws.session_ids {
-                if let Some(s) = discovered.iter().find(|s| &s.id == sid) {
-                    sessions.push(s.clone());
-                }
-            }
-        }
-        self.sessions.sessions = sessions;
-        if config_changed {
-            self.save_config();
-        }
+        self.sessions.sessions = loaded;
         self.rebuild_tree();
         self.rebuild_search_index();
         self.archive_old_sessions();
@@ -1733,6 +1707,31 @@ impl App {
                     save_recording_meta(slot);
                     // Record git state + diff summary
                     collect_git_info(slot);
+                    // Match new PTY to its session JSONL (targeted, not full scan)
+                    if slot.info.session_id.is_none() {
+                        if let Some(found) = find_recent_session_for_workspace(
+                            &slot.info.workspace_path,
+                            slot.info.started_at,
+                        ) {
+                            slot.info.session_id = Some(found.id.clone());
+                            // Save user-provided title to override file
+                            if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                                let _ =
+                                    crate::config::save_session_title(&found.id, &slot.info.title);
+                            }
+                            // Persist session ID to workspace
+                            if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                                ws.path.as_deref() == Some(&slot.info.workspace_path)
+                                    || (ws.path.is_none()
+                                        && slot.info.workspace_path
+                                            == data_dir().join("workspaces").join(&ws.id))
+                            }) {
+                                if !ws.session_ids.contains(&found.id) {
+                                    ws.session_ids.push(found.id.clone());
+                                }
+                            }
+                        }
+                    }
                     // Save snapshot_commit to session meta for rollback support
                     if let Some(ref session_id) = slot.info.session_id
                         && let Some(ref snapshot) = slot.info.snapshot_commit
@@ -1801,6 +1800,8 @@ impl App {
                 let _ = std::fs::remove_file(&marker);
             }
         }
+        // Persist any new session_ids added during PTY completion matching
+        self.save_config();
 
         let before = self.ptys.ptys.len();
         // Unregister dead PTYs from shared state before retaining only live ones.

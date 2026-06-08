@@ -8,7 +8,8 @@ use std::{
 use crate::config::{data_dir, save_config_file, title_override_path};
 use crate::discovery::{
     PreviewLine, SessionCache, discover_sessions, discover_sessions_by_ids,
-    discover_sessions_cached, extract_branch_points, find_session_jsonl, preview_session_content,
+    discover_sessions_cached, extract_branch_points, find_recent_session_for_workspace,
+    find_session_jsonl, preview_session_content,
 };
 use crate::pty::PtyState;
 use crate::types::*;
@@ -989,7 +990,14 @@ mod tests {
     }
 
     pub(crate) fn ws(id: &str, name: &str, path: &str) -> Workspace {
-        Workspace { id: id.into(), name: name.into(), path: Some(PathBuf::from(path)), created_at: 1000, session_ids: Vec::new(), expanded: true }
+        Workspace {
+            id: id.into(),
+            name: name.into(),
+            path: Some(PathBuf::from(path)),
+            created_at: 1000,
+            session_ids: Vec::new(),
+            expanded: true,
+        }
     }
 
     pub(crate) fn sess(id: &str, title: &str, ws_path: &str) -> Session {
