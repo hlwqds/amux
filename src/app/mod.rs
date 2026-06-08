@@ -7,8 +7,9 @@ use std::{
 
 use crate::config::{data_dir, save_config_file, title_override_path};
 use crate::discovery::{
-    PreviewLine, SessionCache, discover_sessions, discover_sessions_cached, extract_branch_points,
-    find_session_jsonl, preview_session_content,
+    PreviewLine, SessionCache, discover_sessions, discover_sessions_cached,
+    discover_workspaces_from_fs, extract_branch_points, find_session_jsonl,
+    preview_session_content,
 };
 use crate::pty::PtyState;
 use crate::types::*;
@@ -314,6 +315,7 @@ impl App {
         });
 
         if config.workspaces.is_empty() {
+            config.workspaces = discover_workspaces_from_fs();
             let _ = save_config_file(&config);
         }
         let check_command = config.check_command.take();
