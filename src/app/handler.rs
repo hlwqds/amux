@@ -1017,19 +1017,6 @@ impl super::App {
         self.view.status = format!("Closed tab: {title}");
     }
 
-    /// Flush the rapid-key-sequence buffer (simulated paste) to the PTY.
-    /// Called when a burst of Char keys ends (no key for one poll cycle)
-    /// or when a non-Char key interrupts the sequence.
-    pub(crate) fn flush_pending_paste(&mut self) {
-        if self.pending_paste.is_empty() {
-            return;
-        }
-        let text = std::mem::take(&mut self.pending_paste);
-        // Route through handle_paste for proper sanitization, size limiting,
-        // and bracketed-paste wrapping.
-        self.handle_paste(&text);
-    }
-
     pub(super) fn handle_paste(&mut self, text: &str) -> Action {
         if self.view.input_mode == InputMode::ScrollbackSearch {
             // In search mode, limit pasted text to prevent query bar overflow

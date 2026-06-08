@@ -14,7 +14,7 @@ use crate::pty::PtyState;
 use crate::types::*;
 use crate::util::*;
 use anyhow::{Context, Result};
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{Event, KeyEventKind};
 use ratatui::{layout::Rect, widgets::ListState};
 
 // ─── Sub-structures ──────────────────────────────────────────
@@ -241,10 +241,6 @@ struct App {
     search_results: Vec<(String, f64)>,
     /// List state for semantic search result selection.
     search_result_state: ratatui::widgets::ListState,
-    /// Buffer for detecting rapid key sequences (paste without bracketed paste).
-    /// When many Char keys arrive in rapid succession without Event::Paste,
-    /// they are accumulated here and flushed as a single batched write.
-    pending_paste: String,
 }
 
 impl Default for App {
@@ -296,7 +292,6 @@ impl Default for App {
             search_index: crate::search_engine::SearchIndex::new(),
             search_results: Vec::new(),
             search_result_state: ListState::default(),
-            pending_paste: String::new(),
         }
     }
 }
@@ -423,7 +418,6 @@ impl App {
             search_index: crate::search_engine::SearchIndex::new(),
             search_results: Vec::new(),
             search_result_state: ListState::default(),
-            pending_paste: String::new(),
         };
         app.rebuild_tree();
         if !app.sessions.tree.is_empty() {
@@ -793,62 +787,14 @@ fn set_cursor(app: &App) {
 /// Handle a single terminal event. Returns true to quit.
 fn handle_event(app: &mut App, event: Event) -> anyhow::Result<bool> {
     match event {
-        Event::Key(key) if key.kind == KeyEventKind::Press => {
-            // In passthrough Chat mode, accumulate rapid key sequences
-            let is_paste_char = app.view.input_mode == InputMode::None
-                && app.view.focus == Focus::Chat
-                && app.view.chat_mode == ChatMode::Passthrough
-                && !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
-
-            if is_paste_char {
-                match key.code {
-                    KeyCode::Char(c) => {
-                        app.pending_paste.push(c);
-                    }
-                    KeyCode::Enter => {
-                        app.pending_paste.push('\r');
-                    }
-                    _ => {
-                        // Tab, Backspace, and other non-Char keys must go
-                        // through handle_key for proper routing (Tab→sidebar,
-                        // Backspace→PTY delete, etc.)
-                        if !app.pending_paste.is_empty() {
-                            app.flush_pending_paste();
-                        }
-                        match app.handle_key(key)? {
-                            Action::Continue => {}
-                            Action::Quit => return Ok(true),
-                        }
-                    }
-                }
-                if app.pending_paste.len() >= 8192 {
-                    app.flush_pending_paste();
-                }
-                if app.pending_paste.len() >= 8192 {
-                    app.flush_pending_paste();
-                }
-            } else {
-                if !app.pending_paste.is_empty() {
-                    app.flush_pending_paste();
-                }
-                match app.handle_key(key)? {
-                    Action::Continue => {}
-                    Action::Quit => return Ok(true),
-                }
-            }
-        }
+        Event::Key(key) if key.kind == KeyEventKind::Press => match app.handle_key(key)? {
+            Action::Continue => {}
+            Action::Quit => return Ok(true),
+        },
         Event::Paste(text) => {
-            if !app.pending_paste.is_empty() {
-                app.pending_paste.clear();
-            }
             app.handle_paste(&text);
         }
         Event::Mouse(mouse) => {
-            if !app.pending_paste.is_empty() {
-                app.flush_pending_paste();
-            }
             if app.handle_split_drag(mouse.kind, mouse.column) {
                 // consumed
             } else {
@@ -976,16 +922,6 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
             app.refresh_sessions();
             app.update_related_sessions();
             app.last_refresh = std::time::Instant::now();
-        }
-
-        // Flush any pending rapid-key-sequence (simulated paste) before polling.
-        // If chars accumulated in pending_paste and no new key arrived for one
-        // poll cycle (50ms), treat it as a completed paste and write it to the PTY.
-        if !app.pending_paste.is_empty() {
-            // No new event this cycle → rapid sequence has ended → flush.
-            if !crossterm::event::poll(std::time::Duration::ZERO)? {
-                app.flush_pending_paste();
-            }
         }
 
         // Adaptive poll: shorter when PTYs are active, longer when idle
