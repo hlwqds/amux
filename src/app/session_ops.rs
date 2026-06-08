@@ -230,8 +230,8 @@ impl App {
         self.rebuild_tree();
     }
 
-    pub(crate) fn refresh_sessions(&mut self) {
-        // Load project configs from .amux.json — skip reload if mtime unchanged
+    /// Load .amux.json configs, skip unchanged via mtime, clean stale entries.
+    fn refresh_project_configs(&mut self) {
         for (wi, _ws) in self.sessions.workspaces.iter().enumerate() {
             let path = self.workspace_cwd(wi);
             let config_path = path.join(".amux.json");
@@ -262,9 +262,11 @@ impl App {
         self.sessions
             .project_config_mtimes
             .retain(|k, _| cwd_set.contains(k));
-        // Load sessions in workspace.session_ids
-        let loaded = discover_sessions_by_ids(&self.sessions.workspaces);
-        // Match unmatched PTYs — targeted lookup (not full scan)
+    }
+
+    /// Targeted JSONL lookup for PTYs without session_id.
+    /// Persists session_ids and saves user title. Returns whether config changed.
+    fn match_unmatched_ptys(&mut self, _loaded: &Vec<Session>) -> bool {
         let mut config_changed = false;
         for slot in &mut self.ptys.ptys {
             if slot.info.session_id.is_none() {
@@ -292,28 +294,11 @@ impl App {
                 }
             }
         }
-        // Reload sessions after adding new IDs
-        let sessions = if config_changed {
-            self.save_config();
-            discover_sessions_by_ids(&self.sessions.workspaces)
-        } else {
-            loaded
-        };
-        self.sessions.sessions = sessions;
-        self.rebuild_tree();
-        self.rebuild_search_index();
-        self.archive_old_sessions();
-        // Detect file conflicts between running sessions (throttled to 30s)
-        if self.last_conflict_check.elapsed() > std::time::Duration::from_secs(30) {
-            self.detect_file_conflicts();
-            self.last_conflict_check = std::time::Instant::now();
-        }
-        // Check token budget (throttled to 30s)
-        if self.last_budget_check.elapsed() > std::time::Duration::from_secs(30) {
-            self.check_token_budget();
-            self.last_budget_check = std::time::Instant::now();
-        }
-        // Collect process resource stats from /proc (throttled to 5s)
+        config_changed
+    }
+
+    /// Read /proc stats, compute CPU%, sync_pty_stats. Throttled to 5s.
+    fn collect_proc_stats(&mut self) {
         if self.last_stats_check.elapsed() > std::time::Duration::from_secs(5) {
             for slot in &mut self.ptys.ptys {
                 if slot.handle.is_alive()
@@ -336,6 +321,41 @@ impl App {
             self.last_stats_check = std::time::Instant::now();
             self.sync_pty_stats();
         }
+    }
+
+    /// Detect file conflicts between running sessions. Throttled to 30s.
+    fn check_conflicts(&mut self) {
+        if self.last_conflict_check.elapsed() > std::time::Duration::from_secs(30) {
+            self.detect_file_conflicts();
+            self.last_conflict_check = std::time::Instant::now();
+        }
+    }
+
+    /// Check token budget. Throttled to 30s.
+    fn check_budget(&mut self) {
+        if self.last_budget_check.elapsed() > std::time::Duration::from_secs(30) {
+            self.check_token_budget();
+            self.last_budget_check = std::time::Instant::now();
+        }
+    }
+
+    pub(crate) fn refresh_sessions(&mut self) {
+        self.refresh_project_configs();
+        let loaded = discover_sessions_by_ids(&self.sessions.workspaces);
+        let changed = self.match_unmatched_ptys(&loaded);
+        let sessions = if changed {
+            self.save_config();
+            discover_sessions_by_ids(&self.sessions.workspaces)
+        } else {
+            loaded
+        };
+        self.sessions.sessions = sessions;
+        self.rebuild_tree();
+        self.rebuild_search_index();
+        self.archive_old_sessions();
+        self.check_conflicts();
+        self.check_budget();
+        self.collect_proc_stats();
     }
 
     /// Rebuild the BM25 search index from session titles and summaries.
@@ -1381,26 +1401,24 @@ impl App {
     }
 
     pub(crate) fn save_config(&self) {
-        let config = Config {
-            config_version: CONFIG_VERSION,
-            workspaces: self.sessions.workspaces.clone(),
-            theme: self.view.theme_name.clone(),
-            keybinds: self.view.keybinds.clone(),
-            templates: self.templates.clone(),
-            automations: self.automations.clone(),
-            archive_days: self.sessions.archive_days,
-            remote_hosts: self.remote_hosts.clone(),
-            plugins: self.plugins.clone(),
-            serve_port: self.serve_port,
-            serve_token: self.serve_token.clone(),
-            check_command: self.check_command.clone(),
-            token_budget: self.token_budget.clone(),
-            chains: self.chains.chains.clone(),
-            unset_env: self.unset_env.clone(),
-            recent_expanded: self.sessions.recent_expanded,
-            pinned_expanded: self.sessions.pinned_expanded,
-        };
-        if let Err(e) = save_config_file(&config) {
+        let mut config = crate::config::load_config().unwrap_or_default();
+        // Update only the fields App manages
+        config.workspaces = self.sessions.workspaces.clone();
+        config.theme = self.view.theme_name.clone();
+        config.keybinds = self.view.keybinds.clone();
+        config.templates = self.templates.clone();
+        config.automations = self.automations.clone();
+        config.archive_days = self.sessions.archive_days;
+        config.remote_hosts = self.remote_hosts.clone();
+        config.plugins = self.plugins.clone();
+        config.check_command = self.check_command.clone();
+        config.token_budget = self.token_budget.clone();
+        config.chains = self.chains.chains.clone();
+        config.recent_expanded = self.sessions.recent_expanded;
+        config.pinned_expanded = self.sessions.pinned_expanded;
+        config.config_version = crate::config::CONFIG_VERSION;
+        // serve_port, serve_token, unset_env are NOT updated — preserved from disk
+        if let Err(e) = crate::config::save_config_file(&config) {
             eprintln!("Failed to save config: {e}");
         }
     }
