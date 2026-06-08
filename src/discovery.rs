@@ -357,11 +357,16 @@ fn walk_omp_jsonl(root: &Path, session_id: &str) -> Option<PathBuf> {
             if !subdir.path().is_dir() {
                 continue;
             }
-            // Try direct filename match first: <timestamp>_<sessionId>.jsonl
-            let expected = format!("{session_id}.jsonl");
+            // OMP files are named: <timestamp>_<sessionId>.jsonl
+            let suffix = format!("_{session_id}.jsonl");
             if let Ok(files) = fs::read_dir(subdir.path()) {
                 for file in files.flatten() {
-                    if file.file_name() == expected.as_str() {
+                    let name = file.file_name();
+                    let name_str = name.to_string_lossy();
+                    // Match both <sessionId>.jsonl and <timestamp>_<sessionId>.jsonl
+                    if name_str == format!("{session_id}.jsonl")
+                        || (name_str.ends_with(&suffix) && name_str.ends_with(".jsonl"))
+                    {
                         return Some(file.path());
                     }
                 }
