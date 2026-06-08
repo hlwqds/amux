@@ -557,11 +557,14 @@ impl App {
             .and_then(|i| self.sessions.tree.get(i))
     }
     fn workspace_cwd(&self, wi: usize) -> PathBuf {
-        self.sessions.workspaces[wi].path.as_ref().map_or_else(
+        let Some(ws) = self.sessions.workspaces.get(wi) else {
+            // Stale wi (e.g. RecentWorkspace session with deleted workspace) —
+            // fall back to the data-dir virtual workspace path.
+            return data_dir().join("workspaces").join(format!("stale-{wi}"));
+        };
+        ws.path.as_ref().map_or_else(
             || {
-                let dir = data_dir()
-                    .join("workspaces")
-                    .join(&self.sessions.workspaces[wi].id);
+                let dir = data_dir().join("workspaces").join(&ws.id);
                 let _ = fs::create_dir_all(&dir);
                 dir
             },
@@ -569,8 +572,10 @@ impl App {
         )
     }
     fn ws_matches_path(&self, wi: usize, path: &Path) -> bool {
-        self.sessions.workspaces[wi]
-            .path
+        let Some(ws) = self.sessions.workspaces.get(wi) else {
+            return false;
+        };
+        ws.path
             .as_ref()
             .map_or_else(|| path == self.workspace_cwd(wi), |p| p == path)
     }
@@ -578,8 +583,18 @@ impl App {
     fn node_workspace_path(&self, node: &TreeNode) -> Option<PathBuf> {
         match node {
             TreeNode::Workspace(wi) => Some(self.workspace_cwd(*wi)),
-            TreeNode::Session(wi, _) | TreeNode::ArchivedSession(wi, _) => {
-                Some(self.workspace_cwd(*wi))
+            TreeNode::Session(wi, si) | TreeNode::ArchivedSession(wi, si) => {
+                // Prefer session's own workspace_path — the wi may be stale
+                // (e.g. RecentWorkspace sessions with missing workspace entries).
+                if let Some(s) = self.sessions.sessions.get(*si) {
+                    return Some(s.workspace_path.clone());
+                }
+                // Fallback to workspace_cwd if session data is somehow missing
+                if *wi < self.sessions.workspaces.len() {
+                    Some(self.workspace_cwd(*wi))
+                } else {
+                    None
+                }
             }
             _ => None,
         }

@@ -710,7 +710,7 @@ impl App {
                             w.path.as_deref() == Some(ws_path)
                                 || w.path.as_ref().is_some_and(|p| ws_path.starts_with(p))
                         })
-                        .unwrap_or(0);
+                        .unwrap_or(usize::MAX);
                     tree.push(TreeNode::Session(wi, si));
                 }
             }
