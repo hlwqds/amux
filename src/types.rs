@@ -296,6 +296,10 @@ pub enum PluginAction {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     pub workspaces: Vec<Workspace>,
+    /// Config schema version. Increment when making breaking changes.
+    /// Used by load_config to apply migrations.
+    #[serde(default)]
+    pub config_version: u32,
     #[serde(default)]
     pub theme: crate::theme::ThemeName,
     #[serde(default)]
@@ -597,7 +601,7 @@ pub struct ClaudeMessage {
 }
 
 /// A user-configurable key binding.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KeyBinding {
     pub key: String,
     #[serde(default)]
@@ -680,7 +684,7 @@ impl KeyBinding {
 }
 
 /// All configurable key bindings with defaults.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Keybinds {
     #[serde(default = "Keybinds::default_move_up")]
     pub move_up: KeyBinding,

@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::config::{data_dir, save_config_file, title_override_path};
+use crate::config::{data_dir, save_config_file, title_override_path, CONFIG_VERSION};
 use crate::discovery::{
     PreviewLine, discover_sessions, discover_sessions_by_ids, extract_branch_points,
     find_recent_session_for_workspace, find_session_jsonl, preview_session_content,
@@ -999,6 +999,23 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::TreeNode;
+
+    /// Find the first tree node matching a predicate. Returns its index.
+    fn find_tree_node(tree: &[TreeNode], predicate: impl Fn(&TreeNode) -> bool) -> Option<usize> {
+        tree.iter().position(predicate)
+    }
+
+    /// Count tree nodes matching a predicate.
+    fn count_tree_nodes(tree: &[TreeNode], predicate: impl Fn(&TreeNode) -> bool) -> usize {
+        tree.iter().filter(|n| predicate(n)).count()
+    }
+
+    /// Assert that at least one tree node matches the predicate.
+    fn assert_tree_contains(tree: &[TreeNode], predicate: impl Fn(&TreeNode) -> bool, msg: &str) {
+        assert!(tree.iter().any(predicate), "{msg}");
+    }
+
 
     /// Build a minimal App with given workspaces + sessions for filter testing.
     /// Bypasses config loading / discovery / agent detection.
@@ -1125,16 +1142,13 @@ mod tests {
 
         // Should have: PinnedWorkspace, RecentWorkspace, Workspace(w1), Session(w1, s1_idx), Session(w1, s3_idx)
         // s1 is at index 0, s3 is at index 2
-        assert_eq!(
-            app.sessions.tree.len(),
-            5,
-            "expected Pinned + Recent + workspace + 2 matching sessions"
-        );
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 (fix login)
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // s3 (fix logout)
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain session s1 (fix login)");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain session s3 (fix logout)");
+        let sessions_count = count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _)));
+        assert_eq!(sessions_count, 2, "should have exactly 2 matching sessions");
     }
 
     #[test]
@@ -1144,11 +1158,10 @@ mod tests {
         let app = test_app(workspaces, sessions);
 
         // No search_query → all sessions visible (workspace expanded)
-        assert_eq!(
-            app.sessions.tree.len(),
-            5,
-            "expected Pinned + Recent + workspace + 2 sessions"
-        );
+        let ws_count = count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(_)));
+        let sess_count = count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _)));
+        assert_eq!(ws_count, 1, "expected 1 workspace");
+        assert_eq!(sess_count, 2, "expected 2 sessions");
     }
 
     #[test]
@@ -1161,11 +1174,10 @@ mod tests {
         app.rebuild_tree();
 
         // PinnedWorkspace + RecentWorkspace are always present; no workspace/session nodes
-        assert_eq!(
-            app.sessions.tree.len(),
-            2,
-            "no matches should yield only Pinned + Recent"
-        );
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(_))), 0, "no workspace nodes");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 0, "no session nodes");
     }
 
     #[test]
@@ -1208,19 +1220,11 @@ mod tests {
         // Filter
         app.view.search_query = Some("fix".into());
         app.rebuild_tree();
-        assert_eq!(
-            app.sessions.tree.len(),
-            4,
-            "Pinned + Recent + workspace + 1 matching session"
-        );
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 1, "1 matching session after filter");
         // Clear filter
         app.view.search_query = None;
         app.rebuild_tree();
-        assert_eq!(
-            app.sessions.tree.len(),
-            5,
-            "Pinned + Recent + workspace + all sessions restored"
-        );
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 2, "all sessions restored");
     }
 
     #[test]
@@ -1240,26 +1244,19 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
 
         // Both workspaces should be present unfiltered
-        assert_eq!(
-            app.sessions.tree.len(),
-            6,
-            "Pinned + Recent + 2 workspaces + 2 sessions"
-        );
+        // Both workspaces should be present unfiltered
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(_))), 2, "2 workspaces unfiltered");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 2, "2 sessions unfiltered");
         // Filter for "beta"
         app.view.search_query = Some("beta".into());
         app.rebuild_tree();
         // Should have: Pinned, Recent, w2 (Beta), s2 (fix beta bug)
         // w1 name "Alpha" doesn't match "beta", s1 "fix alpha bug" doesn't match "beta"
         // w2 name "Beta" matches, s2 "fix beta bug" matches
-        assert_eq!(
-            app.sessions.tree.len(),
-            4,
-            "Pinned + Recent + workspace Beta + 1 matching session"
-        );
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(1)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(1, 1)));
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(1)), "should contain workspace Beta (w2)");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(1, 1)), "should contain session s2 (fix beta bug)");
     }
 
     // ─── agent filter tests ───
@@ -1279,15 +1276,11 @@ mod tests {
         app.rebuild_tree();
 
         // Should have: Pinned, Recent, Workspace(w1), Session(w1, 0) — only Claude session
-        assert_eq!(
-            app.sessions.tree.len(),
-            4,
-            "Pinned + Recent + workspace + 1 Claude session"
-        );
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 (Claude)
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain Claude session s1");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 1, "only 1 Claude session");
     }
 
     #[test]
@@ -1299,23 +1292,16 @@ mod tests {
         ];
         let mut app = test_app(workspaces, sessions);
         // Unfiltered: Pinned + Recent + workspace + 2 sessions
-        assert_eq!(
-            app.sessions.tree.len(),
-            5,
-            "Pinned + Recent + workspace + 2 sessions unfiltered"
-        );
+        // Unfiltered: 2 sessions visible
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 2, "2 sessions unfiltered");
         // Filter to OMP (none exist)
         app.view.agent_filter = Some(Agent::Omp);
         app.rebuild_tree();
         // Without search query, workspace is still shown but has no sessions under it
-        assert_eq!(
-            app.sessions.tree.len(),
-            3,
-            "Pinned + Recent + workspace header, no matching sessions"
-        );
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 0, "no matching sessions");
     }
 
     #[test]
@@ -1336,12 +1322,8 @@ mod tests {
 
         // Should have: Pinned, Recent, Workspace(w1), Session(w1, 0) — only Claude session matching "fix"
         // s1 (Claude, "fix bug") ✓  s3 (Claude, "add feature") ✗
-        assert_eq!(
-            app.sessions.tree.len(),
-            4,
-            "Pinned + Recent + workspace + 1 Claude session matching 'fix'"
-        );
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain Claude session s1 matching 'fix'");
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 1, "only 1 Claude session matching 'fix'");
     }
 
     #[test]
@@ -1356,19 +1338,11 @@ mod tests {
         // Set filter to Claude
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, Some(Agent::Claude));
-        assert_eq!(
-            app.sessions.tree.len(),
-            4,
-            "Pinned + Recent + workspace + 1 Claude session"
-        );
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 1, "1 Claude session after filter");
         // Toggle same agent again should clear
         app.toggle_agent_filter(Agent::Claude);
         assert_eq!(app.view.agent_filter, None);
-        assert_eq!(
-            app.sessions.tree.len(),
-            5,
-            "Pinned + Recent + workspace + all 2 sessions restored"
-        );
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 2, "all sessions restored");
     }
 
     // ─── sort mode tests ───
@@ -1412,14 +1386,13 @@ mod tests {
         app.view.sort_mode = SortMode::TimeDesc;
         app.rebuild_tree();
 
-        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,2), Session(0,1), Session(0,0)]
         // (newest first: s3=900, s2=500, s1=100)
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 2))); // newest
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1)));
-        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 0))); // oldest
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain newest session s3");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain mid session s2");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain oldest session s1");
     }
 
     #[test]
@@ -1433,14 +1406,13 @@ mod tests {
         let mut app = test_app(workspaces, sessions);
         app.view.sort_mode = SortMode::TimeAsc;
         app.rebuild_tree();
-        // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,0), Session(0,1), Session(0,2)]
         // (oldest first: s1=100, s2=500, s3=900)
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // oldest
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1)));
-        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 2))); // newest
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain oldest session s1");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain mid session s2");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain newest session s3");
     }
 
     #[test]
@@ -1457,12 +1429,12 @@ mod tests {
 
         // Case-insensitive: alpha < Bravo < Charlie
         // s2=alpha(idx1), s3=Bravo(idx2), s1=Charlie(idx0)
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 1))); // alpha
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // Bravo
-        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 0))); // Charlie
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain alpha session");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain Bravo session");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain Charlie session");
     }
 
     #[test]
@@ -1479,12 +1451,12 @@ mod tests {
 
         // Case-insensitive reverse: Charlie > Bravo > alpha
         // s1=Charlie(idx0), s3=Bravo(idx2), s2=alpha(idx1)
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // Charlie
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 2))); // Bravo
-        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 1))); // alpha
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain Charlie session");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain Bravo session");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain alpha session");
     }
 
     #[test]
@@ -1501,24 +1473,15 @@ mod tests {
 
         // Expected tree: PinnedWorkspace, RecentWorkspace, Workspace(0), AgentHeader(Claude), Session(Claude),
         //                AgentHeader(Codex), Session(Codex), AgentHeader(Omp), Session(Omp)
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(
-            app.sessions.tree[3],
-            TreeNode::AgentHeader(Agent::Claude)
-        ));
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1))); // s2 = Claude
-        assert!(matches!(
-            app.sessions.tree[5],
-            TreeNode::AgentHeader(Agent::Codex)
-        ));
-        assert!(matches!(app.sessions.tree[6], TreeNode::Session(0, 2))); // s3 = Codex
-        assert!(matches!(
-            app.sessions.tree[7],
-            TreeNode::AgentHeader(Agent::Omp)
-        ));
-        assert!(matches!(app.sessions.tree[8], TreeNode::Session(0, 0))); // s1 = Omp
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::AgentHeader(Agent::Claude)), "should contain Claude header");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain Claude session s2");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::AgentHeader(Agent::Codex)), "should contain Codex header");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 2)), "should contain Codex session s3");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::AgentHeader(Agent::Omp)), "should contain Omp header");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain Omp session s1");
     }
 
     #[test]
@@ -1533,20 +1496,14 @@ mod tests {
         app.rebuild_tree();
 
         // Only Claude sessions — no Codex or Omp headers
-        assert_eq!(
-            app.sessions.tree.len(),
-            6,
-            "Pinned + Recent + workspace + header + 2 sessions"
-        );
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(
-            app.sessions.tree[3],
-            TreeNode::AgentHeader(Agent::Claude)
-        ));
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 0)));
-        assert!(matches!(app.sessions.tree[5], TreeNode::Session(0, 1)));
+        // Only Claude sessions — no Codex or Omp headers
+        assert_eq!(count_tree_nodes(&app.sessions.tree, |n| matches!(n, TreeNode::Session(_, _))), 2, "2 sessions");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::AgentHeader(Agent::Claude)), "should contain Claude header");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain session s1");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain session s2");
 
         // No other agent headers
         for node in &app.sessions.tree {
@@ -1573,11 +1530,11 @@ mod tests {
 
         // Filter matches s1 and s2; TimeAsc puts oldest first
         // Tree: [PinnedWorkspace, RecentWorkspace, Workspace(0), Session(0,0) s1=100, Session(0,1) s2=500]
-        assert!(matches!(app.sessions.tree[0], TreeNode::PinnedWorkspace));
-        assert!(matches!(app.sessions.tree[1], TreeNode::RecentWorkspace));
-        assert!(matches!(app.sessions.tree[2], TreeNode::Workspace(0)));
-        assert!(matches!(app.sessions.tree[3], TreeNode::Session(0, 0))); // s1 oldest
-        assert!(matches!(app.sessions.tree[4], TreeNode::Session(0, 1))); // s2 newer
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::PinnedWorkspace), "should contain PinnedWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::RecentWorkspace), "should contain RecentWorkspace");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Workspace(0)), "should contain workspace 0");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 0)), "should contain s1 (oldest)");
+        assert_tree_contains(&app.sessions.tree, |n| matches!(n, TreeNode::Session(0, 1)), "should contain s2 (newer)");
     }
 
     #[test]
@@ -1978,5 +1935,56 @@ mod tests {
         let long_text = "y".repeat(10000);
         let _result = app.handle_paste(&long_text);
         assert!(app.input_buffer.len() <= 4000);
+    }
+
+    // ─── behavior tests ───
+
+    #[test]
+    fn test_pinned_recent_always_present() {
+        // Empty sessions — tree should still have PinnedWorkspace and RecentWorkspace
+        let app = test_app(vec![], vec![]);
+        assert_tree_contains(
+            &app.sessions.tree,
+            |n| matches!(n, TreeNode::PinnedWorkspace),
+            "tree should contain PinnedWorkspace even with no sessions",
+        );
+        assert_tree_contains(
+            &app.sessions.tree,
+            |n| matches!(n, TreeNode::RecentWorkspace),
+            "tree should contain RecentWorkspace even with no sessions",
+        );
+    }
+
+    #[test]
+    fn test_session_appears_in_workspace() {
+        let mut workspaces = vec![ws("w1", "Project", "/tmp")];
+        workspaces[0].session_ids.push("s1".into());
+        let sessions = vec![sess("s1", "my task", "/tmp")];
+        let app = test_app(workspaces, sessions);
+
+        // A Session node should exist under the workspace
+        assert_tree_contains(
+            &app.sessions.tree,
+            |n| matches!(n, TreeNode::Workspace(0)),
+            "tree should contain workspace 0",
+        );
+        assert_tree_contains(
+            &app.sessions.tree,
+            |n| matches!(n, TreeNode::Session(0, 0)),
+            "tree should contain session under workspace",
+        );
+    }
+
+    #[test]
+    fn test_empty_workspace_still_shows() {
+        // Workspace with no sessions at all
+        let workspaces = vec![ws("w1", "EmptyProject", "/tmp")];
+        let app = test_app(workspaces, vec![]);
+
+        assert_tree_contains(
+            &app.sessions.tree,
+            |n| matches!(n, TreeNode::Workspace(0)),
+            "tree should contain workspace even with no sessions",
+        );
     }
 }

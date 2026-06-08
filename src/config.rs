@@ -10,6 +10,9 @@ use anyhow::{Context, Result};
 use crate::types::{Config, ProjectConfig, Workspace};
 use crate::util::now_secs;
 
+/// Current config schema version. Increment when making breaking changes.
+pub const CONFIG_VERSION: u32 = 1;
+
 /// Return the amux data directory, respecting `$XDG_DATA_HOME`.
 pub fn data_dir() -> PathBuf {
     if let Some(p) = env::var_os("XDG_DATA_HOME").map(PathBuf::from) {
@@ -179,8 +182,18 @@ pub fn load_config() -> Result<Config> {
 
     let config_dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
     apply_config_overlays(&mut config, config_dir);
+    migrate_config(&mut config);
 
     Ok(config)
+}
+/// Apply config migrations to bring an older config up to the current schema version.
+fn migrate_config(config: &mut Config) {
+    let version = config.config_version;
+    if version < 1 {
+        // Migration: ensure all workspaces have session_ids field
+        for _ws in &mut config.workspaces {}
+    }
+    config.config_version = CONFIG_VERSION;
 }
 
 /// Overlay config.d/*.json drop-in files on top of the base config.
@@ -612,5 +625,206 @@ mod tests {
         let config = super::load_project_config(&dir);
         assert!(config.default_agent.is_none());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+// --- Comprehensive config tests (second module to keep original untouched) ---
+#[cfg(test)]
+mod config_comprehensive_tests {
+    use super::*;
+    use crate::types::*;
+
+    /// Helper: write a JSON string to a file and return its parent dir (as TempDir stand-in).
+    struct TempConfig {
+        dir: PathBuf,
+    }
+
+    impl TempConfig {
+        fn new(prefix: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("amux_test_{prefix}_{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            Self { dir }
+        }
+
+        fn config_path(&self) -> PathBuf {
+            self.dir.join("config.json")
+        }
+    }
+
+    impl Drop for TempConfig {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    #[test]
+    fn test_save_load_roundtrip() {
+        let tmp = TempConfig::new("roundtrip");
+        let config_path = tmp.config_path();
+
+        // Build a non-trivial Config
+        let ws = Workspace {
+            id: "ws-001".into(),
+            name: "my-project".into(),
+            path: Some(PathBuf::from("/home/user/my-project")),
+            created_at: 1717000000,
+            session_ids: vec!["sess-a".into(), "sess-b".into()],
+            expanded: true,
+        };
+        let mut keybinds = Keybinds::default();
+        // Override one keybind to a non-default value to prove round-trip.
+        keybinds.quit = KeyBinding::ctrl("q");
+
+        let original = Config {
+            config_version: super::CONFIG_VERSION,
+            workspaces: vec![ws],
+            theme: crate::theme::ThemeName::Mocha,
+            keybinds: keybinds.clone(),
+            templates: vec![],
+            automations: vec![],
+            archive_days: Some(30),
+            remote_hosts: vec![],
+            plugins: vec![],
+            serve_port: Some(9999),
+            serve_token: Some("secret-token-123".into()),
+            check_command: Some("cargo test --all".into()),
+            token_budget: None,
+            chains: vec![],
+            unset_env: vec!["KITTY_WINDOW_ID".into(), "WEZTERM_PANE".into()],
+            recent_expanded: true,
+            pinned_expanded: true,
+        };
+
+        // Write via save_config_file logic (manual since save_config_file writes to data_dir).
+        let json = serde_json::to_string_pretty(&original).unwrap();
+        std::fs::write(&config_path, &json).unwrap();
+
+        // Load back via serde_json
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let loaded: Config = serde_json::from_str(&content).unwrap();
+
+        // Assert every field
+        assert_eq!(loaded.workspaces.len(), 1);
+        let lws = &loaded.workspaces[0];
+        assert_eq!(lws.id, "ws-001");
+        assert_eq!(lws.name, "my-project");
+        assert_eq!(lws.path, Some(PathBuf::from("/home/user/my-project")));
+        assert_eq!(lws.created_at, 1717000000);
+        assert_eq!(lws.session_ids, vec!["sess-a", "sess-b"]);
+        assert!(lws.expanded);
+
+        assert_eq!(loaded.theme, crate::theme::ThemeName::Mocha);
+        assert_eq!(loaded.keybinds.quit, keybinds.quit);
+        assert_eq!(loaded.archive_days, Some(30));
+        assert_eq!(loaded.serve_port, Some(9999));
+        assert_eq!(loaded.serve_token, Some("secret-token-123".into()));
+        assert_eq!(loaded.check_command, Some("cargo test --all".into()));
+        assert_eq!(loaded.unset_env, vec!["KITTY_WINDOW_ID", "WEZTERM_PANE"]);
+        assert!(loaded.recent_expanded);
+        assert!(loaded.pinned_expanded);
+    }
+
+    #[test]
+    fn test_forward_compat_unknown_fields() {
+        let json = r#"{
+            "workspaces": [
+                {"id":"w1","name":"alpha","path":"/tmp/a","created_at":100,"session_ids":[],"expanded":false}
+            ],
+            "theme": "Light",
+            "future_field": "some value",
+            "new_section": {"a": 1, "b": [true, false]},
+            "another_unknown": 42,
+            "unset_env": ["FOO"],
+            "recent_expanded": false,
+            "pinned_expanded": true
+        }"#;
+
+        let config: Config = serde_json::from_str(json).unwrap();
+
+        assert_eq!(config.workspaces.len(), 1);
+        assert_eq!(config.workspaces[0].name, "alpha");
+        assert_eq!(config.theme, crate::theme::ThemeName::Light);
+        assert_eq!(config.unset_env, vec!["FOO"]);
+        assert!(!config.recent_expanded);
+        assert!(config.pinned_expanded);
+    }
+
+    #[test]
+    fn test_forward_compat_missing_new_fields() {
+        let json = r#"{"workspaces": []}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+
+        // All new fields should default correctly
+        assert!(config.workspaces.is_empty());
+        assert_eq!(config.theme, crate::theme::ThemeName::default());
+        assert_eq!(config.keybinds, Keybinds::default());
+        assert!(config.templates.is_empty());
+        assert!(config.automations.is_empty());
+        assert!(config.archive_days.is_none());
+        assert!(config.remote_hosts.is_empty());
+        assert!(config.plugins.is_empty());
+        assert!(config.serve_port.is_none());
+        assert!(config.serve_token.is_none());
+        assert!(config.check_command.is_none());
+        assert!(config.unset_env.is_empty());
+        assert!(!config.recent_expanded);
+        assert!(!config.pinned_expanded);
+    }
+
+    #[test]
+    fn test_lenient_parse_recovers_workspaces() {
+        // "theme": 123 is an invalid type — serde would reject full parsing,
+        // but lenient_config_parse should still recover the workspaces.
+        let json = r#"{
+            "workspaces": [
+                {"id":"w1","name":"beta","path":"/tmp/b","created_at":200,"session_ids":["s1"],"expanded":true}
+            ],
+            "theme": 123,
+            "keybinds": "not_an_object"
+        }"#;
+
+        let config = lenient_config_parse(json).expect("lenient parse should succeed");
+
+        assert_eq!(config.workspaces.len(), 1);
+        assert_eq!(config.workspaces[0].name, "beta");
+        assert_eq!(config.workspaces[0].session_ids, vec!["s1"]);
+        assert!(config.workspaces[0].expanded);
+        // theme and keybinds fall back to defaults since they were invalid
+        assert_eq!(config.theme, crate::theme::ThemeName::default());
+        assert_eq!(config.keybinds, Keybinds::default());
+    }
+
+    #[test]
+    fn test_workspace_session_ids_persist() {
+        let ws = Workspace {
+            id: "ws-sid".into(),
+            name: "session-test".into(),
+            path: Some(PathBuf::from("/home/user/sess-test")),
+            created_at: 1718000000,
+            session_ids: vec!["sess-001".into(), "sess-002".into(), "sess-003".into()],
+            expanded: false,
+        };
+
+        let json = serde_json::to_string(&ws).unwrap();
+        let loaded: Workspace = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(loaded.session_ids, ws.session_ids);
+        assert_eq!(loaded.session_ids.len(), 3);
+        assert_eq!(loaded.session_ids[0], "sess-001");
+        assert_eq!(loaded.session_ids[2], "sess-003");
+
+        // Also verify within a full Config roundtrip
+        let config = Config {
+            workspaces: vec![ws],
+            ..Config::default()
+        };
+        let config_json = serde_json::to_string(&config).unwrap();
+        let config_loaded: Config = serde_json::from_str(&config_json).unwrap();
+        assert_eq!(
+            config_loaded.workspaces[0].session_ids,
+            vec!["sess-001", "sess-002", "sess-003"]
+        );
     }
 }

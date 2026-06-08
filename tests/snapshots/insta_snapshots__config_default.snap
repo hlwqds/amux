@@ -4,6 +4,7 @@ expression: config
 ---
 Config {
     workspaces: [],
+    config_version: 0,
     theme: Dark,
     keybinds: Keybinds {
         move_up: KeyBinding {

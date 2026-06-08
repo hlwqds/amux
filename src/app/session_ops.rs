@@ -1382,6 +1382,7 @@ impl App {
 
     pub(crate) fn save_config(&self) {
         let config = Config {
+            config_version: CONFIG_VERSION,
             workspaces: self.sessions.workspaces.clone(),
             theme: self.view.theme_name.clone(),
             keybinds: self.view.keybinds.clone(),
