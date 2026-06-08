@@ -262,20 +262,44 @@ impl App {
         self.sessions
             .project_config_mtimes
             .retain(|k, _| cwd_set.contains(k));
-        // Load only sessions in workspace.session_ids (no filesystem scan)
+        // Load sessions in workspace.session_ids
         let loaded = discover_sessions_by_ids(&self.sessions.workspaces);
-        // Match running PTYs to their sessions from loaded list
+        // Match unmatched PTYs — targeted lookup (not full scan)
+        let mut config_changed = false;
         for slot in &mut self.ptys.ptys {
             if slot.info.session_id.is_none() {
-                if let Some(found) = loaded.iter().find(|s| {
-                    s.workspace_path == slot.info.workspace_path
-                        && s.last_active >= slot.info.started_at
-                }) {
+                if let Some(found) = find_recent_session_for_workspace(
+                    &slot.info.workspace_path,
+                    slot.info.started_at,
+                ) {
                     slot.info.session_id = Some(found.id.clone());
+                    // Save user title
+                    if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                        let _ = crate::config::save_session_title(&found.id, &slot.info.title);
+                    }
+                    // Persist to workspace
+                    if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                        ws.path.as_deref() == Some(&slot.info.workspace_path)
+                            || (ws.path.is_none()
+                                && slot.info.workspace_path
+                                    == data_dir().join("workspaces").join(&ws.id))
+                    }) {
+                        if !ws.session_ids.contains(&found.id) {
+                            ws.session_ids.push(found.id.clone());
+                            config_changed = true;
+                        }
+                    }
                 }
             }
         }
-        self.sessions.sessions = loaded;
+        // Reload sessions after adding new IDs
+        let sessions = if config_changed {
+            self.save_config();
+            discover_sessions_by_ids(&self.sessions.workspaces)
+        } else {
+            loaded
+        };
+        self.sessions.sessions = sessions;
         self.rebuild_tree();
         self.rebuild_search_index();
         self.archive_old_sessions();
