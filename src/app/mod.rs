@@ -318,10 +318,6 @@ impl App {
         let check_command = config.check_command.take();
         let token_budget = config.token_budget.take();
 
-        for ws in &mut config.workspaces {
-            ws.expanded = true;
-        }
-
         let sessions_list = discover_sessions_by_ids(&config.workspaces);
         let mut app = Self {
             view: AppView {
@@ -364,8 +360,8 @@ impl App {
                 archived_sessions: Vec::new(),
                 show_archived: false,
                 archive_days: config.archive_days,
-                pinned_expanded: false,
-                recent_expanded: false,
+                pinned_expanded: config.pinned_expanded,
+                recent_expanded: config.recent_expanded,
                 recent_count: 0,
                 project_configs: std::collections::HashMap::new(),
                 project_config_mtimes: std::collections::HashMap::new(),

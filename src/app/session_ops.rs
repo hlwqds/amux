@@ -927,14 +927,17 @@ impl App {
                 let wi = *wi;
                 self.sessions.workspaces[wi].expanded = !self.sessions.workspaces[wi].expanded;
                 self.rebuild_tree();
+                self.save_config();
             }
             Some(TreeNode::PinnedWorkspace) => {
                 self.sessions.pinned_expanded = !self.sessions.pinned_expanded;
                 self.rebuild_tree();
+                self.save_config();
             }
             Some(TreeNode::RecentWorkspace) => {
                 self.sessions.recent_expanded = !self.sessions.recent_expanded;
                 self.rebuild_tree();
+                self.save_config();
             }
             _ => {}
         }
@@ -1395,6 +1398,8 @@ impl App {
             token_budget: self.token_budget.clone(),
             chains: self.chains.chains.clone(),
             unset_env: Vec::new(),
+            recent_expanded: self.sessions.recent_expanded,
+            pinned_expanded: self.sessions.pinned_expanded,
         };
         if let Err(e) = save_config_file(&config) {
             eprintln!("Failed to save config: {e}");

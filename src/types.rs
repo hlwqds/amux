@@ -244,7 +244,7 @@ pub struct Workspace {
     /// Populated manually (spawn) or via scan keybind (Alt+Shift+R).
     #[serde(default)]
     pub session_ids: Vec<String>,
-    #[serde(skip)]
+    #[serde(default)]
     pub expanded: bool,
 }
 
@@ -332,6 +332,12 @@ pub struct Config {
     /// Defaults to terminal multiplexer vars (KITTY_WINDOW_ID, etc).
     #[serde(default)]
     pub unset_env: Vec<String>,
+    /// Whether the "Recent" virtual workspace is expanded in sidebar.
+    #[serde(default)]
+    pub recent_expanded: bool,
+    /// Whether the "Pinned" virtual workspace is expanded in sidebar.
+    #[serde(default)]
+    pub pinned_expanded: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -958,7 +964,7 @@ mod tests {
         );
         assert_eq!(parsed.workspaces[1].path, None);
         assert!(!parsed.workspaces[0].expanded);
-        assert!(!parsed.workspaces[1].expanded);
+        assert!(parsed.workspaces[1].expanded);
     }
 
     #[test]
