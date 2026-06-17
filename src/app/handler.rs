@@ -49,10 +49,19 @@ impl super::App {
             return Ok(Action::Continue);
         }
 
-        // Tab / Alt+h: go to sidebar (always)
-        if (key.code == KeyCode::Tab && !key.modifiers.contains(KeyModifiers::SHIFT))
-            || (key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT))
+        // Tab: sidebar switch only in Amux mode. In Passthrough, Tab falls
+        // through to the PTY so the agent program sees it for completion.
+        if key.code == KeyCode::Tab
+            && !key.modifiers.contains(KeyModifiers::SHIFT)
+            && self.view.chat_mode == ChatMode::Amux
         {
+            self.view.focus = Focus::Sidebar;
+            self.refresh_sessions();
+            self.view.status = "Sessions refreshed.".into();
+            return Ok(Action::Continue);
+        }
+        // Alt+h: go to sidebar (always available, Tab-free fallback)
+        if key.code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::ALT) {
             self.view.focus = Focus::Sidebar;
             self.refresh_sessions();
             self.view.status = "Sessions refreshed.".into();
@@ -549,7 +558,12 @@ impl super::App {
             self.request_delete();
             return Ok(Some(Action::Continue));
         }
-        if key.code == KeyCode::Tab {
+        // Tab / Alt+l: go to chat (symmetric with chat→sidebar's Alt+h).
+        // Mirrors Alt+h's dual role: inside a popup, Alt+l cycles panels
+        // (handled earlier in handle_input_key); here it focuses the chat.
+        if key.code == KeyCode::Tab
+            || (key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::ALT))
+        {
             if self.ptys.ptys.is_empty() {
                 self.view.status = "No active session. Press Enter to start one.".into();
             } else {

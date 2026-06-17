@@ -28,7 +28,7 @@ impl App {
         lines.push(Line::from(vec![
             Span::styled("  Chat: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
-                "Tab=sidebar  Ctrl+J/K=switch  Ctrl+Q=kill",
+                "Alt+h/Alt+l switch  Ctrl+J/K=tab  Ctrl+Q=kill",
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
@@ -232,7 +232,10 @@ impl App {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
-        lines.push(Line::from("  Tab              Sidebar ↔ Chat"));
+        lines.push(Line::from("  Tab / Alt+l     Sidebar → Chat"));
+        lines.push(Line::from(
+            "  Tab / Alt+h     Chat → Sidebar (Tab: Amux only; Alt+h: any mode)",
+        ));
         // Section: Sidebar extra
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -567,7 +570,7 @@ impl App {
         )]));
 
         let mut agents: Vec<_> = agent_tokens.iter().collect();
-        agents.sort_by_key(|b| std::cmp::Reverse(b.1 .2));
+        agents.sort_by_key(|b| std::cmp::Reverse(b.1.2));
         for (agent, (inp, out, total, cost)) in agents {
             let mut spans = vec![
                 Span::styled(
@@ -1080,7 +1083,10 @@ impl App {
             for m in result.matches.iter().take(2) {
                 lines.push(Line::from(vec![
                     Span::styled("    ", Style::default()),
-                    Span::styled(Self::truncate_str(m, 70), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        Self::truncate_str(m, 70),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                 ]));
             }
             lines.push(Line::from(""));
