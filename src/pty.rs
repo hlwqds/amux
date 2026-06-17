@@ -132,13 +132,30 @@ fn chrono_free_timestamp() -> u64 {
 }
 impl PtyHandle {
     pub fn state(&self) -> PtyState {
-        let last = self.last_output_at.load(Ordering::Relaxed);
-        let now = now_secs();
-        if self.alive.load(Ordering::Relaxed) && now.saturating_sub(last) <= IDLE_THRESHOLD_SECS {
+        // Completion is determined solely by process liveness (child.wait()
+        // thread flips `alive` to false). We deliberately do NOT factor in
+        // output idleness here: using "no output for N seconds" as a proxy
+        // for completion caused the UI/notification to flap between Running
+        // and Completed whenever an agent paused to think (LLM agents
+        // routinely stay silent for tens of seconds). Use is_idle() for
+        // active-but-quiet UI hints instead.
+        if self.alive.load(Ordering::Relaxed) {
             PtyState::Running
         } else {
             PtyState::Completed
         }
+    }
+
+    /// Returns true when the PTY process is alive but has produced no output
+    /// for longer than `IDLE_THRESHOLD_SECS`. UI may show this as "thinking"
+    /// / a dimmed spinner, but it must NOT be treated as completion.
+    pub fn is_idle(&self) -> bool {
+        if !self.alive.load(Ordering::Relaxed) {
+            return false;
+        }
+        let last = self.last_output_at.load(Ordering::Relaxed);
+        let now = now_secs();
+        now.saturating_sub(last) > IDLE_THRESHOLD_SECS
     }
 
     pub fn spawn(

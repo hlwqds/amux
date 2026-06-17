@@ -197,7 +197,9 @@ impl super::App {
             })
             .collect();
         // Pre-compute active tab state for ActiveTab nodes.
-        let active_tab_data: Vec<(PtyState, String, Agent, CheckStatus, DiffSummary)> = self
+        // The trailing `bool` is `is_idle` (alive but silent): used to show a
+        // "thinking…" hint. It does NOT affect completion semantics.
+        let active_tab_data: Vec<(PtyState, String, Agent, CheckStatus, DiffSummary, bool)> = self
             .ptys
             .ptys
             .iter()
@@ -209,6 +211,7 @@ impl super::App {
                     s.info.agent,
                     s.info.check_status.clone(),
                     s.info.diff_summary.clone(),
+                    s.handle.is_idle(),
                 )
             })
             .collect();
@@ -312,7 +315,7 @@ impl super::App {
 
                         let agent_tag = Span::styled(
                             format!(" [{}]", session.agent.icon()),
-                            session.agent.theme_color(&self.view.theme)
+                            session.agent.theme_color(&self.view.theme),
                         );
 
                         let is_selected = self.view.selected_set.contains(si);
@@ -402,7 +405,7 @@ impl super::App {
                     }
                 }
                 TreeNode::ActiveTab(pi) => {
-                    let (state, title, agent, check, diff_summary) =
+                    let (state, title, agent, check, diff_summary, is_idle) =
                         active_tab_data.get(*pi).cloned().unwrap_or_else(|| {
                             (
                                 PtyState::Running,
@@ -410,10 +413,18 @@ impl super::App {
                                 Agent::Claude,
                                 CheckStatus::Pending,
                                 DiffSummary::default(),
+                                false,
                             )
                         });
                     let (dot_color, state_text) = match state {
-                        PtyState::Running => (self.view.theme.status_running, " [running]".into()),
+                        PtyState::Running => (
+                            self.view.theme.status_running,
+                            if is_idle {
+                                " \u{2026} thinking".into() // … thinking
+                            } else {
+                                " [running]".into()
+                            },
+                        ),
                         PtyState::Completed => match &check {
                             CheckStatus::Failed(e) => {
                                 (self.view.theme.status_error, format!(" \u{26a0} {e}"))
@@ -434,7 +445,7 @@ impl super::App {
                         Span::styled(state_text, Style::default().fg(state_color)),
                         Span::styled(
                             format!(" [{}]", agent.icon()),
-                            agent.theme_color(&self.view.theme)
+                            agent.theme_color(&self.view.theme),
                         ),
                     ];
                     let detail = if state == PtyState::Completed {
@@ -1265,7 +1276,6 @@ impl super::App {
 
         let n_tabs = self.ptys.ptys.len();
         let tab_width = width / n_tabs;
-
         let states: Vec<PtyState> = (0..n_tabs).map(|i| self.pty_display_state(i)).collect();
 
         let mut spans = Vec::with_capacity(n_tabs * 4);
@@ -1275,7 +1285,14 @@ impl super::App {
             let state = states[i];
 
             let (state_char, state_color) = match state {
-                PtyState::Running => ("\u{25cf}", self.view.theme.status_running),
+                PtyState::Running => (
+                    if slot.handle.is_idle() {
+                        "\u{25d0}" // ◐ half-filled — thinking
+                    } else {
+                        "\u{25cf}" // ● solid — active
+                    },
+                    self.view.theme.status_running,
+                ),
                 PtyState::Completed => {
                     let check = &slot.info.check_status;
                     if matches!(check, CheckStatus::Failed(_)) {
@@ -1510,8 +1527,8 @@ impl super::App {
 
 #[cfg(test)]
 mod tab_bar_tests {
-    use super::*;
     use super::super::App;
+    use super::*;
 
     // ─── tab_index_from_x tests ───
 
