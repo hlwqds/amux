@@ -107,6 +107,18 @@ impl super::App {
                 if let Some(s) = self.ptys.ptys.get(next) {
                     s.handle.reset_scroll();
                 }
+                // Sync sidebar cursor to the new active tab's tree node, so
+                // the selection follows tab switches. Tree layout (groups,
+                // collapsed workspaces) means active_pty index != tree index,
+                // so we locate the matching ActiveTab node by value.
+                if let Some(pos) = self
+                    .sessions
+                    .tree
+                    .iter()
+                    .position(|n| matches!(n, TreeNode::ActiveTab(p) if *p == next))
+                {
+                    self.sessions.tree_state.select(Some(pos));
+                }
                 self.view.status = format!(
                     "Switched to: {} ({}/{})",
                     self.ptys.ptys[next].info.title,
