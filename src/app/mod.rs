@@ -559,6 +559,31 @@ impl App {
             .selected()
             .and_then(|i| self.sessions.tree.get(i))
     }
+    /// Find the tree index of the sidebar node corresponding to a given PTY.
+    /// A PTY appears in the tree as either:
+    ///   - `ActiveTab(pi)` when it has no session_id (ad-hoc PTY)
+    ///   - `Session(wi, si)` when resumed from a stored session
+    /// Returns None when the node is not visible (workspace collapsed or
+    /// filtered out). This is the inverse mapping used to keep the sidebar
+    /// cursor in sync with tab switching.
+    pub(crate) fn tree_index_for_pty(&self, pty_index: usize) -> Option<usize> {
+        let target_session_id = self
+            .ptys
+            .ptys
+            .get(pty_index)
+            .and_then(|s| s.info.session_id.clone());
+        self.sessions.tree.iter().position(|n| match n {
+            TreeNode::ActiveTab(pi) => *pi == pty_index,
+            TreeNode::Session(_, si) => {
+                let sid = &target_session_id;
+                let Some(sess) = self.sessions.sessions.get(*si) else {
+                    return false;
+                };
+                sid.as_ref().is_some_and(|id| &sess.id == id)
+            }
+            _ => false,
+        })
+    }
     fn workspace_cwd(&self, wi: usize) -> PathBuf {
         let Some(ws) = self.sessions.workspaces.get(wi) else {
             // Stale wi (e.g. RecentWorkspace session with deleted workspace) —

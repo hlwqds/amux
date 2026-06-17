@@ -107,16 +107,11 @@ impl super::App {
                 if let Some(s) = self.ptys.ptys.get(next) {
                     s.handle.reset_scroll();
                 }
-                // Sync sidebar cursor to the new active tab's tree node, so
-                // the selection follows tab switches. Tree layout (groups,
-                // collapsed workspaces) means active_pty index != tree index,
-                // so we locate the matching ActiveTab node by value.
-                if let Some(pos) = self
-                    .sessions
-                    .tree
-                    .iter()
-                    .position(|n| matches!(n, TreeNode::ActiveTab(p) if *p == next))
-                {
+                // Sync sidebar cursor to the new active tab's tree node.
+                // ActiveTab (ad-hoc PTY) and Session (resumed session) are
+                // both covered; if the node isn't visible (collapsed /
+                // filtered), the cursor stays put — safe degradation.
+                if let Some(pos) = self.tree_index_for_pty(next) {
                     self.sessions.tree_state.select(Some(pos));
                 }
                 self.view.status = format!(

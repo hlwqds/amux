@@ -1196,7 +1196,8 @@ impl App {
 #[cfg(test)]
 mod tests {
     use crate::app::tests::{sess, sess_with_agent, sess_with_time, test_app, ws};
-    use crate::types::{Agent, SortMode, TreeNode};
+    use crate::pty::PtyHandle;
+    use crate::types::{Agent, DiffSummary, PtySlot, RunningInfo, SortMode, TreeNode};
 
     // ── Test 1: cycle_sort_mode cycles through all variants ──
     #[test]
@@ -1333,5 +1334,130 @@ mod tests {
         // Selecting beyond the tree returns None
         app.sessions.tree_state.select(Some(99));
         assert!(app.selected_node().is_none());
+    }
+
+    // ── Test 6: tree_index_for_pty finds ActiveTab node (ad-hoc PTY) ──
+    #[test]
+    fn tree_index_for_pty_finds_active_tab_node() {
+        let mut app = test_app(vec![ws("w1", "ws", "/tmp/ws1")], vec![]);
+        // Ad-hoc PTY (no session_id) → appears as ActiveTab in tree
+        let handle = PtyHandle::spawn_shell(std::path::Path::new("/tmp"), (80, 24))
+            .expect("spawn_shell failed");
+        app.ptys.ptys.push(PtySlot {
+            id: "pty-0".into(),
+            handle,
+            info: RunningInfo {
+                workspace_path: std::path::PathBuf::from("/tmp/ws1"),
+                title: "ad-hoc".into(),
+                session_id: None,
+                started_at: 0,
+                completed: false,
+                agent: Agent::Claude,
+                project_type: crate::discovery::ProjectType::Unknown,
+                git_info: crate::types::GitInfo::default(),
+                worktree_branch: None,
+                check_status: crate::types::CheckStatus::Pending,
+                diff_summary: DiffSummary::default(),
+                snapshot_commit: None,
+            },
+            last_screen_hash: 0,
+            last_recording_at: std::time::Instant::now(),
+            process_stats: None,
+        });
+        app.rebuild_tree();
+
+        // Should find the ActiveTab(0) node
+        let pos = app.tree_index_for_pty(0);
+        assert!(pos.is_some(), "expected to find ActiveTab node");
+        let node = &app.sessions.tree[pos.unwrap()];
+        assert!(
+            matches!(node, TreeNode::ActiveTab(0)),
+            "expected ActiveTab(0), got {node:?}"
+        );
+    }
+
+    // ── Test 7: tree_index_for_pty finds Session node (resume session) ──
+    #[test]
+    fn tree_index_for_pty_finds_resume_session_node() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![sess("sess-abc", "resumed", "/tmp/ws1")],
+        );
+        // Resumed PTY (has session_id) → appears as Session node in tree,
+        // NOT as ActiveTab. This is the branch that was previously missed.
+        let handle = PtyHandle::spawn_shell(std::path::Path::new("/tmp"), (80, 24))
+            .expect("spawn_shell failed");
+        app.ptys.ptys.push(PtySlot {
+            id: "pty-0".into(),
+            handle,
+            info: RunningInfo {
+                workspace_path: std::path::PathBuf::from("/tmp/ws1"),
+                title: "resumed".into(),
+                session_id: Some("sess-abc".into()),
+                started_at: 0,
+                completed: false,
+                agent: Agent::Claude,
+                project_type: crate::discovery::ProjectType::Unknown,
+                git_info: crate::types::GitInfo::default(),
+                worktree_branch: None,
+                check_status: crate::types::CheckStatus::Pending,
+                diff_summary: DiffSummary::default(),
+                snapshot_commit: None,
+            },
+            last_screen_hash: 0,
+            last_recording_at: std::time::Instant::now(),
+            process_stats: None,
+        });
+        app.rebuild_tree();
+
+        // Should find the Session(_, 0) node whose session.id == "sess-abc"
+        let pos = app.tree_index_for_pty(0);
+        assert!(pos.is_some(), "expected to find Session node for resume");
+        let node = &app.sessions.tree[pos.unwrap()];
+        assert!(
+            matches!(node, TreeNode::Session(_, 0)),
+            "expected Session(_, 0), got {node:?}"
+        );
+    }
+
+    // ── Test 8: tree_index_for_pty returns None when workspace collapsed ──
+    #[test]
+    fn tree_index_for_pty_returns_none_when_hidden() {
+        let mut app = test_app(
+            vec![ws("w1", "ws", "/tmp/ws1")],
+            vec![sess("sess-abc", "resumed", "/tmp/ws1")],
+        );
+        let handle = PtyHandle::spawn_shell(std::path::Path::new("/tmp"), (80, 24))
+            .expect("spawn_shell failed");
+        app.ptys.ptys.push(PtySlot {
+            id: "pty-0".into(),
+            handle,
+            info: RunningInfo {
+                workspace_path: std::path::PathBuf::from("/tmp/ws1"),
+                title: "resumed".into(),
+                session_id: Some("sess-abc".into()),
+                started_at: 0,
+                completed: false,
+                agent: Agent::Claude,
+                project_type: crate::discovery::ProjectType::Unknown,
+                git_info: crate::types::GitInfo::default(),
+                worktree_branch: None,
+                check_status: crate::types::CheckStatus::Pending,
+                diff_summary: DiffSummary::default(),
+                snapshot_commit: None,
+            },
+            last_screen_hash: 0,
+            last_recording_at: std::time::Instant::now(),
+            process_stats: None,
+        });
+        // Collapse the workspace → Session node no longer in tree
+        app.sessions.workspaces[0].expanded = false;
+        app.rebuild_tree();
+
+        assert_eq!(
+            app.tree_index_for_pty(0),
+            None,
+            "collapsed workspace should hide the node"
+        );
     }
 }
