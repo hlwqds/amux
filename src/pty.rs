@@ -579,6 +579,16 @@ impl PtyHandle {
 
     pub fn resize(&self, size: (u16, u16)) {
         let mut t = self.term.lock();
+        // Skip the resize entirely when the size is unchanged. This avoids
+        // needless grid reallocation every frame (ui.rs calls resize on every
+        // render) and — critically — avoids resetting the alternate screen
+        // buffer, which was wiping agent UI overlays (e.g. OMP's Ctrl+O
+        let grid = t.grid();
+        let cur_cols = grid.columns();
+        let cur_lines = grid.screen_lines();
+        if cur_cols == size.0 as usize && cur_lines == size.1 as usize {
+            return;
+        }
         let term_size = TermSize::new(size.0 as usize, size.1 as usize);
         t.resize(term_size);
     }
@@ -847,5 +857,36 @@ mod tests {
         assert_eq!(handle.child_pid(), None);
         // write_input should fail on dead PTY.
         assert!(handle.write_input(b"hello").is_err());
+    }
+    #[test]
+    fn resize_same_size_preserves_screen_content() {
+        let handle = dead_pty_handle(0, true);
+        // Write some content into the terminal grid via the VT processor.
+        {
+            let mut processor = Processor::<StdSyncHandler>::new();
+            let mut t = handle.term.lock();
+            processor.advance(&mut *t, b"Hello, OMP!");
+        }
+        let before = handle.screen_contents();
+        assert!(
+            before.contains("Hello"),
+            "screen should contain written text, got: {before:?}"
+        );
+
+        // resize() with the same dimensions (80x24) — must be a no-op.
+        handle.resize((80, 24));
+        let after_same = handle.screen_contents();
+        assert_eq!(
+            before, after_same,
+            "same-size resize must not alter screen content"
+        );
+
+        // Sanity: a genuine resize still works (different size accepted).
+        handle.resize((100, 30));
+        assert_eq!(
+            handle.grid_size(),
+            (30, 100),
+            "resize to new size must apply"
+        );
     }
 }
