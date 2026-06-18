@@ -1036,7 +1036,7 @@ pub fn compute_agent_recommendations(sessions: &[crate::types::Session]) -> Vec<
         .collect();
 
     // Sort by total sessions (most used agents ranked higher)
-    metrics.sort_by(|a, b| b.total_sessions.cmp(&a.total_sessions));
+    metrics.sort_by_key(|b| std::cmp::Reverse(b.total_sessions));
     metrics
 }
 
