@@ -7,32 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-06-17
+
 ### Added
-- Tokyo Night theme preset with high-saturation accent colors
-- Bottom terminal split (amux mode 'c' key) spawning $SHELL in session cwd
-- Focus indicator in status bar (SIDEBAR / CHAT)
-- Status bar theme slots (status_bg, status_text, status_dim) with vivid defaults
-- Git diff colors in sidebar: green for insertions, red for deletions
-- Virtual workspace (Pinned/Recent) expand/collapse support
-- Unified theme panel selector (replaces cycle toggle)
-- Tracing structured logging (tracing + tracing-subscriber)
-- Default ChatMode changed to Passthrough (raw mode)
-- Build check in `amux doctor` (`cargo check` in source dir)
-- Config.unset_env field for user-configurable env variable removal
-- Agent::ALL constant and Agent::apply_term_env() deduplication
-- rayon parallel session discovery for cold-start performance
-- PTY write_input backpressure with 4KB chunked writes
+- `Alt+l` shortcut: sidebar → chat (symmetric with `Alt+h` chat → sidebar)
+- `is_idle()` method on PtyHandle for "thinking" UI indication
+- `tree_index_for_pty()` for sidebar cursor sync (ActiveTab + Session nodes)
 
 ### Changed
-- Status bar colors now fully theme-driven (no hardcoded white/black)
-- CPU/MEM stats only shown in status bar when Chat is focused
-- Help view cleaned up: removed duplicate keybinds, fixed descriptions
-- Config struct derives Default, simplified constructors
-- ProjectType derives Default with #[default] Unknown
+- Tab key is now mode-aware: Passthrough passes through to PTY for completion, Amux switches sidebar
+- Completion state (`PtyState::Completed`) is now determined solely by process liveness, not output idleness
+- `PtyHandle::resize()` skips work when dimensions are unchanged (eliminates per-frame grid reallocation)
+- OMP sessions now inject `PI_TUI_RESIZE_IN_PLACE=0` for compatibility with nested PTY rendering
+- Help popup text updated to reflect new keybindings (Alt+h/Alt+l, Tab mode behavior)
 
 ### Fixed
-- Removed dead InputMode::DiffSelect variant
-- Fixed Recent workspace showing 0 sessions when collapsed
-- Fixed outdated 'Press Enter to start a named Claude Code session' text
-- Removed non-existent Gsd agent from docs/chains.md and docs/config.md
-- watch.rs changed to NonRecursive to prevent fd exhaustion
+- Tab completion broken in agent programs (Claude Code, OMP) — Tab was unconditionally intercepted to switch sidebar
+- Status flapping between Running and Completed caused by 3-second idle timeout acting as completion proxy
+- Spurious "completed" desktop notifications fired on every Running→Completed transition
+- Ctrl+J/K switching tabs did not sync sidebar cursor (especially for resumed sessions with session_id)
+- OMP Ctrl+O expand overlay flashed and immediately reverted
+- CI failures: clippy 1.96 `unnecessary_sort_by` lint, `doc_lazy_continuation`, `field_reassign_with_default`
+- Release workflow blocked by `cargo publish` when `CARGO_REGISTRY_TOKEN` is absent
