@@ -61,85 +61,85 @@ fn lenient_config_parse(content: &str) -> Option<Config> {
     }
     // If that still fails, try field-by-field extraction
     let mut config = Config::default();
-    if let Some(ws) = value.get("workspaces") {
-        if let Ok(parsed) = serde_json::from_value::<Vec<Workspace>>(ws.clone()) {
-            config.workspaces = parsed;
-        }
+    if let Some(ws) = value.get("workspaces")
+        && let Ok(parsed) = serde_json::from_value::<Vec<Workspace>>(ws.clone())
+    {
+        config.workspaces = parsed;
     }
-    if let Some(theme) = value.get("theme") {
-        if let Ok(parsed) = serde_json::from_value(theme.clone()) {
-            config.theme = parsed;
-        }
+    if let Some(theme) = value.get("theme")
+        && let Ok(parsed) = serde_json::from_value(theme.clone())
+    {
+        config.theme = parsed;
     }
-    if let Some(keybinds) = value.get("keybinds") {
-        if let Ok(parsed) = serde_json::from_value(keybinds.clone()) {
-            config.keybinds = parsed;
-        }
+    if let Some(keybinds) = value.get("keybinds")
+        && let Ok(parsed) = serde_json::from_value(keybinds.clone())
+    {
+        config.keybinds = parsed;
     }
-    if let Some(templates) = value.get("templates") {
-        if let Ok(parsed) = serde_json::from_value(templates.clone()) {
-            config.templates = parsed;
-        }
+    if let Some(templates) = value.get("templates")
+        && let Ok(parsed) = serde_json::from_value(templates.clone())
+    {
+        config.templates = parsed;
     }
-    if let Some(automations) = value.get("automations") {
-        if let Ok(parsed) = serde_json::from_value(automations.clone()) {
-            config.automations = parsed;
-        }
+    if let Some(automations) = value.get("automations")
+        && let Ok(parsed) = serde_json::from_value(automations.clone())
+    {
+        config.automations = parsed;
     }
-    if let Some(archive_days) = value.get("archive_days") {
-        if let Ok(parsed) = serde_json::from_value(archive_days.clone()) {
-            config.archive_days = parsed;
-        }
+    if let Some(archive_days) = value.get("archive_days")
+        && let Ok(parsed) = serde_json::from_value(archive_days.clone())
+    {
+        config.archive_days = parsed;
     }
-    if let Some(remote_hosts) = value.get("remote_hosts") {
-        if let Ok(parsed) = serde_json::from_value(remote_hosts.clone()) {
-            config.remote_hosts = parsed;
-        }
+    if let Some(remote_hosts) = value.get("remote_hosts")
+        && let Ok(parsed) = serde_json::from_value(remote_hosts.clone())
+    {
+        config.remote_hosts = parsed;
     }
-    if let Some(plugins) = value.get("plugins") {
-        if let Ok(parsed) = serde_json::from_value(plugins.clone()) {
-            config.plugins = parsed;
-        }
+    if let Some(plugins) = value.get("plugins")
+        && let Ok(parsed) = serde_json::from_value(plugins.clone())
+    {
+        config.plugins = parsed;
     }
-    if let Some(serve_port) = value.get("serve_port") {
-        if let Ok(parsed) = serde_json::from_value(serve_port.clone()) {
-            config.serve_port = parsed;
-        }
+    if let Some(serve_port) = value.get("serve_port")
+        && let Ok(parsed) = serde_json::from_value(serve_port.clone())
+    {
+        config.serve_port = parsed;
     }
-    if let Some(serve_token) = value.get("serve_token") {
-        if let Ok(parsed) = serde_json::from_value(serve_token.clone()) {
-            config.serve_token = parsed;
-        }
+    if let Some(serve_token) = value.get("serve_token")
+        && let Ok(parsed) = serde_json::from_value(serve_token.clone())
+    {
+        config.serve_token = parsed;
     }
-    if let Some(check_command) = value.get("check_command") {
-        if let Ok(parsed) = serde_json::from_value(check_command.clone()) {
-            config.check_command = parsed;
-        }
+    if let Some(check_command) = value.get("check_command")
+        && let Ok(parsed) = serde_json::from_value(check_command.clone())
+    {
+        config.check_command = parsed;
     }
-    if let Some(token_budget) = value.get("token_budget") {
-        if let Ok(parsed) = serde_json::from_value(token_budget.clone()) {
-            config.token_budget = parsed;
-        }
+    if let Some(token_budget) = value.get("token_budget")
+        && let Ok(parsed) = serde_json::from_value(token_budget.clone())
+    {
+        config.token_budget = parsed;
     }
-    if let Some(chains) = value.get("chains") {
-        if let Ok(parsed) = serde_json::from_value(chains.clone()) {
-            config.chains = parsed;
-        }
+    if let Some(chains) = value.get("chains")
+        && let Ok(parsed) = serde_json::from_value(chains.clone())
+    {
+        config.chains = parsed;
     }
-    if let Some(unset_env) = value.get("unset_env") {
-        if let Ok(parsed) = serde_json::from_value(unset_env.clone()) {
-            config.unset_env = parsed;
-        }
+    if let Some(unset_env) = value.get("unset_env")
+        && let Ok(parsed) = serde_json::from_value(unset_env.clone())
+    {
+        config.unset_env = parsed;
     }
-    if let Some(recent_expanded) = value.get("recent_expanded") {
-        if let Ok(parsed) = serde_json::from_value(recent_expanded.clone()) {
-            config.recent_expanded = parsed;
-        }
+    if let Some(recent_expanded) = value.get("recent_expanded")
+        && let Ok(parsed) = serde_json::from_value(recent_expanded.clone())
+    {
+        config.recent_expanded = parsed;
     }
-    if let Some(pinned_expanded) = value.get("pinned_expanded") {
-        if let Ok(parsed) = serde_json::from_value(pinned_expanded.clone()) {
-            config.pinned_expanded = parsed;
-        }
+    if let Some(pinned_expanded) = value.get("pinned_expanded")
+        && let Ok(parsed) = serde_json::from_value(pinned_expanded.clone())
+    {
+        config.pinned_expanded = parsed;
     }
     tracing::warn!(
         "Lenient parse succeeded — recovered {} workspaces",
@@ -673,9 +673,10 @@ mod config_comprehensive_tests {
             session_ids: vec!["sess-a".into(), "sess-b".into()],
             expanded: true,
         };
-        let mut keybinds = Keybinds::default();
-        // Override one keybind to a non-default value to prove round-trip.
-        keybinds.quit = KeyBinding::ctrl("q");
+        let keybinds = Keybinds {
+            quit: KeyBinding::ctrl("q"),
+            ..Default::default()
+        };
 
         let original = Config {
             config_version: super::CONFIG_VERSION,

@@ -623,16 +623,16 @@ impl super::App {
                         let prev = (cur + len - 1) % len;
                         self.agent_state.select(Some(prev));
                     }
-                } else if let Some(&agent) = Agent::ALL.iter().find(|a| a.shortcut_key() == lowered) {
-                    if self.available_agents.contains(&agent) {
-                        self.agent_state.select(Some(
-                            self.available_agents
-                                .iter()
-                                .position(|a| *a == agent)
-                                .unwrap_or(0),
-                        ));
-                        self.confirm_input()?;
-                    }
+                } else if let Some(&agent) = Agent::ALL.iter().find(|a| a.shortcut_key() == lowered)
+                    && self.available_agents.contains(&agent)
+                {
+                    self.agent_state.select(Some(
+                        self.available_agents
+                            .iter()
+                            .position(|a| *a == agent)
+                            .unwrap_or(0),
+                    ));
+                    self.confirm_input()?;
                 }
             }
             KeyCode::Down => {

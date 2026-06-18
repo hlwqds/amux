@@ -72,7 +72,8 @@ impl super::App {
             return;
         }
         let cur = self.browse.state.selected().unwrap_or(0).min(len - 1) as isize;
-        self.browse.state
+        self.browse
+            .state
             .select(Some(((cur + delta).rem_euclid(len as isize)) as usize));
     }
 

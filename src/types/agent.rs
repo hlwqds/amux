@@ -131,6 +131,11 @@ impl Agent {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
                 Self::apply_term_env_with_extra(&mut cmd, unset_env);
+                // OMP's resize-in-place repaint (alt-screen borrow) is
+                // incompatible with amux's nested PTY rendering: it causes
+                // Ctrl+O expand (and similar overlays) to flash and revert.
+                // Disable it by default; users can override via .amux.json env.
+                cmd.env("PI_TUI_RESIZE_IN_PLACE", "0");
                 cmd
             }
         }
@@ -163,6 +168,7 @@ impl Agent {
                 let mut cmd = portable_pty::CommandBuilder::new("omp");
                 cmd.cwd(workspace_path);
                 Self::apply_term_env_with_extra(&mut cmd, unset_env);
+                cmd.env("PI_TUI_RESIZE_IN_PLACE", "0");
                 cmd.arg("--resume");
                 cmd.arg(session_id);
                 cmd

@@ -282,10 +282,7 @@ pub(crate) fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> 
                 })
             })
         });
-        let ws_path = match ws_path {
-            Some(p) => p,
-            None => return None,
-        };
+        let ws_path = ws_path?;
 
         let title = load_session_title(&id, Some(&ws_path))
             .or_else(|| extract_claude_title(path))
@@ -334,14 +331,10 @@ pub(crate) fn parse_session_from_path(path: &Path, workspaces: &[Workspace]) -> 
         })
     } else if is_codex {
         let (id, title, cwd) = parse_codex_session(path)?;
-        let ws_path = match ws_paths
+        let ws_path = ws_paths
             .iter()
             .find(|p| cwd == p.to_string_lossy().as_ref())
-            .cloned()
-        {
-            Some(p) => p,
-            None => return None,
-        };
+            .cloned()?;
         let pinned = crate::config::load_session_meta(&id, Some(&ws_path))
             .map(|m| m.pinned)
             .unwrap_or(false);

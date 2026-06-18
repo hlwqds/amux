@@ -1,6 +1,8 @@
 use std::{fs, path::Path};
 
-use crate::extraction::{clean_user_message, extract_claude_message_text, extract_text_from_content};
+use crate::extraction::{
+    clean_user_message, extract_claude_message_text, extract_text_from_content,
+};
 use crate::types::ClaudeRecord;
 
 pub(crate) fn extract_claude_title(path: &Path) -> Option<String> {

@@ -563,6 +563,7 @@ impl App {
     /// A PTY appears in the tree as either:
     ///   - `ActiveTab(pi)` when it has no session_id (ad-hoc PTY)
     ///   - `Session(wi, si)` when resumed from a stored session
+    ///
     /// Returns None when the node is not visible (workspace collapsed or
     /// filtered out). This is the inverse mapping used to keep the sidebar
     /// cursor in sync with tab switching.
@@ -981,24 +982,21 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
     // Clean up any worktrees created during the session
     // Persist session IDs for any PTYs that completed or are still running
     for slot in &mut app.ptys.ptys {
-        if slot.info.session_id.is_none() {
-            if let Some(found) =
+        if slot.info.session_id.is_none()
+            && let Some(found) =
                 find_recent_session_for_workspace(&slot.info.workspace_path, slot.info.started_at)
+        {
+            slot.info.session_id = Some(found.id.clone());
+            if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                let _ = crate::config::save_session_title(&found.id, &slot.info.title);
+            }
+            if let Some(ws) = app.sessions.workspaces.iter_mut().find(|ws| {
+                ws.path.as_deref() == Some(&slot.info.workspace_path)
+                    || (ws.path.is_none()
+                        && slot.info.workspace_path == data_dir().join("workspaces").join(&ws.id))
+            }) && !ws.session_ids.contains(&found.id)
             {
-                slot.info.session_id = Some(found.id.clone());
-                if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
-                    let _ = crate::config::save_session_title(&found.id, &slot.info.title);
-                }
-                if let Some(ws) = app.sessions.workspaces.iter_mut().find(|ws| {
-                    ws.path.as_deref() == Some(&slot.info.workspace_path)
-                        || (ws.path.is_none()
-                            && slot.info.workspace_path
-                                == data_dir().join("workspaces").join(&ws.id))
-                }) {
-                    if !ws.session_ids.contains(&found.id) {
-                        ws.session_ids.push(found.id.clone());
-                    }
-                }
+                ws.session_ids.push(found.id.clone());
             }
         }
     }
@@ -1021,11 +1019,6 @@ pub fn run(serve: bool) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use crate::types::TreeNode;
-
-    /// Find the first tree node matching a predicate. Returns its index.
-    fn find_tree_node(tree: &[TreeNode], predicate: impl Fn(&TreeNode) -> bool) -> Option<usize> {
-        tree.iter().position(predicate)
-    }
 
     /// Count tree nodes matching a predicate.
     fn count_tree_nodes(tree: &[TreeNode], predicate: impl Fn(&TreeNode) -> bool) -> usize {

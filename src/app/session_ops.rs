@@ -269,28 +269,27 @@ impl App {
     fn match_unmatched_ptys(&mut self, _loaded: &Vec<Session>) -> bool {
         let mut config_changed = false;
         for slot in &mut self.ptys.ptys {
-            if slot.info.session_id.is_none() {
-                if let Some(found) = find_recent_session_for_workspace(
+            if slot.info.session_id.is_none()
+                && let Some(found) = find_recent_session_for_workspace(
                     &slot.info.workspace_path,
                     slot.info.started_at,
-                ) {
-                    slot.info.session_id = Some(found.id.clone());
-                    // Save user title
-                    if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
-                        let _ = crate::config::save_session_title(&found.id, &slot.info.title);
-                    }
-                    // Persist to workspace
-                    if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
-                        ws.path.as_deref() == Some(&slot.info.workspace_path)
-                            || (ws.path.is_none()
-                                && slot.info.workspace_path
-                                    == data_dir().join("workspaces").join(&ws.id))
-                    }) {
-                        if !ws.session_ids.contains(&found.id) {
-                            ws.session_ids.push(found.id.clone());
-                            config_changed = true;
-                        }
-                    }
+                )
+            {
+                slot.info.session_id = Some(found.id.clone());
+                // Save user title
+                if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                    let _ = crate::config::save_session_title(&found.id, &slot.info.title);
+                }
+                // Persist to workspace
+                if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                    ws.path.as_deref() == Some(&slot.info.workspace_path)
+                        || (ws.path.is_none()
+                            && slot.info.workspace_path
+                                == data_dir().join("workspaces").join(&ws.id))
+                }) && !ws.session_ids.contains(&found.id)
+                {
+                    ws.session_ids.push(found.id.clone());
+                    config_changed = true;
                 }
             }
         }
@@ -1043,28 +1042,26 @@ impl App {
                     // Record git state + diff summary
                     collect_git_info(slot);
                     // Match new PTY to its session JSONL (targeted, not full scan)
-                    if slot.info.session_id.is_none() {
-                        if let Some(found) = find_recent_session_for_workspace(
+                    if slot.info.session_id.is_none()
+                        && let Some(found) = find_recent_session_for_workspace(
                             &slot.info.workspace_path,
                             slot.info.started_at,
-                        ) {
-                            slot.info.session_id = Some(found.id.clone());
-                            // Save user-provided title to override file
-                            if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
-                                let _ =
-                                    crate::config::save_session_title(&found.id, &slot.info.title);
-                            }
-                            // Persist session ID to workspace
-                            if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
-                                ws.path.as_deref() == Some(&slot.info.workspace_path)
-                                    || (ws.path.is_none()
-                                        && slot.info.workspace_path
-                                            == data_dir().join("workspaces").join(&ws.id))
-                            }) {
-                                if !ws.session_ids.contains(&found.id) {
-                                    ws.session_ids.push(found.id.clone());
-                                }
-                            }
+                        )
+                    {
+                        slot.info.session_id = Some(found.id.clone());
+                        // Save user-provided title to override file
+                        if !slot.info.title.is_empty() && slot.info.title != "unnamed" {
+                            let _ = crate::config::save_session_title(&found.id, &slot.info.title);
+                        }
+                        // Persist session ID to workspace
+                        if let Some(ws) = self.sessions.workspaces.iter_mut().find(|ws| {
+                            ws.path.as_deref() == Some(&slot.info.workspace_path)
+                                || (ws.path.is_none()
+                                    && slot.info.workspace_path
+                                        == data_dir().join("workspaces").join(&ws.id))
+                        }) && !ws.session_ids.contains(&found.id)
+                        {
+                            ws.session_ids.push(found.id.clone());
                         }
                     }
                     // Save snapshot_commit to session meta for rollback support

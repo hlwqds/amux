@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use crate::app::tests::test_app;
     use crate::budget::TokenBudget;
     use crate::util::centered_rect;

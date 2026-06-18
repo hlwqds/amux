@@ -232,10 +232,10 @@ pub fn find_recent_session_for_workspace(ws_path: &Path, started_at: u64) -> Opt
             .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        if mtime >= started_at {
-            if let Some(session) = parse_session_from_path(path, &workspaces) {
-                candidates.push(session);
-            }
+        if mtime >= started_at
+            && let Some(session) = parse_session_from_path(path, &workspaces)
+        {
+            candidates.push(session);
         }
     }
     // Return the most recent one

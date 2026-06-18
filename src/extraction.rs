@@ -67,7 +67,6 @@ pub fn parse_gsd_session(path: &Path) -> Option<(String, Option<String>, Option<
     Some((id, title, cwd))
 }
 
-
 pub fn parse_codex_session(path: &Path) -> Option<(String, Option<String>, String)> {
     let content = fs::read_to_string(path).ok()?;
     let mut id = String::new();
@@ -147,7 +146,6 @@ pub fn extract_text_from_content(content: serde_json::Value) -> Option<String> {
         _ => None,
     }
 }
-
 
 /// Preview entry: a role + truncated text.
 #[derive(Clone, Debug)]
